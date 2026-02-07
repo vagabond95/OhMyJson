@@ -130,6 +130,29 @@ struct SettingsWindowView: View {
             Text(versionString)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
+
+            Button(action: {
+                if let url = URL(string: "https://github.com/vagabond95/OhMyJson") {
+                    NSWorkspace.shared.open(url)
+                }
+            }) {
+                HStack(spacing: 4) {
+                    Image("github_mark")
+                        .resizable()
+                        .frame(width: 14, height: 14)
+                    Text("GitHub")
+                        .font(.system(.caption, design: .monospaced))
+                }
+                .foregroundColor(theme.secondaryText)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
         }
         .frame(maxWidth: .infinity)
     }
