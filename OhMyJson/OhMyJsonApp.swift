@@ -2,16 +2,24 @@
 //  OhMyJsonApp.swift
 //  OhMyJson
 //
-//  Created by USER on 2/5/26.
-//
 
 import SwiftUI
 
 @main
 struct OhMyJsonApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        #if os(macOS)
+        Settings {
+            EmptyView()
         }
+        #else
+        WindowGroup {
+            Text("OhMyJson is a macOS-only application")
+        }
+        #endif
     }
 }

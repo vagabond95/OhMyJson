@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00012F345C0000000001 /* ConfettiSwiftUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		CED10E642F345B5500363B5C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -35,16 +39,6 @@
 			path = OhMyJson;
 			sourceTree = "<group>";
 		};
-		CED10E662F345B5500363B5C /* OhMyJsonTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = OhMyJsonTests;
-			sourceTree = "<group>";
-		};
-		CED10E702F345B5500363B5C /* OhMyJsonUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = OhMyJsonUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -76,8 +71,6 @@
 			isa = PBXGroup;
 			children = (
 				CED10E572F345B5400363B5C /* OhMyJson */,
-				CED10E662F345B5500363B5C /* OhMyJsonTests */,
-				CED10E702F345B5500363B5C /* OhMyJsonUITests */,
 				CED10E562F345B5400363B5C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +105,7 @@
 			);
 			name = OhMyJson;
 			packageProductDependencies = (
+				CE0A00012F345C0000000001 /* ConfettiSwiftUI */,
 			);
 			productName = OhMyJson;
 			productReference = CED10E552F345B5400363B5C /* OhMyJson.app */;
@@ -129,9 +123,6 @@
 			);
 			dependencies = (
 				CED10E652F345B5500363B5C /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				CED10E662F345B5500363B5C /* OhMyJsonTests */,
 			);
 			name = OhMyJsonTests;
 			packageProductDependencies = (
@@ -152,9 +143,6 @@
 			);
 			dependencies = (
 				CED10E6F2F345B5500363B5C /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				CED10E702F345B5500363B5C /* OhMyJsonUITests */,
 			);
 			name = OhMyJsonUITests;
 			packageProductDependencies = (
@@ -195,6 +183,9 @@
 			);
 			mainGroup = CED10E4C2F345B5400363B5C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CED10E562F345B5400363B5C /* Products */;
 			projectDirPath = "";
@@ -593,6 +584,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/simibac/ConfettiSwiftUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CE0A00012F345C0000000001 /* ConfettiSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
+			productName = ConfettiSwiftUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CED10E4D2F345B5400363B5C /* Project object */;
 }

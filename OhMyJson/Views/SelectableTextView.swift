@@ -1,0 +1,400 @@
+//
+//  SelectableTextView.swift
+//  OhMyJson
+//
+//  Read-only NSTextView wrapper that enables text selection with optional line number gutter
+//
+
+import SwiftUI
+import AppKit
+
+#if os(macOS)
+/// A read-only text view that supports text selection, wrapping NSTextView
+/// Optionally displays line numbers in a non-selectable gutter
+struct SelectableTextView: NSViewRepresentable {
+    let attributedString: NSAttributedString
+    let lineNumberString: NSAttributedString?
+    let backgroundColor: NSColor
+    @Binding var scrollPosition: CGFloat
+    var scrollToRange: NSRange?
+    var isRestoringTabState: Bool
+
+    init(
+        attributedString: NSAttributedString,
+        lineNumberString: NSAttributedString? = nil,
+        backgroundColor: NSColor = AppSettings.shared.currentTheme.nsBackground,
+        scrollPosition: Binding<CGFloat>,
+        scrollToRange: NSRange? = nil,
+        isRestoringTabState: Bool = false
+    ) {
+        self.attributedString = attributedString
+        self.lineNumberString = lineNumberString
+        self.backgroundColor = backgroundColor
+        self._scrollPosition = scrollPosition
+        self.scrollToRange = scrollToRange
+        self.isRestoringTabState = isRestoringTabState
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        // Create container for gutter + content
+        let containerView = NSView()
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = backgroundColor.cgColor
+
+        // Create the main content scroll view with 1.5x scroll speed
+        let contentScrollView = FastScrollView()
+        let contentTextView = NSTextView()
+
+        // Configure text view sizing
+        contentTextView.minSize = NSSize(width: 0, height: 0)
+        contentTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        contentTextView.isVerticallyResizable = true
+        contentTextView.isHorizontallyResizable = true
+        contentTextView.autoresizingMask = [.width]
+
+        // Configure scroll view
+        contentScrollView.documentView = contentTextView
+        contentScrollView.backgroundColor = backgroundColor
+        contentScrollView.drawsBackground = true
+        contentScrollView.hasVerticalScroller = true
+        contentScrollView.hasHorizontalScroller = true
+        contentScrollView.autohidesScrollers = true
+
+        // Configure content text view for read-only selection
+        contentTextView.isEditable = false
+        contentTextView.isSelectable = true
+        contentTextView.backgroundColor = backgroundColor
+        contentTextView.drawsBackground = true
+
+        // Disable unwanted features
+        contentTextView.isAutomaticQuoteSubstitutionEnabled = false
+        contentTextView.isAutomaticDashSubstitutionEnabled = false
+        contentTextView.isAutomaticTextReplacementEnabled = false
+        contentTextView.isAutomaticSpellingCorrectionEnabled = false
+        contentTextView.isContinuousSpellCheckingEnabled = false
+
+        // Set text container properties for proper layout
+        contentTextView.textContainer?.widthTracksTextView = false
+        contentTextView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
+        // Set initial content
+        contentTextView.textStorage?.setAttributedString(attributedString)
+
+        // Force layout computation so scroll restoration works on newly created views
+        contentTextView.layoutManager?.ensureLayout(for: contentTextView.textContainer!)
+
+        // Store references
+        context.coordinator.contentScrollView = contentScrollView
+        context.coordinator.contentTextView = contentTextView
+
+        // Create line number gutter if needed
+        if let lineNumbers = lineNumberString {
+            // Use EventForwardingScrollView for gutter - forwards scroll events to content
+            // This ensures scrolling over gutter area uses content's FastScrollView (1.5x speed)
+            let gutterScrollView = EventForwardingScrollView()
+            gutterScrollView.targetScrollView = contentScrollView
+            let gutterTextView = NSTextView()
+
+            // Configure gutter text view sizing
+            gutterTextView.minSize = NSSize(width: 0, height: 0)
+            gutterTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            gutterTextView.isVerticallyResizable = true
+            gutterTextView.isHorizontallyResizable = true
+            gutterTextView.autoresizingMask = [.width]
+
+            // Configure gutter scroll view - hide scrollers, synced by content
+            gutterScrollView.documentView = gutterTextView
+            gutterScrollView.backgroundColor = backgroundColor
+            gutterScrollView.drawsBackground = true
+            gutterScrollView.hasVerticalScroller = false
+            gutterScrollView.hasHorizontalScroller = false
+            // Disable scroll event posting - gutter is slave to content
+            gutterScrollView.contentView.postsBoundsChangedNotifications = false
+
+            // Configure gutter text view - non-selectable
+            gutterTextView.isEditable = false
+            gutterTextView.isSelectable = false
+            gutterTextView.backgroundColor = backgroundColor
+            gutterTextView.drawsBackground = true
+
+            // Match text container settings
+            gutterTextView.textContainer?.widthTracksTextView = false
+            gutterTextView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
+            // Set line numbers content
+            gutterTextView.textStorage?.setAttributedString(lineNumbers)
+
+            // Calculate gutter width based on content
+            let gutterWidth = calculateGutterWidth(for: lineNumbers)
+
+            // Store gutter references
+            context.coordinator.gutterScrollView = gutterScrollView
+            context.coordinator.gutterTextView = gutterTextView
+            context.coordinator.gutterWidth = gutterWidth
+
+            // Link content's FastScrollView to sync gutter immediately during scroll
+            contentScrollView.syncScrollView = gutterScrollView
+
+            // Add views to container
+            gutterScrollView.translatesAutoresizingMaskIntoConstraints = false
+            contentScrollView.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(gutterScrollView)
+            containerView.addSubview(contentScrollView)
+
+            NSLayoutConstraint.activate([
+                gutterScrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+                gutterScrollView.topAnchor.constraint(equalTo: containerView.topAnchor),
+                gutterScrollView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+                gutterScrollView.widthAnchor.constraint(equalToConstant: gutterWidth),
+
+                contentScrollView.leadingAnchor.constraint(equalTo: gutterScrollView.trailingAnchor),
+                contentScrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+                contentScrollView.topAnchor.constraint(equalTo: containerView.topAnchor),
+                contentScrollView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+            ])
+
+            // No longer need Notification-based sync for gutter
+            // Content's FastScrollView.scrollWheel() handles gutter sync directly
+        } else {
+            // No gutter - just use content scroll view directly
+            contentScrollView.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(contentScrollView)
+
+            NSLayoutConstraint.activate([
+                contentScrollView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+                contentScrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+                contentScrollView.topAnchor.constraint(equalTo: containerView.topAnchor),
+                contentScrollView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+            ])
+        }
+
+        // Restore scroll position IMMEDIATELY (same run loop, before view appears)
+        if scrollPosition > 0 {
+            let clipView = contentScrollView.contentView
+            clipView.scroll(to: NSPoint(x: 0, y: scrollPosition))
+            contentScrollView.reflectScrolledClipView(clipView)
+            // Sync gutter if present
+            if let gutterScrollView = context.coordinator.gutterScrollView {
+                let gutterClipView = gutterScrollView.contentView
+                gutterClipView.scroll(to: NSPoint(x: 0, y: scrollPosition))
+                gutterScrollView.reflectScrolledClipView(gutterClipView)
+            }
+        }
+
+        // Pre-seed lastScrolledRange so updateNSView won't re-scroll to the search result
+        // on tab restore. This ensures saved scroll position takes priority over search position.
+        context.coordinator.lastScrolledRange = scrollToRange
+
+        // Observe scroll for position binding (boundsDidChangeNotification only - more efficient than didLiveScrollNotification)
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.scrollViewDidScroll(_:)),
+            name: NSView.boundsDidChangeNotification,
+            object: contentScrollView.contentView
+        )
+
+        return containerView
+    }
+
+    private func calculateGutterWidth(for lineNumbers: NSAttributedString) -> CGFloat {
+        // Measure the width needed for the line numbers
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
+        let textStorage = NSTextStorage(attributedString: lineNumbers)
+
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+
+        layoutManager.ensureLayout(for: textContainer)
+        let rect = layoutManager.usedRect(for: textContainer)
+
+        // Add some padding
+        return ceil(rect.width) + 8
+    }
+
+    func updateNSView(_ containerView: NSView, context: Context) {
+        // Sync coordinator's parent reference so it sees latest isRestoringTabState
+        context.coordinator.parent = self
+
+        guard let contentTextView = context.coordinator.contentTextView,
+              let contentScrollView = context.coordinator.contentScrollView else { return }
+
+        // Update content if changed
+        let contentChanged = contentTextView.attributedString() != attributedString
+        if contentChanged {
+            // Preserve selection if possible
+            let selectedRange = contentTextView.selectedRange()
+
+            contentTextView.textStorage?.setAttributedString(attributedString)
+            contentTextView.layoutManager?.ensureLayout(for: contentTextView.textContainer!)
+
+            // Restore selection if valid
+            let maxLocation = attributedString.length
+            if selectedRange.location < maxLocation {
+                let validLength = min(selectedRange.length, maxLocation - selectedRange.location)
+                contentTextView.setSelectedRange(NSRange(location: selectedRange.location, length: validLength))
+            }
+        }
+
+        // Update line numbers if present
+        if let lineNumbers = lineNumberString,
+           let gutterTextView = context.coordinator.gutterTextView,
+           let gutterScrollView = context.coordinator.gutterScrollView {
+            if gutterTextView.attributedString() != lineNumbers {
+                gutterTextView.textStorage?.setAttributedString(lineNumbers)
+                gutterTextView.layoutManager?.ensureLayout(for: gutterTextView.textContainer!)
+
+                // Recalculate and update gutter width if needed
+                let newWidth = calculateGutterWidth(for: lineNumbers)
+                if abs(newWidth - context.coordinator.gutterWidth) > 1 {
+                    context.coordinator.gutterWidth = newWidth
+                    // Update constraint
+                    for constraint in gutterScrollView.constraints {
+                        if constraint.firstAttribute == .width {
+                            constraint.constant = newWidth
+                            break
+                        }
+                    }
+                }
+            }
+            gutterTextView.backgroundColor = backgroundColor
+            gutterScrollView.backgroundColor = backgroundColor
+        }
+
+        // Update background color
+        containerView.layer?.backgroundColor = backgroundColor.cgColor
+        contentScrollView.backgroundColor = backgroundColor
+        contentTextView.backgroundColor = backgroundColor
+
+        // During tab restoration: restore saved scroll position, skip search-to-range
+        if isRestoringTabState {
+            let clipView = contentScrollView.contentView
+            clipView.scroll(to: NSPoint(x: 0, y: scrollPosition))
+            contentScrollView.reflectScrolledClipView(clipView)
+            // Sync gutter
+            if let gutterScrollView = context.coordinator.gutterScrollView {
+                let gutterClipView = gutterScrollView.contentView
+                gutterClipView.scroll(to: NSPoint(x: 0, y: scrollPosition))
+                gutterScrollView.reflectScrolledClipView(gutterClipView)
+            }
+            // Pre-seed so next non-restoring update won't re-scroll to the same range
+            context.coordinator.lastScrolledRange = scrollToRange
+            return
+        }
+
+        // Scroll to specific range if requested (for search navigation)
+        if let range = scrollToRange, range != context.coordinator.lastScrolledRange {
+            context.coordinator.lastScrolledRange = range
+            context.coordinator.scrollToCharacterRange(range, animated: true)
+        }
+        // Note: Scroll position is restored synchronously in makeNSView()
+        // No async restore here - it was causing event blocking and position jumps
+    }
+
+    class Coordinator: NSObject {
+        var parent: SelectableTextView
+        weak var contentScrollView: NSScrollView?
+        weak var contentTextView: NSTextView?
+        weak var gutterScrollView: NSScrollView?
+        weak var gutterTextView: NSTextView?
+        var gutterWidth: CGFloat = 0
+        /// Tracks the last scrolled range to avoid duplicate scrolls
+        var lastScrolledRange: NSRange?
+        /// Flag to prevent scroll binding updates during programmatic scrolls (search navigation)
+        private var isScrollingToRange = false
+
+        init(_ parent: SelectableTextView) {
+            self.parent = parent
+        }
+
+        @objc func scrollViewDidScroll(_ notification: Notification) {
+            // Block updates during tab state restoration or programmatic scroll-to-range animation
+            guard !parent.isRestoringTabState,
+                  !isScrollingToRange,
+                  let scrollView = contentScrollView else { return }
+            let clipView = scrollView.contentView
+
+            // Get current scroll Y position
+            let currentY = clipView.bounds.origin.y
+
+            // Only update if position actually changed (with small threshold to reduce noise)
+            if abs(parent.scrollPosition - currentY) > 0.5 {
+                DispatchQueue.main.async {
+                    self.parent.scrollPosition = currentY
+                }
+            }
+        }
+
+        // Gutter sync is now handled directly in FastScrollView.scrollWheel()
+        // No Notification-based sync needed - eliminates feedback loops and timing issues
+
+        /// Scrolls to a specific character range with center alignment and animation
+        func scrollToCharacterRange(_ range: NSRange, animated: Bool = true) {
+            guard let scrollView = contentScrollView,
+                  let textView = contentTextView,
+                  let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else { return }
+
+            // Ensure range is valid
+            guard range.location < textView.string.count else { return }
+
+            // Get the glyph range and bounding rect for the character range
+            let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+
+            // Add text container origin offset
+            let textContainerOrigin = textView.textContainerOrigin
+            let adjustedRect = NSRect(
+                x: rect.origin.x + textContainerOrigin.x,
+                y: rect.origin.y + textContainerOrigin.y,
+                width: rect.width,
+                height: rect.height
+            )
+
+            // Calculate scroll position to center the target in the visible area
+            let visibleHeight = scrollView.contentView.bounds.height
+            let targetY = adjustedRect.origin.y - (visibleHeight / 2) + (adjustedRect.height / 2)
+
+            // Clamp to valid scroll range
+            let maxY = max(0, (textView.frame.height - visibleHeight))
+            let clampedY = max(0, min(targetY, maxY))
+
+            isScrollingToRange = true
+
+            if animated {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.15
+                    context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: clampedY))
+                    // Animate gutter scroll too
+                    if let gutterScrollView = self.gutterScrollView {
+                        gutterScrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: clampedY))
+                    }
+                } completionHandler: { [weak self] in
+                    self?.isScrollingToRange = false
+                    scrollView.reflectScrolledClipView(scrollView.contentView)
+                    if let gutterScrollView = self?.gutterScrollView {
+                        gutterScrollView.reflectScrolledClipView(gutterScrollView.contentView)
+                    }
+                }
+            } else {
+                scrollView.contentView.scroll(to: NSPoint(x: 0, y: clampedY))
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+                if let gutterScrollView = gutterScrollView {
+                    gutterScrollView.contentView.scroll(to: NSPoint(x: 0, y: clampedY))
+                    gutterScrollView.reflectScrolledClipView(gutterScrollView.contentView)
+                }
+                isScrollingToRange = false
+            }
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+    }
+}
+#endif

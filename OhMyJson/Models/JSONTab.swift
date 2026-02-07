@@ -1,0 +1,97 @@
+//
+//  JSONTab.swift
+//  OhMyJson
+//
+//  Tab model for managing individual JSON editing sessions
+//
+
+import Foundation
+
+/// View mode for the right panel
+enum ViewMode: String, CaseIterable {
+    case beautify = "Beautify"
+    case tree = "Tree"
+}
+
+struct JSONTab: Identifiable, Equatable {
+    let id: UUID
+    var inputText: String
+    var parseResult: JSONParseResult?
+    var createdAt: Date
+    var lastAccessedAt: Date
+
+    /// Display title for the tab (e.g., "Tab 1", "Tab 2")
+    var title: String
+
+    /// Search state for this tab
+    var searchText: String
+    var beautifySearchIndex: Int
+    var treeSearchIndex: Int
+
+    /// Current view mode (Beautify or Tree)
+    var viewMode: ViewMode
+
+    /// Whether the search bar is visible
+    var isSearchVisible: Bool
+
+    /// Scroll positions
+    var inputScrollPosition: CGFloat
+    var beautifyScrollPosition: CGFloat
+
+    /// Selected node ID for tree view scroll anchor
+    var treeSelectedNodeId: UUID?
+
+    init(
+        id: UUID = UUID(),
+        inputText: String = "",
+        parseResult: JSONParseResult? = nil,
+        createdAt: Date = Date(),
+        lastAccessedAt: Date = Date(),
+        title: String = "",
+        searchText: String = "",
+        beautifySearchIndex: Int = 0,
+        treeSearchIndex: Int = 0,
+        viewMode: ViewMode = .beautify,
+        isSearchVisible: Bool = false,
+        inputScrollPosition: CGFloat = 0,
+        beautifyScrollPosition: CGFloat = 0,
+        treeSelectedNodeId: UUID? = nil
+    ) {
+        self.id = id
+        self.inputText = inputText
+        self.parseResult = parseResult
+        self.createdAt = createdAt
+        self.lastAccessedAt = lastAccessedAt
+        self.title = title
+        self.searchText = searchText
+        self.beautifySearchIndex = beautifySearchIndex
+        self.treeSearchIndex = treeSearchIndex
+        self.viewMode = viewMode
+        self.isSearchVisible = isSearchVisible
+        self.inputScrollPosition = inputScrollPosition
+        self.beautifyScrollPosition = beautifyScrollPosition
+        self.treeSelectedNodeId = treeSelectedNodeId
+    }
+
+    /// Update last accessed time to current
+    mutating func markAsAccessed() {
+        lastAccessedAt = Date()
+    }
+
+    /// Check if tab has any content
+    var isEmpty: Bool {
+        return inputText.isEmpty
+    }
+
+    /// Check if tab has valid JSON
+    var hasValidJSON: Bool {
+        if case .success = parseResult {
+            return true
+        }
+        return false
+    }
+
+    static func == (lhs: JSONTab, rhs: JSONTab) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
