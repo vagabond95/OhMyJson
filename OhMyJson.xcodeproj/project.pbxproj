@@ -39,6 +39,11 @@
 			path = OhMyJson;
 			sourceTree = "<group>";
 		};
+		CED10FD92F375F5B00363B5C /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +75,7 @@
 		CED10E4C2F345B5400363B5C = {
 			isa = PBXGroup;
 			children = (
+				CED10FD92F375F5B00363B5C /* Resources */,
 				CED10E572F345B5400363B5C /* OhMyJson */,
 				CED10E562F345B5400363B5C /* Products */,
 			);
@@ -102,6 +108,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CED10E572F345B5400363B5C /* OhMyJson */,
+				CED10FD92F375F5B00363B5C /* Resources */,
 			);
 			name = OhMyJson;
 			packageProductDependencies = (
