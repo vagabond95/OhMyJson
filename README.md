@@ -36,7 +36,13 @@ Formatting JSON is something developers do dozens of times a day — yet most re
 
 Download the latest `.dmg` from [GitHub Releases](https://github.com/vagabond95/OhMyJson/releases), open the disk image, and drag **OhMyJson.app** to `/Applications`.
 
-> **Note:** OhMyJson is distributed unsigned (free Apple Developer account). On first launch, right-click the app → **Open**, then confirm in the dialog.
+> **Note:** OhMyJson is not notarized (built with a free Apple Developer account), so macOS Gatekeeper will block the first launch. To open it:
+>
+> 1. Open **System Settings → Privacy & Security**
+> 2. Scroll down — you'll see *"OhMyJson was blocked from use because it is not from an identified developer."*
+> 3. Click **Open Anyway** and confirm
+>
+> You only need to do this once.
 
 ### Build from Source
 
