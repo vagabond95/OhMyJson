@@ -9,6 +9,7 @@ import SwiftUI
 
 class OnboardingWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private var keyMonitor: Any?
     var onDismiss: (() -> Void)?
 
     var isShowing: Bool {
@@ -46,6 +47,15 @@ class OnboardingWindowController: NSObject, NSWindowDelegate {
 
         self.window = window
 
+        // Listen for ⌘J to dismiss onboarding
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.modifierFlags.contains(.command) && event.keyCode == 0x26 /* kVK_ANSI_J */ {
+                self?.dismissWithFade()
+                return nil
+            }
+            return event
+        }
+
         NSApp.setActivationPolicy(.regular)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -53,6 +63,11 @@ class OnboardingWindowController: NSObject, NSWindowDelegate {
 
     private func dismissWithFade() {
         guard let window = window else { return }
+
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
 
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.3
