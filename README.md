@@ -32,15 +32,9 @@ Formatting JSON is something developers do dozens of times a day — yet most re
 
 ## Installation
 
-### Homebrew
+### Download
 
-```bash
-brew install --cask ohmyjson
-```
-
-### Manual Download
-
-Download the latest `.zip` from [GitHub Releases](https://github.com/vagabond95/OhMyJson/releases), extract, and drag **OhMyJson.app** to `/Applications`.
+Download the latest `.dmg` from [GitHub Releases](https://github.com/vagabond95/OhMyJson/releases), open the disk image, and drag **OhMyJson.app** to `/Applications`.
 
 > **Note:** OhMyJson is distributed unsigned (free Apple Developer account). On first launch, right-click the app → **Open**, then confirm in the dialog.
 
@@ -73,7 +67,7 @@ macOS will prompt you on first launch. The app cannot intercept the hotkey witho
 ### Basic Workflow
 
 1. Copy any JSON to your clipboard
-2. Press **⌘⇧V** — OhMyJson opens and parses it instantly
+2. Press **⌘ J** — OhMyJson opens and parses it instantly
 3. Explore the tree, search, or copy the formatted output
 
 If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor — paste or type JSON directly.
@@ -82,17 +76,13 @@ If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor
 
 | Shortcut | Action |
 |----------|--------|
-| **⌘⇧V** | Open viewer + parse clipboard *(global, customizable)* |
+| **⌘J** | Open viewer + parse clipboard *(global, customizable)* |
 | **⌘N** | New tab |
 | **⌘W** | Close tab |
+| **⌘⇧[** ,  **⌘⇧]** | Previous / Next tab |
 | **⌘F** | Search |
-| **⌘]** | Expand all nodes |
-| **⌘[** | Collapse all nodes |
 | **⌘1** | Beautified view |
 | **⌘2** | Tree view |
-| **⌘⇧[** / **⌘⇧]** | Previous / Next tab |
-| **Enter** / **⌘G** | Next search result |
-| **⇧Enter** / **⌘⇧G** | Previous search result |
 
 ## Tech Stack
 
@@ -104,14 +94,6 @@ If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor
 | **Dependencies** | [ConfettiSwiftUI](https://github.com/simibac/ConfettiSwiftUI) |
 
 ## Contributing
-
-Contributions are welcome — whether it's a bug fix, a feature idea, or a docs improvement.
-
-1. Fork the repository
-2. Create your branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 Found a bug or have a suggestion? [Open an issue](https://github.com/vagabond95/OhMyJson/issues).
 
