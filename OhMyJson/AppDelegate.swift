@@ -224,28 +224,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Trim whitespace before processing
+        let trimmed = clipboardText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            WindowManager.shared.createNewTab(with: nil)
+            return
+        }
+
         // Check size (5MB limit)
-        let sizeInBytes = clipboardText.utf8.count
+        let sizeInBytes = trimmed.utf8.count
         let sizeInMB = Double(sizeInBytes) / (1024 * 1024)
 
         if sizeInMB > 5.0 {
             // Case: Size exceeds 5MB → show confirmation dialog
-            showSizeConfirmationDialog(size: sizeInMB, text: clipboardText)
+            showSizeConfirmationDialog(size: sizeInMB, text: trimmed)
             return
         }
 
         // Validate JSON
-        let parseResult = JSONParser.shared.parse(clipboardText)
+        let parseResult = JSONParser.shared.parse(trimmed)
 
         switch parseResult {
         case .success:
             // Case 3: Valid JSON → create tab with JSON
-            WindowManager.shared.createNewTab(with: clipboardText)
+            WindowManager.shared.createNewTab(with: trimmed)
 
         case .failure:
-            // Case 2: Invalid JSON → show toast + create empty tab
+            // Case 2: Invalid JSON → show toast only (no new tab)
             ToastManager.shared.show("Invalid JSON in clipboard", duration: 2.0)
-            WindowManager.shared.createNewTab(with: nil)
+            if WindowManager.shared.isViewerOpen {
+                WindowManager.shared.bringToFront()
+            }
         }
     }
 

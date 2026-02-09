@@ -206,8 +206,9 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
 
     func bringToFront() {
         NSApp.setActivationPolicy(.regular)
-        viewerWindow?.makeKeyAndOrderFront(nil)
+        viewerWindow?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
+        viewerWindow?.makeKeyAndOrderFront(nil)
     }
 }
 #endif

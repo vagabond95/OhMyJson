@@ -560,8 +560,9 @@ struct ViewerWindow: View {
         // Cancel previous debounce task
         debounceTask?.cancel()
 
-        // Handle empty text immediately
-        if text.isEmpty {
+        // Handle empty text immediately (treat whitespace-only as empty)
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedText.isEmpty {
             tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
             windowManager.parseResult = nil
             windowManager.currentJSON = nil

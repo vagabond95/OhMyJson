@@ -5,9 +5,37 @@
 
 import SwiftUI
 import AppKit
+import Carbon.HIToolbox
 
 // MARK: - Custom NSTextView that handles key equivalents directly
 class EditableTextView: NSTextView {
+    override func keyDown(with event: NSEvent) {
+        // Ignore hotkey combo so it doesn't insert characters into the text view
+        let combo = AppSettings.shared.openHotKeyCombo
+        if event.keyCode == combo.keyCode {
+            var carbonMods: UInt32 = 0
+            let flags = event.modifierFlags
+            if flags.contains(.command) { carbonMods |= UInt32(cmdKey) }
+            if flags.contains(.shift) { carbonMods |= UInt32(shiftKey) }
+            if flags.contains(.option) { carbonMods |= UInt32(optionKey) }
+            if flags.contains(.control) { carbonMods |= UInt32(controlKey) }
+            if carbonMods == combo.modifiers {
+                return
+            }
+        }
+
+        let keyCode = event.keyCode
+        // Space: 49, Return: 36, Enter(numpad): 76
+        if keyCode == 49 || keyCode == 36 || keyCode == 76 {
+            let isEmpty = self.string.isEmpty
+            let isAtEnd = self.selectedRange().location >= self.string.count
+            if isEmpty || isAtEnd {
+                return
+            }
+        }
+        super.keyDown(with: event)
+    }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         guard event.modifierFlags.contains(.command) else {
             return super.performKeyEquivalent(with: event)
@@ -166,8 +194,11 @@ struct UndoableTextView: NSViewRepresentable {
             textView.string = text
             textView.layoutManager?.ensureLayout(for: textView.textContainer!)
 
-            // Restore selection if valid
-            if selectedRange.location <= text.count {
+            if isRestoringTabState {
+                // During tab restoration (hotkey, tab switch), cursor goes to beginning
+                textView.setSelectedRange(NSRange(location: 0, length: 0))
+            } else if selectedRange.location <= text.count {
+                // Restore selection if valid
                 textView.setSelectedRange(selectedRange)
             }
 
