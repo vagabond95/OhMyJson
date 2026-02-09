@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-13.0%2B-000000?style=flat&logo=apple&logoColor=white" alt="macOS 13.0+" />
+  <img src="https://img.shields.io/badge/macOS-14.0%2B-000000?style=flat&logo=apple&logoColor=white" alt="macOS 14.0+" />
   <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="MIT License" />
 </p>
 
@@ -96,7 +96,7 @@ If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor
 |---|---|
 | **Language** | Swift 5.9+ |
 | **UI** | SwiftUI |
-| **Platform** | macOS 13.0+ (Ventura) |
+| **Platform** | macOS 14.0+ (Sonoma) |
 | **Dependencies** | [ConfettiSwiftUI](https://github.com/simibac/ConfettiSwiftUI) |
 
 ## Contributing
