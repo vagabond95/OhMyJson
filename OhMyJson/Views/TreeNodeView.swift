@@ -15,7 +15,6 @@ struct TreeNodeView: View {
     let ancestorIsLast: [Bool]
 
     @State private var isHovered = false
-    @State private var buttonWasClicked = false
 
     @ObservedObject private var settings = AppSettings.shared
     private var theme: AppTheme { settings.currentTheme }
@@ -32,6 +31,22 @@ struct TreeNodeView: View {
     private var hoverColor: Color { theme.hoverBg }
 
     var body: some View {
+        if node.value.isContainer {
+            rowContent
+                .onTapGesture {
+                    if node.value.childCount > 0 {
+                        node.toggleExpanded()
+                        onToggleExpand?()
+                    }
+                }
+        } else {
+            rowContent
+                .onTapGesture(count: 2) { copyValue() }
+                .onTapGesture(count: 1) { onSelect() }
+        }
+    }
+
+    private var rowContent: some View {
         HStack(spacing: 0) {
             treeLines
             expandButton
@@ -43,31 +58,6 @@ struct TreeNodeView: View {
         .background(backgroundColor)
         .animation(.easeInOut(duration: 0.15), value: isCurrentSearchResult)
         .contentShape(Rectangle())
-        .simultaneousGesture(
-            TapGesture(count: 2)
-                .onEnded {
-                    // Only copy on leaf nodes
-                    if !node.value.isContainer {
-                        copyValue()
-                    }
-                }
-        )
-        .simultaneousGesture(
-            TapGesture(count: 1)
-                .onEnded {
-                    // Guard: Skip if button was clicked (prevents double-toggle)
-                    guard !buttonWasClicked else { return }
-
-                    if node.value.isContainer && node.value.childCount > 0 {
-                        // Container with children → toggle fold/unfold
-                        node.toggleExpanded()
-                        onToggleExpand?()
-                    } else {
-                        // Leaf node or empty container → just select
-                        onSelect()
-                    }
-                }
-        )
         .onHover { hovering in
             isHovered = hovering
         }
@@ -85,22 +75,10 @@ struct TreeNodeView: View {
     private var expandButton: some View {
         Group {
             if node.value.isContainer && node.value.childCount > 0 {
-                Button(action: {
-                    buttonWasClicked = true
-                    node.toggleExpanded()
-                    onToggleExpand?()
-
-                    // Reset flag after a tiny delay to allow parent gesture to check it
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                        buttonWasClicked = false
-                    }
-                }) {
-                    Text(node.isExpanded ? "▼" : "▶")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(structureColor.opacity(0.7))
-                        .frame(width: 16, height: 16)
-                }
-                .buttonStyle(PlainButtonStyle())
+                Text(node.isExpanded ? "▼" : "▶")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(structureColor.opacity(0.7))
+                    .frame(width: 16, height: 16)
             } else {
                 Spacer().frame(width: 16)
             }
