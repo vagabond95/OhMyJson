@@ -112,7 +112,7 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
         let hostingView = ClickThroughHostingView(rootView: contentView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
