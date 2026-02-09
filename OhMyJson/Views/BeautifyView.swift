@@ -136,12 +136,14 @@ struct BeautifyView: View {
         let baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         let mediumFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
         let boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
-        let searchHighlightColor = NSColor(theme.searchHighlight)
+        let otherMatchBgColor = NSColor(theme.searchOtherMatchBg)
+        let currentMatchBgColor = NSColor(theme.searchCurrentMatchBg)
+        let otherMatchFgColor = NSColor(theme.searchOtherMatchFg)
+        let currentMatchFgColor = NSColor(theme.searchCurrentMatchFg)
         let lowercasedSearch = searchText.lowercased()
+        var globalMatchIndex = 0
 
         for (lineIndex, line) in formattedLines.enumerated() {
-            let lineStart = result.length
-
             // Add JSON content (no line numbers)
             for token in line.tokens {
                 let color = nsColorForTokenType(token.type)
@@ -154,8 +156,13 @@ struct BeautifyView: View {
                         to: result,
                         baseColor: color,
                         baseFont: font,
-                        highlightColor: searchHighlightColor,
                         boldFont: boldFont,
+                        otherMatchBgColor: otherMatchBgColor,
+                        currentMatchBgColor: currentMatchBgColor,
+                        otherMatchFgColor: otherMatchFgColor,
+                        currentMatchFgColor: currentMatchFgColor,
+                        globalMatchIndex: &globalMatchIndex,
+                        currentSearchIndex: currentSearchIndex,
                         lowercasedSearch: lowercasedSearch
                     )
                 } else {
@@ -173,12 +180,6 @@ struct BeautifyView: View {
                 }
             }
 
-            // Apply line background for current search result
-            if currentSearchResultLocation?.lineIndex == lineIndex {
-                let lineRange = NSRange(location: lineStart, length: result.length - lineStart)
-                result.addAttribute(.backgroundColor, value: NSColor(theme.selectionBg), range: lineRange)
-            }
-
             // Add newline (except for last line)
             if lineIndex < formattedLines.count - 1 {
                 result.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
@@ -193,8 +194,13 @@ struct BeautifyView: View {
         to result: NSMutableAttributedString,
         baseColor: NSColor,
         baseFont: NSFont,
-        highlightColor: NSColor,
         boldFont: NSFont,
+        otherMatchBgColor: NSColor,
+        currentMatchBgColor: NSColor,
+        otherMatchFgColor: NSColor,
+        currentMatchFgColor: NSColor,
+        globalMatchIndex: inout Int,
+        currentSearchIndex: Int,
         lowercasedSearch: String
     ) {
         let text = token.text
@@ -213,7 +219,7 @@ struct BeautifyView: View {
             return
         }
 
-        // Has matches - highlight them
+        // Has matches - highlight them with background + foreground + bold
         var remaining = text
         var remainingLower = lowercasedText
         var baseAttributes: [NSAttributedString.Key: Any] = [
@@ -242,12 +248,15 @@ struct BeautifyView: View {
                 result.append(NSAttributedString(string: String(remaining[beforeRange]), attributes: baseAttributes))
             }
 
-            // Add highlighted match
-            let highlightAttributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: highlightColor,
+            // Add match with background + foreground color + bold font
+            let isCurrent = globalMatchIndex == currentSearchIndex
+            let matchAttributes: [NSAttributedString.Key: Any] = [
+                .backgroundColor: isCurrent ? currentMatchBgColor : otherMatchBgColor,
+                .foregroundColor: isCurrent ? currentMatchFgColor : otherMatchFgColor,
                 .font: boldFont
             ]
-            result.append(NSAttributedString(string: String(remaining[matchRange]), attributes: highlightAttributes))
+            result.append(NSAttributedString(string: String(remaining[matchRange]), attributes: matchAttributes))
+            globalMatchIndex += 1
 
             remaining = String(remaining[matchRange.upperBound...])
             remainingLower = String(remainingLower[range.upperBound...])

@@ -26,8 +26,10 @@ struct TreeNodeView: View {
     private var booleanColor: Color { theme.boolean }
     private var nullColor: Color { theme.null }
     private var structureColor: Color { theme.structure }
-    private var searchHighlightColor: Color { theme.searchHighlight }
-    private var selectionColor: Color { theme.selectionBg }
+    private var searchCurrentMatchBgColor: Color { theme.searchCurrentMatchBg }
+    private var searchOtherMatchBgColor: Color { theme.searchOtherMatchBg }
+    private var searchCurrentMatchFgColor: Color { theme.searchCurrentMatchFg }
+    private var searchOtherMatchFgColor: Color { theme.searchOtherMatchFg }
     private var hoverColor: Color { theme.hoverBg }
 
     var body: some View {
@@ -155,32 +157,33 @@ struct TreeNodeView: View {
             return Text(text).foregroundColor(color)
         }
 
-        var result = Text("")
-        var remaining = text
-        var remainingLower = lowercasedText
+        var attrStr = AttributedString(text)
+        attrStr.foregroundColor = color
 
-        while let range = remainingLower.range(of: lowercasedSearch) {
-            let beforeRange = remaining.startIndex..<remaining.index(remaining.startIndex, offsetBy: remainingLower.distance(from: remainingLower.startIndex, to: range.lowerBound))
-            let matchRange = remaining.index(remaining.startIndex, offsetBy: remainingLower.distance(from: remainingLower.startIndex, to: range.lowerBound))..<remaining.index(remaining.startIndex, offsetBy: remainingLower.distance(from: remainingLower.startIndex, to: range.upperBound))
-
-            result = result + Text(String(remaining[beforeRange])).foregroundColor(color)
-            result = result + Text(String(remaining[matchRange]))
-                .foregroundColor(searchHighlightColor)
-                .bold()
-
-            remaining = String(remaining[matchRange.upperBound...])
-            remainingLower = String(remainingLower[range.upperBound...])
+        // Find all matches and apply background + foreground color + bold
+        let matchFont = Font.system(.body, design: .monospaced).bold()
+        var searchStart = attrStr.startIndex
+        while searchStart < attrStr.endIndex {
+            let remainingRange = searchStart..<attrStr.endIndex
+            guard let matchRange = attrStr[remainingRange].range(of: lowercasedSearch, options: .caseInsensitive) else {
+                break
+            }
+            if isCurrentSearchResult {
+                attrStr[matchRange].backgroundColor = searchCurrentMatchBgColor
+                attrStr[matchRange].foregroundColor = searchCurrentMatchFgColor
+            } else {
+                attrStr[matchRange].backgroundColor = searchOtherMatchBgColor
+                attrStr[matchRange].foregroundColor = searchOtherMatchFgColor
+            }
+            attrStr[matchRange].font = matchFont
+            searchStart = matchRange.upperBound
         }
 
-        result = result + Text(remaining).foregroundColor(color)
-
-        return result
+        return Text(attrStr)
     }
 
     private var backgroundColor: Color {
-        if isCurrentSearchResult {
-            return selectionColor
-        } else if isHovered {
+        if isHovered {
             return hoverColor
         }
         return Color.clear
