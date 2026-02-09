@@ -6,15 +6,21 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var settingsPanel: NSPanel?
     private var onboardingController: OnboardingWindowController?
+    private var accessibilityCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
         setupMainMenu()
+
+        AccessibilityManager.shared.startMonitoring()
+        AccessibilityManager.shared.promptAccessibilityPermission()
+        setupAccessibilityObserver()
         setupHotKey()
 
         // Listen for hotkey changes
@@ -188,6 +194,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotKey()
     }
 
+    private func setupAccessibilityObserver() {
+        accessibilityCancellable = AccessibilityManager.shared.$isAccessibilityGranted
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] granted in
+                if granted {
+                    self?.setupHotKey()
+                } else {
+                    HotKeyManager.shared.stop()
+                }
+            }
+    }
+
     private func setupHotKey() {
         let combo = AppSettings.shared.openHotKeyCombo
 
@@ -263,6 +283,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppSettings.shared.hasSeenOnboarding = true
         HotKeyManager.shared.isEnabled = true
         onboardingController = nil
+        setupHotKey()
         WindowManager.shared.createNewTab(with: SampleData.json)
 
         // Trigger confetti in ViewerWindow after a short delay for window to appear
@@ -273,6 +294,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         HotKeyManager.shared.stop()
+        AccessibilityManager.shared.stopMonitoring()
     }
 }
 #endif

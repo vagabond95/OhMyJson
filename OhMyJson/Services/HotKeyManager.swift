@@ -50,7 +50,7 @@ class HotKeyManager {
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .defaultTap,
+            options: .listenOnly,
             eventsOfInterest: eventMask,
             callback: { proxy, type, event, refcon in
                 guard let refcon = refcon else { return Unmanaged.passRetained(event) }
@@ -60,7 +60,6 @@ class HotKeyManager {
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
             print("Failed to create event tap. Please grant Accessibility permissions.")
-            requestAccessibilityPermissions()
             return
         }
 
@@ -96,6 +95,14 @@ class HotKeyManager {
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
 
+        // Re-enable tap if macOS disabled it due to timeout
+        if type == .tapDisabledByTimeout {
+            if let tap = eventTap {
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+            return Unmanaged.passRetained(event)
+        }
+
         guard type == .keyDown else {
             return Unmanaged.passRetained(event)
         }
@@ -117,19 +124,15 @@ class HotKeyManager {
             if let lastTime = lastHotKeyTime {
                 let elapsed = Date().timeIntervalSince(lastTime)
                 if elapsed < throttleInterval {
-                    // Too soon, ignore this hotkey press
                     return Unmanaged.passRetained(event)
                 }
             }
 
-            // Update last trigger time
             lastHotKeyTime = Date()
 
-            // Trigger handler
             DispatchQueue.main.async { [weak self] in
                 self?.onHotKeyPressed?()
             }
-            return nil
         }
 
         return Unmanaged.passRetained(event)
@@ -137,15 +140,6 @@ class HotKeyManager {
 
     func updateHotKey(_ combo: HotKeyCombo) {
         currentCombo = combo
-    }
-
-    private func requestAccessibilityPermissions() {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let accessEnabled = AXIsProcessTrustedWithOptions(options)
-
-        if !accessEnabled {
-            print("Please grant Accessibility permissions in System Settings > Privacy & Security > Accessibility")
-        }
     }
 
     var isRunning: Bool {

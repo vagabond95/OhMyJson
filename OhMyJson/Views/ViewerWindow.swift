@@ -186,6 +186,7 @@ struct ViewerWindow: View {
             radius: 500
         )
         .withToast()
+        .withAccessibilityWarning()
         .background(
             Group {
                 // Hidden button for ⌘F - opens search (no-op if already open)
