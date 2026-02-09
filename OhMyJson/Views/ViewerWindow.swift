@@ -61,6 +61,8 @@ struct ViewerWindow: View {
     @State private var hasRestoredCurrentTab: Bool = false
     private let restoreDebounceInterval: TimeInterval = 0.2
 
+    @State private var isCheatSheetVisible = false
+
     @FocusState private var isSearchFocused: Bool
 
     private var theme: AppTheme { settings.currentTheme }
@@ -174,6 +176,12 @@ struct ViewerWindow: View {
                     removal: .opacity
                 ))
             }
+
+            // Keyboard Shortcuts Cheat Sheet
+            CheatSheetButton(isVisible: $isCheatSheetVisible)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, 12)
+                .padding(.bottom, 12)
         }
         .frame(minWidth: 800, minHeight: 400)
         .ignoresSafeArea(edges: .top)
@@ -644,10 +652,16 @@ struct ViewerWindow: View {
 
     private func setupKeyboardShortcuts() {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // ESC to close search
-            if event.keyCode == 53 && isSearchVisible {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    closeSearch()
+            // ESC to close cheat sheet or search
+            if event.keyCode == 53 {
+                if isCheatSheetVisible {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isCheatSheetVisible = false
+                    }
+                } else if isSearchVisible {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        closeSearch()
+                    }
                 }
             }
             return event
