@@ -6,6 +6,42 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Custom NSTextView that handles key equivalents directly
+class EditableTextView: NSTextView {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard event.modifierFlags.contains(.command) else {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        let characters = event.charactersIgnoringModifiers ?? ""
+        let isShift = event.modifierFlags.contains(.shift)
+
+        switch characters {
+        case "v":
+            paste(nil)
+            return true
+        case "c":
+            copy(nil)
+            return true
+        case "x":
+            cut(nil)
+            return true
+        case "a":
+            selectAll(nil)
+            return true
+        case "z":
+            if isShift {
+                undoManager?.redo()
+            } else {
+                undoManager?.undo()
+            }
+            return true
+        default:
+            return super.performKeyEquivalent(with: event)
+        }
+    }
+}
+
 // MARK: - NSTextView Wrapper with Undo Support
 struct UndoableTextView: NSViewRepresentable {
     @Binding var text: String
@@ -20,7 +56,7 @@ struct UndoableTextView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         // Use FastScrollView for 1.5x scroll speed
         let scrollView = FastScrollView()
-        let textView = NSTextView()
+        let textView = EditableTextView()
 
         let currentTheme = theme
 
