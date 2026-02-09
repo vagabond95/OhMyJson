@@ -19,7 +19,7 @@ Formatting JSON is something developers do dozens of times a day — yet most re
 
 ## Features
 
-- **⌘⇧V Global Hotkey** — Instantly parse clipboard JSON from anywhere on your Mac
+- **Global Hotkey** — Instantly parse clipboard JSON from anywhere on your Mac
 - **Real-time Validation** — Auto-parses as you type with inline error reporting (line & column)
 - **Tree View** — Collapsible, syntax-highlighted tree with expand/collapse all (⌘] / ⌘[)
 - **Beautified View** — Formatted JSON output with one-click copy
