@@ -47,9 +47,10 @@ class OnboardingWindowController: NSObject, NSWindowDelegate {
 
         self.window = window
 
-        // Listen for ⌘J to dismiss onboarding
+        // Listen for default hotkey to dismiss onboarding
+        let defaultCombo = HotKeyCombo.defaultOpen
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.modifierFlags.contains(.command) && event.keyCode == 0x26 /* kVK_ANSI_J */ {
+            if event.modifierFlags.contains(defaultCombo.nsEventModifierFlags) && event.keyCode == UInt16(defaultCombo.keyCode) {
                 self?.dismissWithFade()
                 return nil
             }

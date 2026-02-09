@@ -62,7 +62,7 @@ xcodebuild -project OhMyJson.xcodeproj -scheme OhMyJson -configuration Release
 
 ## Permissions
 
-OhMyJson uses a **global hotkey** to capture ⌘⇧V system-wide. This requires Accessibility permission.
+OhMyJson uses a **global hotkey** to capture ⌃⌥J system-wide. This requires Accessibility permission.
 
 **System Settings → Privacy & Security → Accessibility** → toggle **OhMyJson** on.
 
@@ -73,7 +73,7 @@ macOS will prompt you on first launch. The app cannot intercept the hotkey witho
 ### Basic Workflow
 
 1. Copy any JSON to your clipboard
-2. Press **⌘ J** — OhMyJson opens and parses it instantly
+2. Press **⌃⌥J** — OhMyJson opens and parses it instantly
 3. Explore the tree, search, or copy the formatted output
 
 If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor — paste or type JSON directly.
@@ -82,7 +82,7 @@ If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor
 
 | Shortcut | Action |
 |----------|--------|
-| **⌘J** | Open viewer + parse clipboard *(global, customizable)* |
+| **⌃⌥J** | Open viewer + parse clipboard *(global, customizable)* |
 | **⌘N** | New tab |
 | **⌘W** | Close tab |
 | **⌘⇧[** ,  **⌘⇧]** | Previous / Next tab |

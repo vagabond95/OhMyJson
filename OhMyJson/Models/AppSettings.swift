@@ -13,8 +13,8 @@ struct HotKeyCombo: Equatable, Codable {
     var modifiers: UInt32
 
     static let defaultOpen = HotKeyCombo(
-        keyCode: UInt32(kVK_ANSI_V),
-        modifiers: UInt32(cmdKey | shiftKey)
+        keyCode: UInt32(kVK_ANSI_J),
+        modifiers: UInt32(controlKey | optionKey)
     )
 
     // Legacy support
@@ -33,6 +33,27 @@ struct HotKeyCombo: Equatable, Codable {
         }
 
         return parts.joined()
+    }
+
+    var displayLabels: [String] {
+        var labels: [String] = []
+        if modifiers & UInt32(controlKey) != 0 { labels.append("⌃") }
+        if modifiers & UInt32(optionKey) != 0 { labels.append("⌥") }
+        if modifiers & UInt32(shiftKey) != 0 { labels.append("⇧") }
+        if modifiers & UInt32(cmdKey) != 0 { labels.append("⌘") }
+        if let keyString = keyCodeToString(keyCode) {
+            labels.append(keyString)
+        }
+        return labels
+    }
+
+    var nsEventModifierFlags: NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        if modifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
+        if modifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
+        if modifiers & UInt32(optionKey) != 0 { flags.insert(.option) }
+        if modifiers & UInt32(controlKey) != 0 { flags.insert(.control) }
+        return flags
     }
 
     private func keyCodeToString(_ keyCode: UInt32) -> String? {

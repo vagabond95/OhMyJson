@@ -162,8 +162,9 @@ struct OnboardingView: View {
 
     private func keycapRow() -> some View {
         HStack(spacing: 8) {
-            keycap(label: "\u{2318}", size: 30)  // ⌘
-            keycap(label: "J", size: 30)
+            ForEach(HotKeyCombo.defaultOpen.displayLabels, id: \.self) { label in
+                keycap(label: label, size: 30)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
