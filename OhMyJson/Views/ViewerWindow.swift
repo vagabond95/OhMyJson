@@ -39,6 +39,17 @@ struct ViewerWindow: View {
     @State private var inputScrollPosition: CGFloat = 0
     @State private var beautifyScrollPosition: CGFloat = 0
 
+    // Resizable divider
+    @State private var dividerRatio: CGFloat = AppSettings.shared.dividerRatio
+    @State private var isDraggingDivider = false
+    @State private var isHoveredDivider = false
+    @State private var dragStartRatio: CGFloat = 0
+    @State private var dragStartX: CGFloat = 0
+    private let minPanelWidth: CGFloat = 200
+    private let dividerHitAreaWidth: CGFloat = 9
+    private let defaultDividerRatio: CGFloat = 0.35
+    private let dividerHighlightColor = Color(hex: "007AFF")
+
     @State private var debounceTask: DispatchWorkItem?
     private let debounceInterval: TimeInterval = 0.3
     private let largeFileSizeThreshold = 5 * 1024 * 1024 // 5MB
@@ -66,26 +77,82 @@ struct ViewerWindow: View {
                     .fill(theme.border)
                     .frame(height: 1)
 
-                // Main Content: Input (50%) | Viewer (50%)
-                HStack(spacing: 0) {
-                    // Left: Input Panel
-                    InputPanel(
-                        text: $inputText,
-                        onTextChange: handleTextChange,
-                        onClear: clearAll,
-                        scrollPosition: $inputScrollPosition,
-                        isRestoringTabState: isRestoringTabState
-                    )
-                    .frame(maxWidth: .infinity)
+                // Main Content: Input (35%) | Resizable Divider | Viewer (65%)
+                GeometryReader { geometry in
+                    let totalWidth = geometry.size.width
+                    let effectiveWidth = totalWidth - dividerHitAreaWidth
+                    let inputWidth = max(minPanelWidth, min(effectiveWidth - minPanelWidth, effectiveWidth * dividerRatio))
+                    let isDividerActive = isHoveredDivider || isDraggingDivider
 
-                    // Divider
-                    Rectangle()
-                        .fill(theme.border)
-                        .frame(width: 1)
+                    HStack(spacing: 0) {
+                        // Left: Input Panel
+                        InputPanel(
+                            text: $inputText,
+                            onTextChange: handleTextChange,
+                            onClear: clearAll,
+                            scrollPosition: $inputScrollPosition,
+                            isRestoringTabState: isRestoringTabState
+                        )
+                        .frame(width: inputWidth)
+                        .allowsHitTesting(!isDraggingDivider)
 
-                    // Right: TreeViewer Panel
-                    viewerPanel
-                        .frame(maxWidth: .infinity)
+                        // Resizable Divider
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 9)
+                            .overlay(
+                                Rectangle()
+                                    .fill(isDividerActive ? dividerHighlightColor : theme.border)
+                                    .frame(width: isDividerActive ? 3 : 1)
+                            )
+                            .contentShape(Rectangle())
+                            .onHover { hovering in
+                                isHoveredDivider = hovering
+                                if hovering {
+                                    NSCursor.resizeLeftRight.set()
+                                } else if !isDraggingDivider {
+                                    NSCursor.arrow.set()
+                                }
+                            }
+                            .simultaneousGesture(
+                                TapGesture(count: 2)
+                                    .onEnded {
+                                        dividerRatio = defaultDividerRatio
+                                        settings.dividerRatio = defaultDividerRatio
+                                    }
+                            )
+                            .gesture(
+                                DragGesture(minimumDistance: 2, coordinateSpace: .named("contentArea"))
+                                    .onChanged { value in
+                                        if !isDraggingDivider {
+                                            isDraggingDivider = true
+                                            dragStartRatio = dividerRatio
+                                            dragStartX = value.startLocation.x
+                                            NSCursor.resizeLeftRight.set()
+                                        }
+                                        let deltaX = value.location.x - dragStartX
+                                        let newInputWidth = effectiveWidth * dragStartRatio + deltaX
+                                        let clampedWidth = max(minPanelWidth, min(effectiveWidth - minPanelWidth, newInputWidth))
+                                        let newRatio = clampedWidth / effectiveWidth
+                                        if abs(newRatio - dividerRatio) * effectiveWidth > 0.5 {
+                                            dividerRatio = newRatio
+                                        }
+                                    }
+                                    .onEnded { _ in
+                                        isDraggingDivider = false
+                                        settings.dividerRatio = dividerRatio
+                                        if !isHoveredDivider {
+                                            NSCursor.arrow.set()
+                                        }
+                                    }
+                            )
+
+                        // Right: TreeViewer Panel
+                        viewerPanel
+                            .frame(maxWidth: .infinity)
+                            .allowsHitTesting(!isDraggingDivider)
+                    }
+                    .coordinateSpace(name: "contentArea")
                 }
             }
             .background(theme.background)
