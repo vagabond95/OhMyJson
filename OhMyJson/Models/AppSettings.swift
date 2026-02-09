@@ -93,6 +93,8 @@ class AppSettings: ObservableObject {
     private let jsonIndentKey = "jsonIndent"
     private let isDarkModeKey = "isDarkMode"
     private let hasSeenOnboardingKey = "hasSeenOnboarding"
+    private let dividerRatioKey = "dividerRatio"
+    private let lastInstalledVersionKey = "lastInstalledVersion"
 
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
@@ -129,6 +131,12 @@ class AppSettings: ObservableObject {
         }
     }
 
+    @Published var dividerRatio: CGFloat {
+        didSet {
+            UserDefaults.standard.set(Double(dividerRatio), forKey: dividerRatioKey)
+        }
+    }
+
     var currentTheme: AppTheme {
         isDarkMode ? DarkTheme() : LightTheme()
     }
@@ -145,6 +153,19 @@ class AppSettings: ObservableObject {
     }
 
     private init() {
+        // --- Version-based UserDefaults reset ---
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let storedVersion = UserDefaults.standard.string(forKey: lastInstalledVersionKey)
+
+        if let storedVersion = storedVersion, storedVersion != currentVersion {
+            if let bundleId = Bundle.main.bundleIdentifier {
+                UserDefaults.standard.removePersistentDomain(forName: bundleId)
+            }
+        }
+
+        UserDefaults.standard.set(currentVersion, forKey: lastInstalledVersionKey)
+        // --- End version reset ---
+
         // Load Open HotKey (with legacy migration)
         if let data = UserDefaults.standard.data(forKey: openHotKeyKey),
            let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: data) {
@@ -172,6 +193,10 @@ class AppSettings: ObservableObject {
 
         // Load Onboarding flag (default: false)
         self.hasSeenOnboarding = UserDefaults.standard.bool(forKey: hasSeenOnboardingKey)
+
+        // Load Divider Ratio (default: 0.35)
+        let savedRatio = UserDefaults.standard.double(forKey: dividerRatioKey)
+        self.dividerRatio = (savedRatio > 0 && savedRatio < 1) ? CGFloat(savedRatio) : 0.35
     }
 
     private func saveOpenHotKey() {
