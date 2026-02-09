@@ -104,10 +104,6 @@ struct SettingsWindowView: View {
 
     private var aboutSection: some View {
         VStack(spacing: 6) {
-            Image("main_icon")
-                .resizable()
-                .frame(width: 64, height: 64)
-
             Text("OhMyJson")
                 .font(.system(.title2, design: .monospaced).bold())
                 .foregroundColor(theme.primaryText)
