@@ -64,6 +64,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         closeTabItem.target = self
         fileMenu.addItem(closeTabItem)
 
+        fileMenu.addItem(NSMenuItem.separator())
+
+        let prevTabItem = NSMenuItem(title: "Show Previous Tab", action: #selector(showPreviousTab), keyEquivalent: "[")
+        prevTabItem.keyEquivalentModifierMask = [.command, .shift]
+        prevTabItem.target = self
+        fileMenu.addItem(prevTabItem)
+
+        let nextTabItem = NSMenuItem(title: "Show Next Tab", action: #selector(showNextTab), keyEquivalent: "]")
+        nextTabItem.keyEquivalentModifierMask = [.command, .shift]
+        nextTabItem.target = self
+        fileMenu.addItem(nextTabItem)
+
         mainMenu.addItem(fileMenuItem)
 
         // Edit Menu - Standard system actions (responder chain handles these)
@@ -78,24 +90,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
         editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
         mainMenu.addItem(editMenuItem)
-
-        // Window Menu - Standard window management
-        let windowMenu = NSMenu(title: "Window")
-        let windowMenuItem = NSMenuItem()
-        windowMenuItem.submenu = windowMenu
-        windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
-        windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""))
-        windowMenu.addItem(NSMenuItem.separator())
-        let prevTabItem = NSMenuItem(title: "Show Previous Tab", action: #selector(showPreviousTab), keyEquivalent: "[")
-        prevTabItem.keyEquivalentModifierMask = [.command, .shift]
-        prevTabItem.target = self
-        windowMenu.addItem(prevTabItem)
-        let nextTabItem = NSMenuItem(title: "Show Next Tab", action: #selector(showNextTab), keyEquivalent: "]")
-        nextTabItem.keyEquivalentModifierMask = [.command, .shift]
-        nextTabItem.target = self
-        windowMenu.addItem(nextTabItem)
-        mainMenu.addItem(windowMenuItem)
-        NSApplication.shared.windowsMenu = windowMenu
 
         NSApplication.shared.mainMenu = mainMenu
     }
