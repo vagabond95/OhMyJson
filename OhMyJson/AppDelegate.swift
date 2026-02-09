@@ -24,9 +24,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Show onboarding on first launch
+        // Show onboarding on first launch, otherwise open window immediately
         if !AppSettings.shared.hasSeenOnboarding {
             showOnboarding()
+        } else {
+            WindowManager.shared.createNewTab(with: nil)
         }
     }
 
