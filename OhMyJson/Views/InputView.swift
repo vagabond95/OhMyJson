@@ -45,6 +45,7 @@ struct UndoableTextView: NSViewRepresentable {
 
         // Configure text view
         textView.font = font
+        textView.isRichText = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false

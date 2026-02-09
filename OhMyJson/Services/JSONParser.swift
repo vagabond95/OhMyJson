@@ -42,8 +42,40 @@ class JSONParser {
 
     private init() {}
 
+    /// Sanitize common Unicode artifacts from styled/rich text sources
+    /// (web browsers, Slack, Notion, IDEs, etc.) that break JSON parsing.
+    private func sanitizeForJSON(_ text: String) -> String {
+        var result = text
+
+        // Replace smart/curly quotes with straight quotes
+        result = result.replacingOccurrences(of: "\u{201C}", with: "\"") // left double
+        result = result.replacingOccurrences(of: "\u{201D}", with: "\"") // right double
+        result = result.replacingOccurrences(of: "\u{201E}", with: "\"") // double low-9
+        result = result.replacingOccurrences(of: "\u{201F}", with: "\"") // double high-reversed-9
+
+        // Replace non-breaking and special spaces with regular space
+        result = result.replacingOccurrences(of: "\u{00A0}", with: " ")  // non-breaking space
+        result = result.replacingOccurrences(of: "\u{2007}", with: " ")  // figure space
+        result = result.replacingOccurrences(of: "\u{202F}", with: " ")  // narrow no-break space
+
+        // Remove zero-width / invisible characters
+        result = result.replacingOccurrences(of: "\u{FEFF}", with: "")   // BOM / zero-width no-break space
+        result = result.replacingOccurrences(of: "\u{200B}", with: "")   // zero-width space
+        result = result.replacingOccurrences(of: "\u{200C}", with: "")   // zero-width non-joiner
+        result = result.replacingOccurrences(of: "\u{200D}", with: "")   // zero-width joiner
+        result = result.replacingOccurrences(of: "\u{200E}", with: "")   // left-to-right mark
+        result = result.replacingOccurrences(of: "\u{200F}", with: "")   // right-to-left mark
+
+        // Replace Unicode line/paragraph separators with newline
+        result = result.replacingOccurrences(of: "\u{2028}", with: "\n") // line separator
+        result = result.replacingOccurrences(of: "\u{2029}", with: "\n") // paragraph separator
+
+        return result
+    }
+
     func parse(_ jsonString: String) -> JSONParseResult {
-        let trimmed = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitized = sanitizeForJSON(jsonString)
+        let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmed.isEmpty else {
             return .failure(JSONParseError(
