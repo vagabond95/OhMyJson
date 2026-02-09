@@ -9,7 +9,6 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var settingsPanel: NSPanel?
     private var onboardingController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -164,23 +163,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showSettings(_ sender: Any?) {
-        if settingsPanel == nil {
-            let panel = NSPanel(
-                contentRect: .zero,
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            panel.title = "OhMyJson"
-            panel.isReleasedWhenClosed = false
-            panel.hidesOnDeactivate = false
-            panel.backgroundColor = .clear
-            panel.contentViewController = NSHostingController(rootView: SettingsWindowView())
-            settingsPanel = panel
-        }
-
-        settingsPanel?.center()
-        settingsPanel?.makeKeyAndOrderFront(nil)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 

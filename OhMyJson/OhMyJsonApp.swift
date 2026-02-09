@@ -14,7 +14,7 @@ struct OhMyJsonApp: App {
     var body: some Scene {
         #if os(macOS)
         Settings {
-            EmptyView()
+            SettingsWindowView()
         }
         #else
         WindowGroup {
