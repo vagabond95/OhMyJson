@@ -108,6 +108,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func closeTab(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
+
+        // If the Settings panel is the key window, close it instead of a tab
+        if let panel = settingsPanel, panel.isKeyWindow {
+            panel.orderOut(nil)
+            return
+        }
+
         if let activeTabId = TabManager.shared.activeTabId {
             TabManager.shared.closeTab(id: activeTabId)
         }
