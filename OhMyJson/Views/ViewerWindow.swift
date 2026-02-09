@@ -42,13 +42,11 @@ struct ViewerWindow: View {
     // Resizable divider
     @State private var dividerRatio: CGFloat = AppSettings.shared.dividerRatio
     @State private var isDraggingDivider = false
-    @State private var isHoveredDivider = false
     @State private var dragStartRatio: CGFloat = 0
     @State private var dragStartX: CGFloat = 0
     private let minPanelWidth: CGFloat = 200
     private let dividerHitAreaWidth: CGFloat = 9
     private let defaultDividerRatio: CGFloat = 0.35
-    private let dividerHighlightColor = Color(hex: "007AFF")
 
     @State private var debounceTask: DispatchWorkItem?
     private let debounceInterval: TimeInterval = 0.3
@@ -82,8 +80,6 @@ struct ViewerWindow: View {
                     let totalWidth = geometry.size.width
                     let effectiveWidth = totalWidth - dividerHitAreaWidth
                     let inputWidth = max(minPanelWidth, min(effectiveWidth - minPanelWidth, effectiveWidth * dividerRatio))
-                    let isDividerActive = isHoveredDivider || isDraggingDivider
-
                     HStack(spacing: 0) {
                         // Left: Input Panel
                         InputPanel(
@@ -100,20 +96,25 @@ struct ViewerWindow: View {
                         Rectangle()
                             .fill(Color.clear)
                             .frame(width: 9)
+                            .overlay(alignment: .top) {
+                                VStack(spacing: 0) {
+                                    Rectangle()
+                                        .fill(theme.secondaryBackground)
+                                        .frame(height: 36)
+                                    Rectangle()
+                                        .fill(theme.border)
+                                        .frame(height: 1)
+                                }
+                                .allowsHitTesting(false)
+                            }
                             .overlay(
                                 Rectangle()
-                                    .fill(isDividerActive ? dividerHighlightColor : theme.border)
-                                    .frame(width: isDividerActive ? 3 : 1)
+                                    .fill(theme.border)
+                                    .frame(width: 1)
+                                    .allowsHitTesting(false)
                             )
+                            .background(ResizeCursorView())
                             .contentShape(Rectangle())
-                            .onHover { hovering in
-                                isHoveredDivider = hovering
-                                if hovering {
-                                    NSCursor.resizeLeftRight.set()
-                                } else if !isDraggingDivider {
-                                    NSCursor.arrow.set()
-                                }
-                            }
                             .simultaneousGesture(
                                 TapGesture(count: 2)
                                     .onEnded {
@@ -128,7 +129,7 @@ struct ViewerWindow: View {
                                             isDraggingDivider = true
                                             dragStartRatio = dividerRatio
                                             dragStartX = value.startLocation.x
-                                            NSCursor.resizeLeftRight.set()
+                                            NSCursor.resizeLeftRight.push()
                                         }
                                         let deltaX = value.location.x - dragStartX
                                         let newInputWidth = effectiveWidth * dragStartRatio + deltaX
@@ -141,9 +142,7 @@ struct ViewerWindow: View {
                                     .onEnded { _ in
                                         isDraggingDivider = false
                                         settings.dividerRatio = dividerRatio
-                                        if !isHoveredDivider {
-                                            NSCursor.arrow.set()
-                                        }
+                                        NSCursor.pop()
                                     }
                             )
 
@@ -722,6 +721,22 @@ struct ViewerWindow: View {
 // Notification for clear action from menu/hotkey
 extension Notification.Name {
     static let clearInputRequested = Notification.Name("clearInputRequested")
+}
+
+// MARK: - Native cursor rect for reliable resize cursor
+private struct ResizeCursorView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = CursorView()
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        nsView.window?.invalidateCursorRects(for: nsView)
+    }
+    private class CursorView: NSView {
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: .resizeLeftRight)
+        }
+    }
 }
 
 struct ViewerWindow_Previews: PreviewProvider {
