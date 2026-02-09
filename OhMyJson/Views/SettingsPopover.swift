@@ -92,21 +92,7 @@ struct SettingsWindowView: View {
 
             hotKeysSection
             jsonIndentSection
-            startupSection
 
-            Rectangle()
-                .fill(theme.border)
-                .frame(height: 1)
-
-            HStack {
-                Spacer()
-                Button("Reset to Defaults") {
-                    settings.resetToDefaults()
-                }
-                .buttonStyle(.link)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(theme.accent)
-            }
         }
         .padding(16)
         .frame(width: 300)
@@ -244,28 +230,6 @@ struct SettingsWindowView: View {
         }
     }
 
-    // MARK: - Startup Section
-
-    private var startupSection: some View {
-        VStack(alignment: .center, spacing: 8) {
-            Text("Startup")
-                .font(.system(.subheadline, design: .monospaced))
-                .foregroundColor(theme.secondaryText)
-
-            HStack {
-                Text("")
-                    .frame(width: 60, alignment: .trailing)
-
-                Toggle("Launch at Login", isOn: $settings.launchAtLogin)
-                    .toggleStyle(.checkbox)
-                    .foregroundColor(theme.primaryText)
-
-
-                Spacer()
-            }
-            .font(.system(.body, design: .monospaced))
-        }
-    }
 }
 
 struct SettingsWindowView_Previews: PreviewProvider {
