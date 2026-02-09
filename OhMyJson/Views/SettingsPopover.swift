@@ -79,8 +79,7 @@ struct SettingsWindowView: View {
 
     private var versionString: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "Version 0.1.0"
+        return "Version \(version)"
     }
 
     var body: some View {
