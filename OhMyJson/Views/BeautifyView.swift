@@ -24,7 +24,7 @@ struct BeautifyView: View {
     @State private var cachedContentString: NSAttributedString = NSAttributedString()
     @State private var cachedLineNumberString: NSAttributedString = NSAttributedString()
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {

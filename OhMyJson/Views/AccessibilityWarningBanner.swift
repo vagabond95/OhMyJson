@@ -7,7 +7,7 @@ import SwiftUI
 
 #if os(macOS)
 struct AccessibilityWarningBanner: View {
-    @ObservedObject var accessibilityManager = AccessibilityManager.shared
+    var accessibilityManager = AccessibilityManager.shared
     @Environment(\.colorScheme) private var colorScheme
 
     private var bannerBackground: Color {

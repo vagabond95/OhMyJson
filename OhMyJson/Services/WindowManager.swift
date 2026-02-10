@@ -2,6 +2,8 @@
 //  WindowManager.swift
 //  OhMyJson
 //
+//  Pure window lifecycle manager. Data state moved to ViewerViewModel (Phase 3).
+//
 
 #if os(macOS)
 import AppKit
@@ -12,103 +14,25 @@ class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
     override var mouseDownCanMoveWindow: Bool { false }
 }
 
-class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
+@Observable
+class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     static let shared = WindowManager()
 
-    @Published private(set) var isViewerOpen = false
-    @Published var currentJSON: String? {
-        didSet {
-            // Cache formatted JSON when currentJSON changes
-            if let json = currentJSON {
-                _formattedJSONCache = JSONParser.shared.formatJSON(json, indentSize: AppSettings.shared.jsonIndent)
-            } else {
-                _formattedJSONCache = nil
-            }
-        }
-    }
-    @Published var parseResult: JSONParseResult?
-
-    /// Cached formatted JSON string (computed once when currentJSON is set)
-    private var _formattedJSONCache: String?
-    var formattedJSON: String? { _formattedJSONCache }
+    private(set) var isViewerOpen = false
 
     private var viewerWindow: NSWindow?
-    private let tabManager = TabManager.shared
+
+    /// Weak reference to ViewModel for window delegate callbacks
+    weak var viewModel: ViewerViewModel?
 
     private override init() {
         super.init()
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(jsonIndentChanged),
-            name: .jsonIndentChanged,
-            object: nil
-        )
     }
 
-    @objc private func jsonIndentChanged(_ notification: Notification) {
-        guard let json = currentJSON else { return }
-        _formattedJSONCache = JSONParser.shared.formatJSON(json, indentSize: AppSettings.shared.jsonIndent)
-        objectWillChange.send()
-    }
+    // MARK: - Window Lifecycle
 
-    /// Create a new tab with optional JSON content
-    /// If window is not open, create window first
-    func createNewTab(with jsonString: String?) {
-        // Parse JSON if provided
-        let parseResult: JSONParseResult?
-        if let json = jsonString {
-            parseResult = JSONParser.shared.parse(json)
-        } else {
-            parseResult = nil
-        }
-
-        // Create tab
-        let tabId = tabManager.createTab(with: jsonString)
-
-        // Update tab with parse result
-        if let result = parseResult {
-            tabManager.updateTabParseResult(id: tabId, result: result)
-        }
-
-        // If window not open, create it
-        if !isViewerOpen {
-            createAndShowWindow()
-        } else {
-            // Window already open, just bring to front
-            bringToFront()
-        }
-
-        // Update current state to reflect new tab
-        currentJSON = jsonString
-        self.parseResult = parseResult
-    }
-
-    // Legacy compatibility methods (deprecated)
-    @available(*, deprecated, renamed: "createNewTab(with:)")
-    func openViewer(with jsonString: String) {
-        createNewTab(with: jsonString)
-    }
-
-    @available(*, deprecated, renamed: "createNewTab(with:)")
-    func openViewerEmpty() {
-        createNewTab(with: nil)
-    }
-
-    @available(*, deprecated, renamed: "createNewTab(with:)")
-    func openViewerWithError(message: String) {
-        createNewTab(with: nil)
-        ToastManager.shared.show(message, duration: Duration.toastLong)
-    }
-
-    /// Flag to allow programmatic close without interception
-    private var allowClose = false
-
-    private func createAndShowWindow() {
-        let contentView = ViewerWindow()
-            .environmentObject(self)
-            .environmentObject(AppSettings.shared)
-
+    /// Create and show the viewer window with the given content view
+    func createAndShowWindow<Content: View>(contentView: Content) {
         let hostingView = ClickThroughHostingView(rootView: contentView)
 
         let window = NSWindow(
@@ -143,6 +67,19 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
         repositionTrafficLights(in: window)
     }
 
+    /// Protocol conformance — used by ViewModel to show window (delegates to createAndShowWindow)
+    func createNewTab(with jsonString: String?) {
+        // This is a no-op if window is already open.
+        // Actual window creation is done by AppDelegate via createAndShowWindow().
+        // This method exists for WindowManagerProtocol conformance.
+        // The ViewModel calls this, but AppDelegate handles the actual window creation flow.
+        if !isViewerOpen {
+            // Window creation is triggered by AppDelegate, not here
+            // This path should not be reached in normal flow
+        }
+        bringToFront()
+    }
+
     private func repositionTrafficLights(in window: NSWindow) {
         guard let closeButton = window.standardWindowButton(.closeButton),
               let titlebarView = closeButton.superview else { return }
@@ -171,6 +108,9 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
         repositionTrafficLights(in: window)
     }
 
+    /// Flag to allow programmatic close without interception
+    private var allowClose = false
+
     /// Intercept window close (Command+W or red button) to close tab instead
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         // If programmatic close is requested, allow it
@@ -179,22 +119,20 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
             return true
         }
 
-        // Otherwise, close current tab instead of window
-        if let activeTabId = tabManager.activeTabId {
-            tabManager.closeTab(id: activeTabId)
+        // Delegate tab close to ViewModel (mediator)
+        if let activeTabId = viewModel?.activeTabId {
+            viewModel?.closeTab(id: activeTabId)
         }
 
-        // Prevent default window close - TabManager will call closeViewer if needed
+        // Prevent default window close - ViewModel will call closeViewer if last tab
         return false
     }
 
     func windowWillClose(_ notification: Notification) {
         isViewerOpen = false
         viewerWindow = nil
-        currentJSON = nil
-        parseResult = nil
-        // Clear all tabs when window closes
-        tabManager.closeAllTabs()
+        // Delegate cleanup to ViewModel
+        viewModel?.onWindowWillClose()
         // Return to accessory app (hide from Dock)
         NSApp.setActivationPolicy(.accessory)
     }

@@ -1,7 +1,186 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
 
+    },
+    "  " : {
+
+    },
+    ": " : {
+
+    },
+    "[" : {
+
+    },
+    "]" : {
+
+    },
+    "{" : {
+
+    },
+    "}" : {
+
+    },
+    "%lld" : {
+
+    },
+    "▶" : {
+
+    },
+    "▼" : {
+
+    },
+    "accessibility.description" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OhMyJson needs accessibility\npermission to listen for\nglobal hotkeys."
+          }
+        }
+      }
+    },
+    "accessibility.fix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fix"
+          }
+        }
+      }
+    },
+    "accessibility.open_settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        }
+      }
+    },
+    "accessibility.skip" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        }
+      }
+    },
+    "accessibility.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessibility Access"
+          }
+        }
+      }
+    },
+    "accessibility.warning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accessibility permission required for hotkeys"
+          }
+        }
+      }
+    },
+    "alert.large_file.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This JSON exceeds 5MB. Beautify mode may be slow."
+          }
+        }
+      }
+    },
+    "alert.large_file.switch_to_tree" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to Tree"
+          }
+        }
+      }
+    },
+    "alert.large_file.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large File Warning"
+          }
+        }
+      }
+    },
+    "alert.large_file.view_anyway" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Anyway"
+          }
+        }
+      }
+    },
+    "alert.large_json.cancel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "alert.large_json.continue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "alert.large_json.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exceed JSON size over 5MB (%.1f MB)\nLoading.."
+          }
+        }
+      }
+    },
+    "alert.large_json.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large JSON"
+          }
+        }
+      }
+    },
+    "app.macos_only" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OhMyJson is a macOS-only application"
+          }
+        }
+      }
+    },
     "app.name" : {
       "localizations" : {
         "en" : {
@@ -22,280 +201,6 @@
         }
       }
     },
-    "app.macos_only" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OhMyJson is a macOS-only application"
-          }
-        }
-      }
-    },
-
-    "menu.about" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About OhMyJson"
-          }
-        }
-      }
-    },
-    "menu.settings" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings..."
-          }
-        }
-      }
-    },
-    "menu.quit" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quit OhMyJson"
-          }
-        }
-      }
-    },
-    "menu.open" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open"
-          }
-        }
-      }
-    },
-    "menu.new_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New Tab"
-          }
-        }
-      }
-    },
-    "menu.close_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close Tab"
-          }
-        }
-      }
-    },
-    "menu.previous_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Previous Tab"
-          }
-        }
-      }
-    },
-    "menu.next_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Next Tab"
-          }
-        }
-      }
-    },
-    "menu.undo" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Undo"
-          }
-        }
-      }
-    },
-    "menu.redo" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Redo"
-          }
-        }
-      }
-    },
-    "menu.cut" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cut"
-          }
-        }
-      }
-    },
-    "menu.copy" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy"
-          }
-        }
-      }
-    },
-    "menu.paste" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paste"
-          }
-        }
-      }
-    },
-    "menu.select_all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select All"
-          }
-        }
-      }
-    },
-
-    "alert.large_json.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Large JSON"
-          }
-        }
-      }
-    },
-    "alert.large_json.message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exceed JSON size over 5MB (%.1f MB)\nLoading.."
-          }
-        }
-      }
-    },
-    "alert.large_json.continue" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue"
-          }
-        }
-      }
-    },
-    "alert.large_json.cancel" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
-          }
-        }
-      }
-    },
-    "alert.large_file.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Large File Warning"
-          }
-        }
-      }
-    },
-    "alert.large_file.message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This JSON exceeds 5MB. Beautify mode may be slow."
-          }
-        }
-      }
-    },
-    "alert.large_file.view_anyway" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "View Anyway"
-          }
-        }
-      }
-    },
-    "alert.large_file.switch_to_tree" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Switch to Tree"
-          }
-        }
-      }
-    },
-
-    "toast.invalid_json" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid JSON in clipboard"
-          }
-        }
-      }
-    },
-    "toast.copied" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copied to clipboard"
-          }
-        }
-      }
-    },
-    "toast.key_value_copied" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Key-value copied to clipboard"
-          }
-        }
-      }
-    },
-    "toast.json_copied" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JSON copied!"
-          }
-        }
-      }
-    },
-
     "input.placeholder" : {
       "localizations" : {
         "en" : {
@@ -316,38 +221,67 @@
         }
       }
     },
-
-    "tooltip.clear" : {
+    "menu.about" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear"
+            "value" : "About OhMyJson"
           }
         }
       }
     },
-    "tooltip.copy_all" : {
+    "menu.beautify_mode" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy All"
+            "value" : "Beautify View"
           }
         }
       }
     },
-    "tooltip.toggle_theme" : {
+    "menu.close_tab" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toggle Theme"
+            "value" : "Close Tab"
           }
         }
       }
     },
-    "tooltip.new_tab" : {
+    "menu.copy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        }
+      }
+    },
+    "menu.find" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find"
+          }
+        }
+      }
+    },
+    "menu.cut" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cut"
+          }
+        }
+      }
+    },
+    "menu.new_tab" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -357,54 +291,115 @@
         }
       }
     },
+    "menu.next_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Next Tab"
+          }
+        }
+      }
+    },
+    "menu.open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        }
+      }
+    },
+    "menu.paste" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste"
+          }
+        }
+      }
+    },
+    "menu.previous_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Previous Tab"
+          }
+        }
+      }
+    },
+    "menu.quit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit OhMyJson"
+          }
+        }
+      }
+    },
+    "menu.redo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redo"
+          }
+        }
+      }
+    },
+    "menu.select_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        }
+      }
+    },
+    "menu.settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings..."
+          }
+        }
+      }
+    },
+    "menu.tree_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tree View"
+          }
+        }
+      }
+    },
+    "menu.undo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        }
+      }
+    },
+    "null" : {
 
-    "viewer.placeholder" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "waiting json.."
-          }
-        }
-      }
     },
-    "viewer.invalid_json" : {
+    "onboarding.copy_json" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Invalid JSON Format"
-          }
-        }
-      }
-    },
-    "viewer.mode.beautify" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beautify"
-          }
-        }
-      }
-    },
-    "viewer.mode.tree" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tree"
-          }
-        }
-      }
-    },
-
-    "settings.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OhMyJson Settings"
+            "value" : "Copy JSON"
           }
         }
       }
@@ -449,13 +444,72 @@
         }
       }
     },
-
-    "shortcuts.title" : {
+    "settings.title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keyboard Shortcuts"
+            "value" : "OhMyJson Settings"
+          }
+        }
+      }
+    },
+    "shortcuts.beautify_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beautify Mode"
+          }
+        }
+      }
+    },
+    "shortcuts.close_search" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Search"
+          }
+        }
+      }
+    },
+    "shortcuts.close_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Tab"
+          }
+        }
+      }
+    },
+    "shortcuts.copy_paste_cut" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy / Paste / Cut"
+          }
+        }
+      }
+    },
+    "shortcuts.find" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find"
+          }
+        }
+      }
+    },
+    "shortcuts.group.edit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit"
           }
         }
       }
@@ -466,6 +520,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "General"
+          }
+        }
+      }
+    },
+    "shortcuts.group.search" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
           }
         }
       }
@@ -490,132 +554,12 @@
         }
       }
     },
-    "shortcuts.group.search" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search"
-          }
-        }
-      }
-    },
-    "shortcuts.group.edit" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edit"
-          }
-        }
-      }
-    },
     "shortcuts.import_json" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import JSON from clipboard"
-          }
-        }
-      }
-    },
-    "shortcuts.settings" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings"
-          }
-        }
-      }
-    },
-    "shortcuts.quit" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quit"
-          }
-        }
-      }
-    },
-    "shortcuts.new_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New Tab"
-          }
-        }
-      }
-    },
-    "shortcuts.close_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close Tab"
-          }
-        }
-      }
-    },
-    "shortcuts.previous_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Previous Tab"
-          }
-        }
-      }
-    },
-    "shortcuts.next_tab" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next Tab"
-          }
-        }
-      }
-    },
-    "shortcuts.beautify_mode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beautify Mode"
-          }
-        }
-      }
-    },
-    "shortcuts.tree_mode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tree Mode"
-          }
-        }
-      }
-    },
-    "shortcuts.find" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Find"
-          }
-        }
-      }
-    },
-    "shortcuts.close_search" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close Search"
           }
         }
       }
@@ -630,12 +574,42 @@
         }
       }
     },
-    "shortcuts.undo" : {
+    "shortcuts.new_tab" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Undo"
+            "value" : "New Tab"
+          }
+        }
+      }
+    },
+    "shortcuts.next_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Tab"
+          }
+        }
+      }
+    },
+    "shortcuts.previous_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous Tab"
+          }
+        }
+      }
+    },
+    "shortcuts.quit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
           }
         }
       }
@@ -650,95 +624,132 @@
         }
       }
     },
-    "shortcuts.copy_paste_cut" : {
+    "shortcuts.settings" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy / Paste / Cut"
+            "value" : "Settings"
           }
         }
       }
     },
-
-    "onboarding.copy_json" : {
+    "shortcuts.title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy JSON"
+            "value" : "Keyboard Shortcuts"
           }
         }
       }
     },
-
-    "accessibility.title" : {
+    "shortcuts.tree_mode" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Accessibility Access"
+            "value" : "Tree Mode"
           }
         }
       }
     },
-    "accessibility.description" : {
+    "shortcuts.undo" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OhMyJson needs accessibility\npermission to listen for\nglobal hotkeys."
+            "value" : "Undo"
           }
         }
       }
     },
-    "accessibility.skip" : {
+    "toast.copied" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Skip"
+            "value" : "Copied to clipboard"
           }
         }
       }
     },
-    "accessibility.open_settings" : {
+    "toast.invalid_json" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Settings"
+            "value" : "Invalid JSON in clipboard"
           }
         }
       }
     },
-    "accessibility.warning" : {
+    "toast.json_copied" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Accessibility permission required for hotkeys"
+            "value" : "JSON copied!"
           }
         }
       }
     },
-    "accessibility.fix" : {
+    "toast.key_value_copied" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fix"
+            "value" : "Key-value copied to clipboard"
           }
         }
       }
     },
-
-    "undo.set_text" : {
+    "tooltip.clear" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set Text"
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "tooltip.copy_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy All"
+          }
+        }
+      }
+    },
+    "tooltip.new_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Tab"
+          }
+        }
+      }
+    },
+    "tooltip.toggle_theme" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toggle Theme"
+          }
+        }
+      }
+    },
+    "undo.change_text" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Text"
           }
         }
       }
@@ -753,12 +764,52 @@
         }
       }
     },
-    "undo.change_text" : {
+    "undo.set_text" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Change Text"
+            "value" : "Set Text"
+          }
+        }
+      }
+    },
+    "viewer.invalid_json" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid JSON Format"
+          }
+        }
+      }
+    },
+    "viewer.mode.beautify" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beautify"
+          }
+        }
+      }
+    },
+    "viewer.mode.tree" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tree"
+          }
+        }
+      }
+    },
+    "viewer.placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "waiting json.."
           }
         }
       }

@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct PlaceholderView: View {
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     @State private var shimmerOffset: CGFloat = -1.0

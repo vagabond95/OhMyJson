@@ -6,11 +6,12 @@
 import SwiftUI
 
 #if os(macOS)
-class ToastManager: ObservableObject {
+@Observable
+class ToastManager {
     static let shared = ToastManager()
 
-    @Published var isShowing = false
-    @Published var message = ""
+    var isShowing = false
+    var message = ""
 
     private var hideTask: DispatchWorkItem?
 
@@ -36,9 +37,9 @@ class ToastManager: ObservableObject {
 }
 
 struct ToastView: View {
-    @ObservedObject var manager = ToastManager.shared
+    var manager = ToastManager.shared
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {

@@ -54,7 +54,7 @@ private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
 struct CheatSheetButton: View {
     @Binding var isVisible: Bool
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {
@@ -100,7 +100,7 @@ struct CheatSheetButton: View {
 private struct CheatSheetPanel: View {
     let onDismiss: () -> Void
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     private var groups: [ShortcutGroup] {

@@ -13,8 +13,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsPanel: NSPanel?
     private var onboardingController: OnboardingWindowController?
     private var accessibilityCancellable: AnyCancellable?
+    private var hotKeyCancellable: AnyCancellable?
+
+    /// ViewModel — created and owned here, shared with Views via .environmentObject()
+    private var viewModel: ViewerViewModel!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Create ViewModel with real service dependencies
+        viewModel = ViewerViewModel(
+            tabManager: TabManager.shared,
+            clipboardService: ClipboardService.shared,
+            jsonParser: JSONParser.shared,
+            windowManager: WindowManager.shared
+        )
+
+        // Wire ViewModel into WindowManager for delegate callbacks
+        WindowManager.shared.viewModel = viewModel
+
+        // Set up window show callback — ViewModel calls this when it needs a window
+        viewModel.onNeedShowWindow = { [weak self] in
+            self?.ensureWindowShown()
+        }
+
         setupMenuBar()
         setupMainMenu()
 
@@ -23,19 +43,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupAccessibilityObserver()
         setupHotKey()
 
-        // Listen for hotkey changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(hotKeyChanged),
-            name: .openHotKeyChanged,
-            object: nil
-        )
+        // Listen for hotkey changes via Combine
+        hotKeyCancellable = AppSettings.shared.hotKeyChanged
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.setupHotKey()
+            }
 
         // Show onboarding on first launch, otherwise open window immediately
         if !AppSettings.shared.hasSeenOnboarding {
             showOnboarding()
         } else {
-            WindowManager.shared.createNewTab(with: nil)
+            openWindowWithNewTab(json: nil)
         }
     }
 
@@ -85,6 +104,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         mainMenu.addItem(fileMenuItem)
 
+        // View Menu - Find and view mode switching
+        let viewMenu = NSMenu(title: "View")
+        let viewMenuItem = NSMenuItem()
+        viewMenuItem.submenu = viewMenu
+
+        let findItem = NSMenuItem(title: String(localized: "menu.find"), action: #selector(toggleSearch), keyEquivalent: "f")
+        findItem.target = self
+        viewMenu.addItem(findItem)
+
+        viewMenu.addItem(NSMenuItem.separator())
+
+        let beautifyItem = NSMenuItem(title: String(localized: "menu.beautify_mode"), action: #selector(switchToBeautify), keyEquivalent: "1")
+        beautifyItem.target = self
+        viewMenu.addItem(beautifyItem)
+
+        let treeItem = NSMenuItem(title: String(localized: "menu.tree_mode"), action: #selector(switchToTree), keyEquivalent: "2")
+        treeItem.target = self
+        viewMenu.addItem(treeItem)
+
+        mainMenu.addItem(viewMenuItem)
+
         // Edit Menu - Standard system actions (responder chain handles these)
         let editMenu = NSMenu(title: "Edit")
         let editMenuItem = NSMenuItem()
@@ -103,7 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func newTab(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
-        WindowManager.shared.createNewTab(with: nil)
+        openWindowWithNewTab(json: nil)
     }
 
     @objc private func closeTab(_ sender: Any?) {
@@ -115,17 +155,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        if let activeTabId = TabManager.shared.activeTabId {
-            TabManager.shared.closeTab(id: activeTabId)
+        if let activeTabId = viewModel.activeTabId {
+            viewModel.closeTab(id: activeTabId)
         }
     }
 
+    @objc private func toggleSearch(_ sender: Any?) {
+        if onboardingController?.isShowing == true { return }
+        withAnimation(.easeInOut(duration: Animation.quick)) {
+            viewModel.isSearchVisible.toggle()
+        }
+    }
+
+    @objc private func switchToBeautify(_ sender: Any?) {
+        if onboardingController?.isShowing == true { return }
+        viewModel.switchViewMode(to: .beautify)
+    }
+
+    @objc private func switchToTree(_ sender: Any?) {
+        if onboardingController?.isShowing == true { return }
+        viewModel.switchViewMode(to: .tree)
+    }
+
     @objc private func showPreviousTab(_ sender: Any?) {
-        TabManager.shared.selectPreviousTab()
+        viewModel.selectPreviousTab()
     }
 
     @objc private func showNextTab(_ sender: Any?) {
-        TabManager.shared.selectNextTab()
+        viewModel.selectNextTab()
     }
 
     private func setupMenuBar() {
@@ -169,7 +226,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openViewer(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
-        handleHotKey()
+        viewModel.handleHotKey()
     }
 
     @objc private func showSettings(_ sender: Any?) {
@@ -183,7 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             panel.title = String(localized: "settings.title")
             panel.isReleasedWhenClosed = false
             panel.hidesOnDeactivate = false
-            panel.contentViewController = NSHostingController(rootView: SettingsWindowView())
+            panel.contentViewController = NSHostingController(rootView: SettingsWindowView().environment(AppSettings.shared))
             settingsPanel = panel
         }
 
@@ -196,15 +253,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(nil)
     }
 
-    @objc private func hotKeyChanged(_ notification: Notification) {
-        // Restart hotkey manager with new combo
-        setupHotKey()
-    }
-
     private func setupAccessibilityObserver() {
-        accessibilityCancellable = AccessibilityManager.shared.$isAccessibilityGranted
+        accessibilityCancellable = AccessibilityManager.shared.accessibilityChanged
             .removeDuplicates()
-            .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] granted in
                 if granted {
@@ -219,67 +270,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let combo = AppSettings.shared.openHotKeyCombo
 
         HotKeyManager.shared.start(combo: combo) { [weak self] in
-            self?.handleHotKey()
+            self?.viewModel.handleHotKey()
         }
     }
 
-    private func handleHotKey() {
-        // Read clipboard content
-        guard let clipboardText = ClipboardService.shared.readText(), !clipboardText.isEmpty else {
-            // Case 1: Clipboard is empty → create tab with empty state
-            WindowManager.shared.createNewTab(with: nil)
-            return
-        }
+    // MARK: - Window Creation Helper
 
-        // Trim whitespace before processing
-        let trimmed = clipboardText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            WindowManager.shared.createNewTab(with: nil)
-            return
-        }
+    /// Creates a new tab (via ViewModel) and ensures the window is open
+    private func openWindowWithNewTab(json: String?) {
+        // Create tab via ViewModel (handles LRU, parsing, etc.)
+        viewModel.createNewTab(with: json)
 
-        // Check size (5MB limit)
-        let sizeInBytes = trimmed.utf8.count
-        let sizeInMB = Double(sizeInBytes) / Double(FileSize.megabyte)
-
-        if sizeInMB > 5.0 {
-            // Case: Size exceeds 5MB → show confirmation dialog
-            showSizeConfirmationDialog(size: sizeInMB, text: trimmed)
-            return
-        }
-
-        // Validate JSON
-        let parseResult = JSONParser.shared.parse(trimmed)
-
-        switch parseResult {
-        case .success:
-            // Case 3: Valid JSON → create tab with JSON
-            WindowManager.shared.createNewTab(with: trimmed)
-
-        case .failure:
-            // Case 2: Invalid JSON → show toast only (no new tab)
-            ToastManager.shared.show(String(localized: "toast.invalid_json"), duration: Duration.toastLong)
-            if WindowManager.shared.isViewerOpen {
-                WindowManager.shared.bringToFront()
-            }
-        }
+        // ensureWindowShown is called by ViewModel's onNeedShowWindow callback if needed
     }
 
-    private func showSizeConfirmationDialog(size: Double, text: String) {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "alert.large_json.title")
-        alert.informativeText = String(format: String(localized: "alert.large_json.message"), size)
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: String(localized: "alert.large_json.continue"))
-        alert.addButton(withTitle: String(localized: "alert.large_json.cancel"))
+    /// Called by ViewModel when it needs the window to be shown
+    private func ensureWindowShown() {
+        guard !WindowManager.shared.isViewerOpen else { return }
 
-        let response = alert.runModal()
+        let contentView = ViewerWindow()
+            .environment(viewModel!)
+            .environment(AppSettings.shared)
 
-        if response == .alertFirstButtonReturn {
-            // User chose "계속" - proceed with creating tab
-            WindowManager.shared.createNewTab(with: text)
-        }
-        // If user chose "취소", do nothing
+        WindowManager.shared.createAndShowWindow(contentView: contentView)
     }
 
     // MARK: - Onboarding
@@ -300,11 +313,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotKeyManager.shared.isEnabled = true
         onboardingController = nil
         setupHotKey()
-        WindowManager.shared.createNewTab(with: SampleData.json)
+        openWindowWithNewTab(json: SampleData.json)
 
         // Trigger confetti in ViewerWindow after a short delay for window to appear
-        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.confettiDelay) {
-            NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.confettiDelay) { [weak self] in
+            self?.viewModel.triggerConfetti()
         }
     }
 

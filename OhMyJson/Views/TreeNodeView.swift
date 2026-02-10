@@ -7,7 +7,7 @@ import SwiftUI
 
 #if os(macOS)
 struct TreeNodeView: View {
-    @ObservedObject var node: JSONNode
+    var node: JSONNode
     let searchText: String
     let isCurrentSearchResult: Bool
     let onSelect: () -> Void
@@ -16,7 +16,7 @@ struct TreeNodeView: View {
 
     @State private var isHovered = false
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     // MARK: - Theme Colors

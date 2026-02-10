@@ -6,7 +6,7 @@
 #if os(macOS)
 import AppKit
 
-class ClipboardService {
+class ClipboardService: ClipboardServiceProtocol {
     static let shared = ClipboardService()
 
     private init() {}

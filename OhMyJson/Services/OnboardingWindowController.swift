@@ -8,7 +8,7 @@ import AppKit
 import SwiftUI
 import Combine
 
-class OnboardingWindowController: NSObject, NSWindowDelegate {
+class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControllerProtocol {
     private var window: NSWindow?
     private var keyMonitor: Any?
     private var accessibilityCancellable: AnyCancellable?
@@ -36,8 +36,7 @@ class OnboardingWindowController: NSObject, NSWindowDelegate {
         createWindow(with: hostingView)
 
         // Monitor for permission grant → auto-transition
-        accessibilityCancellable = AccessibilityManager.shared.$isAccessibilityGranted
-            .dropFirst()
+        accessibilityCancellable = AccessibilityManager.shared.accessibilityChanged
             .filter { $0 }
             .first()
             .receive(on: DispatchQueue.main)

@@ -20,7 +20,7 @@ struct TopVisibleNodePreferenceKey: PreferenceKey {
 }
 
 struct TreeView: View {
-    @ObservedObject var rootNode: JSONNode
+    var rootNode: JSONNode
     @Binding var searchText: String
     @Binding var selectedNodeId: UUID?
     @Binding var currentSearchIndex: Int

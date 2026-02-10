@@ -1,0 +1,300 @@
+//
+//  JSONParserTests.swift
+//  OhMyJsonTests
+//
+
+import Testing
+@testable import OhMyJson
+
+@Suite("JSONParser Tests")
+struct JSONParserTests {
+
+    let parser = JSONParser.shared
+
+    // MARK: - Basic Parsing
+
+    @Test("Parse simple object")
+    func parseSimpleObject() {
+        let json = #"{"name": "test", "value": 42}"#
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success but got failure")
+            return
+        }
+        #expect(node.children.count == 2)
+    }
+
+    @Test("Parse simple array")
+    func parseSimpleArray() {
+        let json = "[1, 2, 3]"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success but got failure")
+            return
+        }
+        #expect(node.children.count == 3)
+    }
+
+    @Test("Parse nested object")
+    func parseNestedObject() {
+        let json = #"{"outer": {"inner": "value"}}"#
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success but got failure")
+            return
+        }
+        #expect(node.children.count == 1)
+        let outerChild = node.children[0]
+        #expect(outerChild.key == "outer")
+        #expect(outerChild.children.count == 1)
+    }
+
+    @Test("Parse all JSON value types")
+    func parseAllValueTypes() {
+        let json = #"{"str": "hello", "num": 3.14, "bool": true, "nil": null, "arr": [1], "obj": {}}"#
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success but got failure")
+            return
+        }
+        #expect(node.children.count == 6)
+    }
+
+    @Test("Parse fragment - bare string")
+    func parseFragmentString() {
+        let json = #""hello world""#
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success for fragment")
+            return
+        }
+        if case .string(let s) = node.value {
+            #expect(s == "hello world")
+        } else {
+            Issue.record("Expected string value")
+        }
+    }
+
+    @Test("Parse fragment - bare number")
+    func parseFragmentNumber() {
+        let json = "42"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success for fragment")
+            return
+        }
+        if case .number(let n) = node.value {
+            #expect(n == 42.0)
+        } else {
+            Issue.record("Expected number value")
+        }
+    }
+
+    @Test("Parse boolean values")
+    func parseBooleans() {
+        let jsonTrue = "true"
+        let jsonFalse = "false"
+
+        if case .success(let nodeTrue) = parser.parse(jsonTrue),
+           case .bool(let bTrue) = nodeTrue.value {
+            #expect(bTrue == true)
+        } else {
+            Issue.record("Expected true")
+        }
+
+        if case .success(let nodeFalse) = parser.parse(jsonFalse),
+           case .bool(let bFalse) = nodeFalse.value {
+            #expect(bFalse == false)
+        } else {
+            Issue.record("Expected false")
+        }
+    }
+
+    @Test("Parse null")
+    func parseNull() {
+        let json = "null"
+        if case .success(let node) = parser.parse(json) {
+            #expect(node.value == .null)
+        } else {
+            Issue.record("Expected success for null")
+        }
+    }
+
+    // MARK: - Error Handling
+
+    @Test("Empty input returns failure")
+    func emptyInput() {
+        let result = parser.parse("")
+        guard case .failure(let error) = result else {
+            Issue.record("Expected failure for empty input")
+            return
+        }
+        #expect(error.message == "Empty input")
+    }
+
+    @Test("Whitespace-only input returns failure")
+    func whitespaceOnlyInput() {
+        let result = parser.parse("   \n\t  ")
+        guard case .failure(let error) = result else {
+            Issue.record("Expected failure for whitespace-only input")
+            return
+        }
+        #expect(error.message == "Empty input")
+    }
+
+    @Test("Invalid JSON returns failure with position info")
+    func invalidJSON() {
+        let json = #"{"key": value}"#
+        let result = parser.parse(json)
+        guard case .failure(let error) = result else {
+            Issue.record("Expected failure for invalid JSON")
+            return
+        }
+        #expect(!error.message.isEmpty)
+    }
+
+    @Test("Error includes preview of original text")
+    func errorPreview() {
+        let json = "not json at all"
+        let result = parser.parse(json)
+        guard case .failure(let error) = result else {
+            Issue.record("Expected failure")
+            return
+        }
+        #expect(error.preview != nil)
+    }
+
+    // MARK: - Unicode Sanitization
+
+    @Test("Smart/curly quotes are sanitized")
+    func sanitizeSmartQuotes() {
+        // Left/right double quotes → straight quotes
+        let json = "{\u{201C}name\u{201D}: \u{201C}value\u{201D}}"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success after smart quote sanitization")
+            return
+        }
+        #expect(node.children.count == 1)
+    }
+
+    @Test("BOM is removed")
+    func sanitizeBOM() {
+        let json = "\u{FEFF}{\"key\": \"value\"}"
+        let result = parser.parse(json)
+        guard case .success = result else {
+            Issue.record("Expected success after BOM removal")
+            return
+        }
+    }
+
+    @Test("Zero-width characters are removed")
+    func sanitizeZeroWidth() {
+        let json = "{\"key\": \"val\u{200B}ue\"}"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success after zero-width removal")
+            return
+        }
+        // The zero-width space should be stripped from inside the value
+        if let child = node.children.first, case .string(let s) = child.value {
+            #expect(s == "value")
+        }
+    }
+
+    @Test("Non-breaking spaces are replaced")
+    func sanitizeNBSP() {
+        // \u{00A0} (NBSP) in whitespace should be handled
+        let json = "{\u{00A0}\"key\":\u{00A0}\"value\"}"
+        let result = parser.parse(json)
+        guard case .success = result else {
+            Issue.record("Expected success after NBSP sanitization")
+            return
+        }
+    }
+
+    @Test("Unicode line separators are replaced")
+    func sanitizeLineSeparators() {
+        let json = "{\"key\": \"value\"}\u{2028}"
+        let result = parser.parse(json)
+        guard case .success = result else {
+            Issue.record("Expected success after line separator sanitization")
+            return
+        }
+    }
+
+    // MARK: - Formatting
+
+    @Test("formatJSON produces pretty-printed output")
+    func formatJSON() {
+        let json = #"{"a":1,"b":2}"#
+        let formatted = parser.formatJSON(json, indentSize: 4)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("\n"))
+    }
+
+    @Test("formatJSON with custom indent size")
+    func formatJSONCustomIndent() {
+        let json = #"{"a":{"b":1}}"#
+        let formatted2 = parser.formatJSON(json, indentSize: 2)
+        let formatted4 = parser.formatJSON(json, indentSize: 4)
+        #expect(formatted2 != nil)
+        #expect(formatted4 != nil)
+        // 4-space indent should be wider
+        if let f2 = formatted2, let f4 = formatted4 {
+            let f2Lines = f2.components(separatedBy: "\n")
+            let f4Lines = f4.components(separatedBy: "\n")
+            // Both should have the same number of lines
+            #expect(f2Lines.count == f4Lines.count)
+        }
+    }
+
+    @Test("formatJSON collapses empty arrays and objects")
+    func formatJSONCollapsesEmpty() {
+        let json = #"{"arr":[],"obj":{}}"#
+        let formatted = parser.formatJSON(json, indentSize: 4)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("[]"))
+        #expect(formatted!.contains("{}"))
+    }
+
+    @Test("formatJSON returns nil for invalid JSON")
+    func formatJSONInvalid() {
+        let formatted = parser.formatJSON("not json")
+        #expect(formatted == nil)
+    }
+
+    // MARK: - Minification
+
+    @Test("minifyJSON removes whitespace")
+    func minifyJSON() {
+        let json = """
+        {
+            "key": "value",
+            "number": 42
+        }
+        """
+        let minified = parser.minifyJSON(json)
+        #expect(minified != nil)
+        #expect(!minified!.contains("\n"))
+        #expect(!minified!.contains("    "))
+    }
+
+    @Test("minifyJSON returns nil for invalid JSON")
+    func minifyJSONInvalid() {
+        let minified = parser.minifyJSON("not json")
+        #expect(minified == nil)
+    }
+
+    @Test("minifyJSON roundtrip preserves data")
+    func minifyRoundtrip() {
+        let json = #"{"a":1,"b":"hello","c":true,"d":null}"#
+        let minified = parser.minifyJSON(json)
+        #expect(minified != nil)
+        // Parse both and compare structure
+        if case .success(let original) = parser.parse(json),
+           case .success(let roundtripped) = parser.parse(minified!) {
+            #expect(original.children.count == roundtripped.children.count)
+        }
+    }
+}

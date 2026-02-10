@@ -6,11 +6,17 @@
 #if os(macOS)
 import AppKit
 import Combine
+import Observation
 
-class AccessibilityManager: ObservableObject {
+@Observable
+class AccessibilityManager: AccessibilityManagerProtocol {
     static let shared = AccessibilityManager()
 
-    @Published var isAccessibilityGranted: Bool = false
+    @ObservationIgnored let accessibilityChanged = PassthroughSubject<Bool, Never>()
+
+    var isAccessibilityGranted: Bool = false {
+        didSet { accessibilityChanged.send(isAccessibilityGranted) }
+    }
 
     private var pollingTimer: Timer?
     private let pollingInterval: TimeInterval = Timing.accessibilityPolling

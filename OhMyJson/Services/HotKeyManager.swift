@@ -7,7 +7,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-class HotKeyManager {
+class HotKeyManager: HotKeyManagerProtocol {
     static let shared = HotKeyManager()
 
     private var eventTap: CFMachPort?
@@ -20,23 +20,10 @@ class HotKeyManager {
     private var lastHotKeyTime: Date?
     private let throttleInterval: TimeInterval = Timing.hotKeyThrottle
 
-    private init() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(hotKeyChanged),
-            name: .hotKeyChanged,
-            object: nil
-        )
-    }
+    private init() {}
 
     deinit {
         stop()
-    }
-
-    @objc private func hotKeyChanged(_ notification: Notification) {
-        if let combo = notification.object as? HotKeyCombo {
-            currentCombo = combo
-        }
     }
 
     func start(combo: HotKeyCombo, handler: @escaping () -> Void) {

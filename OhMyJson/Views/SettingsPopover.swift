@@ -72,7 +72,7 @@ class HotKeyRecorderNSView: NSView {
 // MARK: - Settings Window View
 
 struct SettingsWindowView: View {
-    @ObservedObject var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     @State private var isRecordingOpenHotKey = false
 
     private var theme: AppTheme { settings.currentTheme }
@@ -83,6 +83,8 @@ struct SettingsWindowView: View {
     }
 
     var body: some View {
+        @Bindable var settings = settings
+
         VStack(alignment: .leading, spacing: 16) {
             aboutSection
 
@@ -149,7 +151,7 @@ struct SettingsWindowView: View {
             hotKeyRow(
                 label: "",
                 isRecording: $isRecordingOpenHotKey,
-                hotKeyCombo: $settings.openHotKeyCombo,
+                hotKeyCombo: Bindable(settings).openHotKeyCombo,
                 displayString: settings.openHotKeyCombo.displayString
             )
         }

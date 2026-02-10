@@ -17,7 +17,7 @@ struct FloatingSearchBar: View {
 
     @FocusState private var isFocused: Bool
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {

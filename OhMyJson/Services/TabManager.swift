@@ -6,13 +6,14 @@
 //
 
 import Foundation
-import Combine
+import Observation
 
-class TabManager: ObservableObject {
+@Observable
+class TabManager: TabManagerProtocol {
     static let shared = TabManager()
 
-    @Published var tabs: [JSONTab] = []
-    @Published var activeTabId: UUID?
+    var tabs: [JSONTab] = []
+    var activeTabId: UUID?
 
     let maxTabs = 10
     let warningThreshold = 8
@@ -32,17 +33,8 @@ class TabManager: ObservableObject {
     /// - Returns: UUID of the created tab
     @discardableResult
     func createTab(with json: String?) -> UUID {
-        // Check if we're at max capacity
-        if tabs.count >= maxTabs {
-            // Auto-close oldest tab (LRU)
-            if let oldestTabId = getOldestTab() {
-                closeTab(id: oldestTabId)
-                ToastManager.shared.show("Oldest tab auto-closed", duration: Duration.toastLong)
-            }
-        } else if tabs.count >= warningThreshold {
-            // Show warning when approaching limit
-            ToastManager.shared.show("Too many tabs open. Please close unused tabs", duration: Duration.toastLong)
-        }
+        // Note: LRU eviction and toast warnings are now handled by ViewerViewModel (mediator).
+        // TabManager only manages tab data.
 
         // Create new tab with timestamp-based title
         let now = Date()
@@ -66,14 +58,8 @@ class TabManager: ObservableObject {
     func closeTab(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
-        // If this is the last tab, close the window (app stays in menu bar for hotkey)
-        // WindowManager.windowWillClose will handle clearing tabs
-        if tabs.count == 1 {
-            #if os(macOS)
-            WindowManager.shared.closeViewer()
-            #endif
-            return
-        }
+        // Note: "last tab → close window" logic is now handled by ViewerViewModel (mediator).
+        // TabManager only removes from the tab array.
 
         tabs.remove(at: index)
 

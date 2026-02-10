@@ -9,7 +9,7 @@ import SwiftUI
 struct ErrorView: View {
     let error: JSONParseError
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {

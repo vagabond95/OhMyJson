@@ -7,7 +7,7 @@ import SwiftUI
 
 #if os(macOS)
 struct AccessibilityOnboardingView: View {
-    @ObservedObject var accessibilityManager = AccessibilityManager.shared
+    var accessibilityManager = AccessibilityManager.shared
     let onSkip: () -> Void
 
     // Dark metal palette (matching OnboardingView)

@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Observation
 
 enum JSONValue: Equatable {
     case string(String)
@@ -98,7 +99,8 @@ enum JSONValue: Equatable {
     }
 }
 
-class JSONNode: Identifiable, ObservableObject {
+@Observable
+class JSONNode: Identifiable {
     let id: UUID
     let key: String?
     let value: JSONValue
@@ -106,7 +108,7 @@ class JSONNode: Identifiable, ObservableObject {
     let indexInParent: Int?
     let isLastChild: Bool
 
-    @Published var isExpanded: Bool
+    var isExpanded: Bool
 
     private(set) var children: [JSONNode] = []
 

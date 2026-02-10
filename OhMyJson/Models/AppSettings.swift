@@ -6,6 +6,8 @@
 import Foundation
 import SwiftUI
 import Carbon.HIToolbox
+import Combine
+import Observation
 
 
 struct HotKeyCombo: Equatable, Codable {
@@ -85,8 +87,13 @@ struct HotKeyCombo: Equatable, Codable {
     }
 }
 
-class AppSettings: ObservableObject {
+@Observable
+class AppSettings {
     static let shared = AppSettings()
+
+    // Explicit Combine publishers for non-SwiftUI subscribers (AppDelegate, ViewerViewModel)
+    @ObservationIgnored let hotKeyChanged = PassthroughSubject<HotKeyCombo, Never>()
+    @ObservationIgnored let jsonIndentChanged = PassthroughSubject<Int, Never>()
 
     private let openHotKeyKey = "openHotKeyCombo"
     private let launchAtLoginKey = "launchAtLogin"
@@ -99,10 +106,10 @@ class AppSettings: ObservableObject {
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
 
-    @Published var openHotKeyCombo: HotKeyCombo {
+    var openHotKeyCombo: HotKeyCombo {
         didSet {
             saveOpenHotKey()
-            NotificationCenter.default.post(name: .openHotKeyChanged, object: openHotKeyCombo)
+            hotKeyChanged.send(openHotKeyCombo)
         }
     }
 
@@ -112,26 +119,26 @@ class AppSettings: ObservableObject {
         set { openHotKeyCombo = newValue }
     }
 
-    @Published var jsonIndent: Int {
+    var jsonIndent: Int {
         didSet {
             UserDefaults.standard.set(jsonIndent, forKey: jsonIndentKey)
-            NotificationCenter.default.post(name: .jsonIndentChanged, object: jsonIndent)
+            jsonIndentChanged.send(jsonIndent)
         }
     }
 
-    @Published var isDarkMode: Bool {
+    var isDarkMode: Bool {
         didSet {
             UserDefaults.standard.set(isDarkMode, forKey: isDarkModeKey)
         }
     }
 
-    @Published var hasSeenOnboarding: Bool {
+    var hasSeenOnboarding: Bool {
         didSet {
             UserDefaults.standard.set(hasSeenOnboarding, forKey: hasSeenOnboardingKey)
         }
     }
 
-    @Published var dividerRatio: CGFloat {
+    var dividerRatio: CGFloat {
         didSet {
             UserDefaults.standard.set(Double(dividerRatio), forKey: dividerRatioKey)
         }
@@ -145,7 +152,7 @@ class AppSettings: ObservableObject {
         isDarkMode.toggle()
     }
 
-    @Published var launchAtLogin: Bool {
+    var launchAtLogin: Bool {
         didSet {
             UserDefaults.standard.set(launchAtLogin, forKey: launchAtLoginKey)
             updateLaunchAtLogin()
@@ -227,14 +234,6 @@ class AppSettings: ObservableObject {
         launchAtLogin = false
         isDarkMode = true
     }
-}
-
-extension Notification.Name {
-    static let openHotKeyChanged = Notification.Name("openHotKeyChanged")
-    static let jsonIndentChanged = Notification.Name("jsonIndentChanged")
-    static let onboardingCompleted = Notification.Name("onboardingCompleted")
-    // Legacy support
-    static let hotKeyChanged = Notification.Name("openHotKeyChanged")
 }
 
 #if os(macOS)

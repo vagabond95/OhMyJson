@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct TabBarView: View {
-    @ObservedObject var tabManager: TabManager
-    @ObservedObject private var settings = AppSettings.shared
+    var tabManager: TabManager
+    @Environment(AppSettings.self) var settings
 
     @State private var hoveredTabId: UUID?
 
@@ -69,9 +69,9 @@ struct TabBarView: View {
 
                 // Theme toggle button
                 Button(action: {
-                    AppSettings.shared.toggleTheme()
+                    settings.toggleTheme()
                 }) {
-                    Image(systemName: AppSettings.shared.isDarkMode ? "moon.fill" : "sun.max.fill")
+                    Image(systemName: settings.isDarkMode ? "moon.fill" : "sun.max.fill")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(theme.secondaryText)
                         .frame(width: Layout.themeButtonWidth, height: Layout.buttonHeight)
@@ -140,9 +140,9 @@ struct TabItemView: View {
     let onClose: () -> Void
     let onHover: (Bool) -> Void
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
-    
+
     private enum Layout {
         static let closeButtonWidth: CGFloat = 14
         static let horizontalPadding: CGFloat = 8
@@ -233,5 +233,6 @@ struct TabItemView: View {
         manager.createTab(with: "{\"test\": 3}")
         return manager
     }())
+    .environment(AppSettings.shared)
     .frame(width: 600, height: 40)
 }

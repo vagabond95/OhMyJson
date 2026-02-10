@@ -64,6 +64,9 @@ class EditableTextView: NSTextView {
                 undoManager?.undo()
             }
             return true
+        case "f", "1", "2":
+            // Let menu items handle ⌘F, ⌘1, ⌘2 — bypass NSTextView's built-in handling
+            return false
         default:
             return super.performKeyEquivalent(with: event)
         }
@@ -78,7 +81,7 @@ struct UndoableTextView: NSViewRepresentable {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -269,7 +272,7 @@ struct InputView: View {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {
@@ -307,7 +310,7 @@ struct InputPanel: View {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
 
-    @ObservedObject private var settings = AppSettings.shared
+    @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {

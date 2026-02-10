@@ -37,7 +37,7 @@ enum JSONParseResult {
     case failure(JSONParseError)
 }
 
-class JSONParser {
+class JSONParser: JSONParserProtocol {
     static let shared = JSONParser()
 
     private init() {}
