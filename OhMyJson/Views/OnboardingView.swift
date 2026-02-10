@@ -10,54 +10,85 @@ struct OnboardingView: View {
     let onCopySampleJson: () -> Void
 
     @State private var showToast = false
+    @State private var showKeycap = false
+    @State private var isHoveringCopy = false
+    @State private var isHoveringKeycap = false
+    @State private var isPulsing = false
 
     // Dark metal palette
     private let baseColor = Color(hex: "1A1A1A")
     private let keycapBg = Color(hex: "2A2A2A")
     private let textPrimary = Color(hex: "E4E3E0")
     private let textSecondary = Color(hex: "9E9D9B")
+    private let accentColor = Color(hex: "4A4A4A")
 
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                VStack(spacing: 20) {
-
-                    // Copy json
-                    Button(action: {
-                        onCopySampleJson()
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showToast = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showToast = false
-                            }
-                        }
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.on.clipboard")
-                                .font(.system(size: 30, weight: .light))
-                                .foregroundColor(textPrimary)
-                            Text("onboarding.copy_json")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(textPrimary)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 12)
-                        .background(buttonBackground())
+            VStack(spacing: 20) {
+                // Copy json
+                Button(action: {
+                    onCopySampleJson()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showToast = true
                     }
-                    .buttonStyle(.plain)
+                    withAnimation(.easeOut(duration: 0.4).delay(0.3)) {
+                        showKeycap = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showToast = false
+                        }
+                    }
+                }) {
+                    VStack(spacing: 8) {
+                        Image(systemName: "doc.on.clipboard")
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundColor(showKeycap ? textPrimary : .white)
+                        Text("onboarding.copy_json")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(showKeycap ? textPrimary : .white)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 12)
+                    .background(styledBackground(accent: !showKeycap))
+                }
+                .buttonStyle(.plain)
+                .disabled(showKeycap)
+                .scaleEffect(!showKeycap && isHoveringCopy ? 1.05 : 1.0)
+                .brightness(!showKeycap && isHoveringCopy ? 0.08 : 0)
+                .opacity(showKeycap ? 0.4 : 1.0)
+                .shadow(color: Color.white.opacity(isPulsing && !showKeycap ? 0.3 : 0), radius: isPulsing && !showKeycap ? 8 : 0)
+                .onHover { hovering in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        isHoveringCopy = hovering
+                    }
+                }
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                        isPulsing = true
+                    }
+                }
 
+                if showKeycap {
                     arrowDown()
+                        .transition(.opacity.combined(with: .move(edge: .top)))
 
                     // Hotkey
                     Button(action: onGetStarted) {
-                        keycapRow().background(buttonBackground())
+                        keycapRow().background(styledBackground(accent: true))
                     }
                     .buttonStyle(.plain)
+                    .scaleEffect(isHoveringKeycap ? 1.05 : 1.0)
+                    .brightness(isHoveringKeycap ? 0.08 : 0)
+                    .shadow(color: Color.white.opacity(isPulsing ? 0.3 : 0.1), radius: isPulsing ? 8 : 4)
+                    .onHover { hovering in
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            isHoveringKeycap = hovering
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .padding(.vertical, 40)
             .frame(width: 250, height: 250)
             .background(
                 RoundedRectangle(cornerRadius: 16)
@@ -120,15 +151,20 @@ struct OnboardingView: View {
         .preferredColorScheme(.dark)
     }
 
-    private func buttonBackground() -> some View {
-        RoundedRectangle(cornerRadius: 10)
-            .fill(keycapBg)
+    private func styledBackground(accent: Bool) -> some View {
+        let fillColor = accent ? accentColor : keycapBg
+        let gradientOpacity = accent ? 0.20 : 0.10
+        let strokeOpacity = accent ? 0.20 : 0.15
+        let shadowColor = accent ? Color.white.opacity(0.15) : Color.black.opacity(0.4)
+
+        return RoundedRectangle(cornerRadius: 10)
+            .fill(fillColor)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.10),
+                                Color.white.opacity(gradientOpacity),
                                 Color.clear,
                             ],
                             startPoint: .top,
@@ -139,13 +175,13 @@ struct OnboardingView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(
-                        Color.white.opacity(0.15),
+                        Color.white.opacity(strokeOpacity),
                         lineWidth: 1
                     )
             )
             .shadow(
-                color: Color.black.opacity(0.4),
-                radius: 3,
+                color: shadowColor,
+                radius: accent ? 4 : 3,
                 y: 2
             )
     }

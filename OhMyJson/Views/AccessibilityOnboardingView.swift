@@ -17,41 +17,26 @@ struct AccessibilityOnboardingView: View {
     private let textSecondary = Color(hex: "9E9D9B")
 
     var body: some View {
-        VStack(spacing: 24) {
-            
+        VStack(spacing: 0) {
+            Spacer()
 
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Text("accessibility.title")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(textPrimary)
 
                 Text("accessibility.description")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundColor(textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
             }
+            .padding(.horizontal, 24)
+            .offset(y: -8)
 
-            Spacer().frame(height: 0)
+            Spacer()
 
-            HStack(spacing: 10) {
-                Button(action: onSkip) {
-                    Text("accessibility.skip")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(keycapBg.opacity(0.6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
-
+            VStack(spacing: 10) {
                 Button(action: {
                     AccessibilityManager.shared.openSystemSettingsAccessibility()
                 }) {
@@ -84,8 +69,26 @@ struct AccessibilityOnboardingView: View {
                         )
                 }
                 .buttonStyle(.plain)
+
+                Button(action: onSkip) {
+                    Text("accessibility.skip")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(keycapBg.opacity(0.6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 60)
+            .padding(.bottom, 8)
         }
         .padding(.vertical, 24)
         .frame(width: 250, height: 250)
