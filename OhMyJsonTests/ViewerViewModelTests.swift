@@ -569,6 +569,42 @@ struct ViewerViewModelTests {
         #expect(vm.selectedNodeId == root.id)
     }
 
+    // MARK: - handleTextChange (debounced path)
+
+    @Test("handleTextChange with new JSON replaces parseResult and resets selection")
+    func handleTextChangeReplacesParseResult() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        // Set initial state: parsed JSON with selected node
+        let initialNode = JSONNode(value: .object(["a": .string("1")]))
+        vm.parseResult = .success(initialNode)
+        vm.selectedNodeId = initialNode.children.first?.id
+
+        // Configure parser to return a different node
+        let newNode = JSONNode(value: .object(["b": .string("2")]))
+        parser.parseResult = .success(newNode)
+
+        // Trigger text change (debounced — fires after 0.3s)
+        vm.handleTextChange(#"{"b": "2"}"#)
+
+        // Wait for debounce to fire
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        // parseResult should have the new root node with a different id
+        guard case .success(let resultNode) = vm.parseResult else {
+            Issue.record("Expected success parse result after text change")
+            return
+        }
+        #expect(resultNode.id == newNode.id)
+        #expect(resultNode.id != initialNode.id)
+
+        // Selection and scroll should be reset
+        #expect(vm.selectedNodeId == nil)
+        #expect(vm.beautifyScrollPosition == 0)
+    }
+
     // MARK: - onWindowWillClose
 
     @Test("onWindowWillClose clears state and tabs")

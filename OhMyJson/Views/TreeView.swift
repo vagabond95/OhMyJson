@@ -73,6 +73,13 @@ struct TreeView: View {
                     scrollAnchorId = nodeId
                 }
             }
+            .onChange(of: rootNode.id) { _, _ in
+                updateVisibleNodes()
+                currentSearchResultId = nil
+                if !searchText.isEmpty {
+                    updateSearchResults()
+                }
+            }
             .onChange(of: rootNode.isExpanded) { _, _ in
                 updateVisibleNodes()
             }
