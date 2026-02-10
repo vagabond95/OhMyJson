@@ -110,6 +110,8 @@ class JSONNode: Identifiable {
 
     var isExpanded: Bool
 
+    weak var parent: JSONNode?
+
     private(set) var children: [JSONNode] = []
 
     init(
@@ -137,6 +139,9 @@ class JSONNode: Identifiable {
         }
 
         self.children = buildChildren(defaultFoldDepth: defaultFoldDepth)
+        for child in children {
+            child.parent = self
+        }
     }
 
     private func buildChildren(defaultFoldDepth: Int = 2) -> [JSONNode] {

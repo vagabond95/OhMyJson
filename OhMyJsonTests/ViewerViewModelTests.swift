@@ -401,6 +401,174 @@ struct ViewerViewModelTests {
         #expect(vm.confettiCounter == 2)
     }
 
+    // MARK: - Tree Keyboard Navigation
+
+    @Test("moveSelectionDown moves to next visible node")
+    func moveSelectionDown() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .string("1"),
+            "b": .string("2")
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        // Select root
+        vm.selectedNodeId = root.id
+        vm.moveSelectionDown()
+
+        // Should move to first child ("a" - sorted)
+        #expect(vm.selectedNodeId == root.children[0].id)
+
+        vm.moveSelectionDown()
+        // Should move to second child ("b")
+        #expect(vm.selectedNodeId == root.children[1].id)
+    }
+
+    @Test("moveSelectionDown at last node stays put")
+    func moveSelectionDownAtEnd() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object(["a": .string("1")]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let lastNode = root.children[0]
+        vm.selectedNodeId = lastNode.id
+
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == lastNode.id)
+    }
+
+    @Test("moveSelectionUp moves to previous visible node")
+    func moveSelectionUp() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .string("1"),
+            "b": .string("2")
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        // Select last child ("b")
+        vm.selectedNodeId = root.children[1].id
+        vm.moveSelectionUp()
+        #expect(vm.selectedNodeId == root.children[0].id)
+
+        vm.moveSelectionUp()
+        #expect(vm.selectedNodeId == root.id)
+    }
+
+    @Test("moveSelectionUp at first node stays put")
+    func moveSelectionUpAtStart() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object(["a": .string("1")]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        vm.selectedNodeId = root.id
+        vm.moveSelectionUp()
+        #expect(vm.selectedNodeId == root.id)
+    }
+
+    @Test("expandOrMoveRight expands collapsed container")
+    func expandOrMoveRightExpands() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let containerNode = root.children[0] // "a"
+        containerNode.isExpanded = false
+        vm.selectedNodeId = containerNode.id
+
+        vm.expandOrMoveRight()
+
+        #expect(containerNode.isExpanded == true)
+        #expect(vm.selectedNodeId == containerNode.id) // stays on same node
+    }
+
+    @Test("expandOrMoveRight moves to first child when expanded")
+    func expandOrMoveRightMovesToChild() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let containerNode = root.children[0] // "a" - already expanded
+        vm.selectedNodeId = containerNode.id
+
+        vm.expandOrMoveRight()
+
+        #expect(vm.selectedNodeId == containerNode.children[0].id)
+    }
+
+    @Test("expandOrMoveRight on leaf does nothing")
+    func expandOrMoveRightOnLeaf() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object(["a": .string("1")]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let leaf = root.children[0]
+        vm.selectedNodeId = leaf.id
+
+        vm.expandOrMoveRight()
+        #expect(vm.selectedNodeId == leaf.id) // unchanged
+    }
+
+    @Test("collapseOrMoveLeft collapses expanded container")
+    func collapseOrMoveLeftCollapses() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let containerNode = root.children[0] // "a" - expanded
+        vm.selectedNodeId = containerNode.id
+
+        vm.collapseOrMoveLeft()
+
+        #expect(containerNode.isExpanded == false)
+        #expect(vm.selectedNodeId == containerNode.id) // stays
+    }
+
+    @Test("collapseOrMoveLeft moves to parent when collapsed or leaf")
+    func collapseOrMoveLeftMovesToParent() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let leaf = root.children[0].children[0] // "nested"
+        vm.selectedNodeId = leaf.id
+
+        vm.collapseOrMoveLeft()
+        #expect(vm.selectedNodeId == root.children[0].id) // moved to parent "a"
+    }
+
+    @Test("selectedNodeId and treeScrollAnchorId are independent")
+    func selectedAndScrollAnchorIndependent() {
+        let (vm, _, _, _, _) = makeSUT()
+        let nodeId1 = UUID()
+        let nodeId2 = UUID()
+
+        vm.selectedNodeId = nodeId1
+        vm.treeScrollAnchorId = nodeId2
+
+        #expect(vm.selectedNodeId == nodeId1)
+        #expect(vm.treeScrollAnchorId == nodeId2)
+    }
+
+    @Test("moveSelectionDown with no selection selects first node")
+    func moveSelectionDownNoSelection() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object(["a": .string("1")]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+        vm.selectedNodeId = nil
+
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == root.id)
+    }
+
     // MARK: - onWindowWillClose
 
     @Test("onWindowWillClose clears state and tabs")

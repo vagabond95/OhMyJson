@@ -199,6 +199,9 @@ struct ViewerWindow: View {
         .onChange(of: viewModel.selectedNodeId) { _, _ in
             viewModel.syncSelectedNodeId()
         }
+        .onChange(of: viewModel.treeScrollAnchorId) { _, _ in
+            viewModel.syncTreeScrollAnchor()
+        }
         .onChange(of: viewModel.isSearchVisible) { _, _ in
             viewModel.syncSearchVisibility()
         }
@@ -313,7 +316,9 @@ struct ViewerWindow: View {
                         rootNode: rootNode,
                         searchText: Bindable(viewModel).searchText,
                         selectedNodeId: Bindable(viewModel).selectedNodeId,
+                        scrollAnchorId: Bindable(viewModel).treeScrollAnchorId,
                         currentSearchIndex: currentSearchIndex,
+                        treeStructureVersion: viewModel.treeStructureVersion,
                         isRestoringTabState: viewModel.isRestoringTabState
                     )
                     .onChange(of: viewModel.searchText) { _, _ in
@@ -356,6 +361,43 @@ struct ViewerWindow: View {
                     }
                     return nil
                 }
+            }
+
+            // ↑/↓: tree mode + selection exists → always handle (even when search bar focused)
+            if vm.viewMode == .tree, vm.selectedNodeId != nil {
+                if event.keyCode == KeyCode.downArrow {
+                    vm.moveSelectionDown()
+                    return nil
+                }
+                if event.keyCode == KeyCode.upArrow {
+                    vm.moveSelectionUp()
+                    return nil
+                }
+            }
+
+            // ←/→: tree mode + selection + NOT in TextField focus
+            let isTextFieldFocused = NSApp.keyWindow?.firstResponder is NSTextView
+            if vm.viewMode == .tree, vm.selectedNodeId != nil, !isTextFieldFocused {
+                if event.keyCode == KeyCode.rightArrow {
+                    vm.expandOrMoveRight()
+                    return nil
+                }
+                if event.keyCode == KeyCode.leftArrow {
+                    vm.collapseOrMoveLeft()
+                    return nil
+                }
+            }
+
+            // Cmd+G / Cmd+Shift+G: search navigation (when search bar is visible)
+            if event.modifierFlags.contains(.command),
+               event.keyCode == KeyCode.gKey,
+               vm.isSearchVisible {
+                if event.modifierFlags.contains(.shift) {
+                    vm.previousSearchResult()
+                } else {
+                    vm.nextSearchResult()
+                }
+                return nil
             }
 
             return event

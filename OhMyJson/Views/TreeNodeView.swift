@@ -10,11 +10,13 @@ struct TreeNodeView: View {
     var node: JSONNode
     let searchText: String
     let isCurrentSearchResult: Bool
+    let isSelected: Bool
     let onSelect: () -> Void
     let onToggleExpand: (() -> Void)?
     let ancestorIsLast: [Bool]
 
     @State private var isHovered = false
+    @State private var hoverLocation: CGPoint = .zero
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -31,21 +33,10 @@ struct TreeNodeView: View {
     private var searchCurrentMatchFgColor: Color { theme.searchCurrentMatchFg }
     private var searchOtherMatchFgColor: Color { theme.searchOtherMatchFg }
     private var hoverColor: Color { theme.hoverBg }
+    private var selectionColor: Color { theme.selectionBg }
 
     var body: some View {
-        if node.value.isContainer {
-            rowContent
-                .onTapGesture {
-                    if node.value.childCount > 0 {
-                        node.toggleExpanded()
-                        onToggleExpand?()
-                    }
-                }
-        } else {
-            rowContent
-                .onTapGesture(count: 2) { copyValue() }
-                .onTapGesture(count: 1) { onSelect() }
-        }
+        rowContent
     }
 
     private var rowContent: some View {
@@ -60,8 +51,31 @@ struct TreeNodeView: View {
         .background(backgroundColor)
         .animation(.easeInOut(duration: Animation.quick), value: isCurrentSearchResult)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovered = hovering
+        .onTapGesture {
+            onSelect()
+        }
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location):
+                if !isHovered {
+                    hoverLocation = location
+                }
+                isHovered = true
+            case .ended:
+                isHovered = false
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            if isSelected && isHovered {
+                GeometryReader { geo in
+                    let availableWidth = max(90, hoverLocation.x - 8)
+                    CopyButtonsOverlay(node: node)
+                        .fixedSize()
+                        .frame(width: availableWidth, alignment: .trailing)
+                        .frame(height: geo.size.height)
+                }
+                .allowsHitTesting(true)
+            }
         }
     }
 
@@ -81,6 +95,11 @@ struct TreeNodeView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(structureColor.opacity(0.7))
                     .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        node.toggleExpanded()
+                        onToggleExpand?()
+                    }
             } else {
                 Spacer().frame(width: 16)
             }
@@ -183,29 +202,9 @@ struct TreeNodeView: View {
     }
 
     private var backgroundColor: Color {
-        if isHovered {
-            return hoverColor
-        }
+        if isSelected { return selectionColor }
+        if isHovered { return hoverColor }
         return Color.clear
-    }
-
-    private func copyValue() {
-        // Format: "key: value"
-        let copyText: String
-        if let key = node.key {
-            // Has a key → format as "key: value"
-            copyText = "\(key): \(node.copyValue)"
-        } else {
-            // No key (root node) → just copy value
-            copyText = node.copyValue
-        }
-
-        ClipboardService.shared.writeText(copyText)
-        showCopyFeedback()
-    }
-
-    private func showCopyFeedback() {
-        ToastManager.shared.show(String(localized: "toast.key_value_copied"))
     }
 }
 
@@ -221,6 +220,7 @@ struct TreeNodeView_Previews: PreviewProvider {
             node: sampleNode,
             searchText: "",
             isCurrentSearchResult: false,
+            isSelected: false,
             onSelect: {},
             onToggleExpand: nil,
             ancestorIsLast: [false]

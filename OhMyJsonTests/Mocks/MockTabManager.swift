@@ -118,4 +118,9 @@ final class MockTabManager: TabManagerProtocol {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].treeSelectedNodeId = nodeId
     }
+
+    func updateTabTreeScrollAnchor(id: UUID, nodeId: UUID?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].treeScrollAnchorId = nodeId
+    }
 }

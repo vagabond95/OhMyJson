@@ -23,7 +23,9 @@ struct TreeView: View {
     var rootNode: JSONNode
     @Binding var searchText: String
     @Binding var selectedNodeId: UUID?
+    @Binding var scrollAnchorId: UUID?
     @Binding var currentSearchIndex: Int
+    var treeStructureVersion: Int = 0
     var isRestoringTabState: Bool = false
 
     @State private var visibleNodes: [JSONNode] = []
@@ -42,7 +44,8 @@ struct TreeView: View {
                             node: node,
                             searchText: searchText,
                             isCurrentSearchResult: currentSearchResultId == node.id,
-                            onSelect: { },
+                            isSelected: selectedNodeId == node.id,
+                            onSelect: { selectedNodeId = node.id },
                             onToggleExpand: {
                                 updateVisibleNodes()
                             },
@@ -67,7 +70,7 @@ struct TreeView: View {
             .onPreferenceChange(TopVisibleNodePreferenceKey.self) { topNodeId in
                 // Only update after initial scroll restoration is done, not during tab restore
                 if hasRestoredScroll, !isRestoringTabState, let nodeId = topNodeId {
-                    selectedNodeId = nodeId
+                    scrollAnchorId = nodeId
                 }
             }
             .onChange(of: rootNode.isExpanded) { _, _ in
@@ -87,6 +90,16 @@ struct TreeView: View {
                     navigateToSearchResult(index: newIndex, proxy: proxy)
                 }
             }
+            .onChange(of: treeStructureVersion) { _, _ in
+                updateVisibleNodes()
+            }
+            .onChange(of: selectedNodeId) { _, newId in
+                if let nodeId = newId {
+                    withAnimation(.easeInOut(duration: Animation.quick)) {
+                        proxy.scrollTo(nodeId, anchor: nil)
+                    }
+                }
+            }
             .onAppear {
                 hasRestoredScroll = false
                 isReady = false
@@ -94,19 +107,18 @@ struct TreeView: View {
                 // Restore search highlighting (without scrolling) when returning to tab
                 restoreSearchHighlighting()
 
-                // Validate selectedNodeId — fallback to nil if node no longer exists
-                if let nodeId = selectedNodeId,
+                // Validate scrollAnchorId — fallback to nil if node no longer exists
+                if let nodeId = scrollAnchorId,
                    !visibleNodes.contains(where: { $0.id == nodeId }) {
-                    // Also check all nodes (including collapsed) in case it's just not visible
                     let allNodes = rootNode.allNodesIncludingCollapsed()
                     if !allNodes.contains(where: { $0.id == nodeId }) {
-                        selectedNodeId = nil
+                        scrollAnchorId = nil
                     }
                 }
 
                 // Delay scroll restoration slightly to ensure binding is updated
                 DispatchQueue.main.async {
-                    if let nodeId = selectedNodeId {
+                    if let nodeId = scrollAnchorId {
                         proxy.scrollTo(nodeId, anchor: .top)
                     }
                     // Reveal the view after scroll is positioned
@@ -200,7 +212,7 @@ struct TreeView: View {
 
         // Update highlight immediately
         currentSearchResultId = targetNode.id
-        selectedNodeId = targetNode.id
+        scrollAnchorId = targetNode.id
 
         // Scroll with animation (use DispatchQueue to ensure layout is updated)
         DispatchQueue.main.async {

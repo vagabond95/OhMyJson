@@ -33,16 +33,6 @@ struct FloatingSearchBar: View {
                     .onSubmit {
                         onNext()
                     }
-                    .onKeyPress { keyPress in
-                        if keyPress.key == .downArrow {
-                            onNext()
-                            return .handled
-                        } else if keyPress.key == .upArrow {
-                            onPrevious()
-                            return .handled
-                        }
-                        return .ignored
-                    }
 
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {

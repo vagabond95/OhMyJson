@@ -285,6 +285,49 @@ struct JSONNodeTests {
         #expect(root.children[0].children[0].isExpanded == true)
     }
 
+    // MARK: - Parent Reference
+
+    @Test("Root node parent is nil")
+    func rootParentNil() {
+        let node = JSONNode(value: .object(["key": .string("value")]))
+        #expect(node.parent == nil)
+    }
+
+    @Test("Object children have parent set")
+    func objectChildrenParent() {
+        let node = JSONNode(value: .object([
+            "a": .string("1"),
+            "b": .string("2")
+        ]))
+        for child in node.children {
+            #expect(child.parent === node)
+        }
+    }
+
+    @Test("Array children have parent set")
+    func arrayChildrenParent() {
+        let node = JSONNode(value: .array([.string("a"), .string("b")]))
+        for child in node.children {
+            #expect(child.parent === node)
+        }
+    }
+
+    @Test("Nested children have correct parent chain")
+    func nestedParentChain() {
+        let value = JSONValue.object([
+            "level1": .object([
+                "level2": .string("deep")
+            ])
+        ])
+        let root = JSONNode(value: value)
+        let level1 = root.children[0]
+        let level2 = level1.children[0]
+
+        #expect(root.parent == nil)
+        #expect(level1.parent === root)
+        #expect(level2.parent === level1)
+    }
+
     // MARK: - Display Values
 
     @Test("displayValue for all types")

@@ -45,8 +45,11 @@ struct JSONTab: Identifiable, Equatable {
     var inputScrollPosition: CGFloat
     var beautifyScrollPosition: CGFloat
 
-    /// Selected node ID for tree view scroll anchor
+    /// Selected node ID for tree view (user selection)
     var treeSelectedNodeId: UUID?
+
+    /// Scroll anchor node ID for tree view (scroll position tracking)
+    var treeScrollAnchorId: UUID?
 
     init(
         id: UUID = UUID(),
@@ -62,7 +65,8 @@ struct JSONTab: Identifiable, Equatable {
         isSearchVisible: Bool = false,
         inputScrollPosition: CGFloat = 0,
         beautifyScrollPosition: CGFloat = 0,
-        treeSelectedNodeId: UUID? = nil
+        treeSelectedNodeId: UUID? = nil,
+        treeScrollAnchorId: UUID? = nil
     ) {
         self.id = id
         self.inputText = inputText
@@ -78,6 +82,7 @@ struct JSONTab: Identifiable, Equatable {
         self.inputScrollPosition = inputScrollPosition
         self.beautifyScrollPosition = beautifyScrollPosition
         self.treeSelectedNodeId = treeSelectedNodeId
+        self.treeScrollAnchorId = treeScrollAnchorId
     }
 
     /// Update last accessed time to current

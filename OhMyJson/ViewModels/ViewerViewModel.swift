@@ -26,6 +26,7 @@ class ViewerViewModel {
     var inputText: String = ""
     var searchText: String = ""
     var selectedNodeId: UUID?
+    var treeScrollAnchorId: UUID?
     var beautifySearchIndex: Int = 0
     var treeSearchIndex: Int = 0
     var searchResultCount: Int = 0
@@ -40,6 +41,10 @@ class ViewerViewModel {
     var showLargeFileWarning: Bool = false
     var isRestoringTabState: Bool = false
     var isCheatSheetVisible: Bool = false
+
+    // MARK: - Tree Structure Version (incremented on expand/collapse from ViewModel)
+
+    var treeStructureVersion: Int = 0
 
     // MARK: - Confetti
 
@@ -304,8 +309,10 @@ class ViewerViewModel {
 
         beautifyScrollPosition = 0
         selectedNodeId = nil
+        treeScrollAnchorId = nil
         tabManager.updateTabScrollPosition(id: activeTabId, position: 0)
         tabManager.updateTabTreeSelectedNodeId(id: activeTabId, nodeId: nil)
+        tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: nil)
 
         if viewMode == .beautify {
             updateSearchResultCountForBeautify()
@@ -349,6 +356,7 @@ class ViewerViewModel {
         tabManager.updateTabInputScrollPosition(id: tabId, position: inputScrollPosition)
         tabManager.updateTabScrollPosition(id: tabId, position: beautifyScrollPosition)
         tabManager.updateTabTreeSelectedNodeId(id: tabId, nodeId: selectedNodeId)
+        tabManager.updateTabTreeScrollAnchor(id: tabId, nodeId: treeScrollAnchorId)
     }
 
     func restoreTabState() {
@@ -367,6 +375,7 @@ class ViewerViewModel {
             inputScrollPosition = 0
             beautifyScrollPosition = 0
             selectedNodeId = nil
+            treeScrollAnchorId = nil
             isRestoringTabState = false
             return
         }
@@ -385,6 +394,7 @@ class ViewerViewModel {
         inputScrollPosition = activeTab.inputScrollPosition
         beautifyScrollPosition = activeTab.beautifyScrollPosition
         selectedNodeId = activeTab.treeSelectedNodeId
+        treeScrollAnchorId = activeTab.treeScrollAnchorId
 
         if viewMode == .beautify {
             updateSearchResultCountForBeautify()
@@ -486,6 +496,7 @@ class ViewerViewModel {
                 tabManager.updateTabScrollPosition(id: activeTabId, position: beautifyScrollPosition)
             } else {
                 tabManager.updateTabTreeSelectedNodeId(id: activeTabId, nodeId: selectedNodeId)
+                tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: treeScrollAnchorId)
             }
         }
 
@@ -501,6 +512,7 @@ class ViewerViewModel {
                 beautifyScrollPosition = activeTab.beautifyScrollPosition
             } else {
                 selectedNodeId = activeTab.treeSelectedNodeId
+                treeScrollAnchorId = activeTab.treeScrollAnchorId
             }
             DispatchQueue.main.async { [weak self] in
                 self?.isRestoringTabState = false
@@ -565,10 +577,83 @@ class ViewerViewModel {
         }
     }
 
+    func syncTreeScrollAnchor() {
+        guard !isRestoringTabState else { return }
+        if let activeTabId = tabManager.activeTabId, viewMode == .tree {
+            tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: treeScrollAnchorId)
+        }
+    }
+
     func syncSearchVisibility() {
         guard !isRestoringTabState else { return }
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabSearchVisibility(id: activeTabId, isVisible: isSearchVisible)
+        }
+    }
+
+    // MARK: - Tree Keyboard Navigation
+
+    func moveSelectionDown() {
+        guard case .success(let rootNode) = parseResult else { return }
+        let visible = rootNode.allNodes()
+        guard !visible.isEmpty else { return }
+
+        guard let currentId = selectedNodeId,
+              let currentIndex = visible.firstIndex(where: { $0.id == currentId }) else {
+            selectedNodeId = visible.first?.id
+            return
+        }
+
+        let nextIndex = currentIndex + 1
+        guard nextIndex < visible.count else { return }
+        selectedNodeId = visible[nextIndex].id
+    }
+
+    func moveSelectionUp() {
+        guard case .success(let rootNode) = parseResult else { return }
+        let visible = rootNode.allNodes()
+        guard !visible.isEmpty else { return }
+
+        guard let currentId = selectedNodeId,
+              let currentIndex = visible.firstIndex(where: { $0.id == currentId }) else {
+            selectedNodeId = visible.first?.id
+            return
+        }
+
+        let prevIndex = currentIndex - 1
+        guard prevIndex >= 0 else { return }
+        selectedNodeId = visible[prevIndex].id
+    }
+
+    func expandOrMoveRight() {
+        guard case .success(let rootNode) = parseResult else { return }
+        let visible = rootNode.allNodes()
+
+        guard let currentId = selectedNodeId,
+              let node = visible.first(where: { $0.id == currentId }) else { return }
+
+        if node.value.isContainer && node.value.childCount > 0 {
+            if !node.isExpanded {
+                node.isExpanded = true
+                treeStructureVersion += 1
+            } else if let firstChild = node.children.first {
+                selectedNodeId = firstChild.id
+            }
+        }
+    }
+
+    func collapseOrMoveLeft() {
+        guard case .success(let rootNode) = parseResult else { return }
+        let visible = rootNode.allNodes()
+
+        guard let currentId = selectedNodeId,
+              let node = visible.first(where: { $0.id == currentId }) else { return }
+
+        if node.value.isContainer && node.isExpanded {
+            node.isExpanded = false
+            treeStructureVersion += 1
+        } else if let parentNode = node.parent {
+            selectedNodeId = parentNode.id
         }
     }
 

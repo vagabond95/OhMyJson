@@ -261,22 +261,22 @@
         }
       }
     },
-    "menu.find" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Find"
-          }
-        }
-      }
-    },
     "menu.cut" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cut"
+          }
+        }
+      }
+    },
+    "menu.find" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find"
           }
         }
       }
@@ -694,12 +694,33 @@
         }
       }
     },
+    "toast.key_copied" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key copied to clipboard"
+          }
+        }
+      }
+    },
     "toast.key_value_copied" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Key-value copied to clipboard"
+          }
+        }
+      }
+    },
+    "toast.value_copied" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value copied to clipboard"
           }
         }
       }
@@ -720,6 +741,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy All"
+          }
+        }
+      }
+    },
+    "tooltip.copy_json" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy JSON"
+          }
+        }
+      }
+    },
+    "tooltip.copy_key" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Key"
+          }
+        }
+      }
+    },
+    "tooltip.copy_key_value" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Key: Value"
+          }
+        }
+      }
+    },
+    "tooltip.copy_value" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Value"
           }
         }
       }

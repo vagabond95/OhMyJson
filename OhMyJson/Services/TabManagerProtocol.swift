@@ -32,4 +32,5 @@ protocol TabManagerProtocol: AnyObject {
     func updateTabInputScrollPosition(id: UUID, position: CGFloat)
     func updateTabScrollPosition(id: UUID, position: CGFloat)
     func updateTabTreeSelectedNodeId(id: UUID, nodeId: UUID?)
+    func updateTabTreeScrollAnchor(id: UUID, nodeId: UUID?)
 }

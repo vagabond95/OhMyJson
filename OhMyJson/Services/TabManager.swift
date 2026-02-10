@@ -179,13 +179,22 @@ class TabManager: TabManagerProtocol {
         tabs[index].isSearchVisible = isVisible
     }
 
-    /// Update the selected node ID for tree view scroll anchor
+    /// Update the selected node ID for tree view
     /// - Parameters:
     ///   - id: UUID of the tab
     ///   - nodeId: UUID of the selected node in tree view
     func updateTabTreeSelectedNodeId(id: UUID, nodeId: UUID?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].treeSelectedNodeId = nodeId
+    }
+
+    /// Update the scroll anchor node ID for tree view
+    /// - Parameters:
+    ///   - id: UUID of the tab
+    ///   - nodeId: UUID of the scroll anchor node in tree view
+    func updateTabTreeScrollAnchor(id: UUID, nodeId: UUID?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].treeScrollAnchorId = nodeId
     }
 
     /// Close all tabs
