@@ -62,7 +62,7 @@ struct TreeView: View {
                         )
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.leading, 10).padding(.trailing, 8)
                 .padding(.vertical, 4)
             }
             .coordinateSpace(name: "scrollView")
