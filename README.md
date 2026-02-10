@@ -1,5 +1,5 @@
 <p align="center">
-  <!-- <img src="assets/icon.png" width="128" height="128" alt="OhMyJson icon" /> -->
+  <img src="Resources/icon.png" width="128" height="128" alt="OhMyJson icon" />
   <h1 align="center">OhMyJson</h1>
   <p align="center">A lightning-fast, hotkey-driven JSON viewer for macOS.</p>
 </p>
