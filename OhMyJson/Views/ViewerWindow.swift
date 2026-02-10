@@ -195,34 +195,6 @@ struct ViewerWindow: View {
         )
         .withToast()
         .withAccessibilityWarning()
-        .background(
-            Group {
-                // Hidden button for ⌘F - opens search (no-op if already open)
-                Button("") {
-                    if !isSearchVisible {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isSearchVisible = true
-                        }
-                    }
-                }
-                .keyboardShortcut("f", modifiers: .command)
-                .hidden()
-
-                // Hidden button for ⌘1 - Beautify mode
-                Button("") {
-                    switchViewMode(to: .beautify)
-                }
-                .keyboardShortcut("1", modifiers: .command)
-                .hidden()
-
-                // Hidden button for ⌘2 - Tree mode
-                Button("") {
-                    switchViewMode(to: .tree)
-                }
-                .keyboardShortcut("2", modifiers: .command)
-                .hidden()
-            }
-        )
         .onAppear {
             setupKeyboardShortcuts()
             loadInitialContent()
@@ -664,6 +636,26 @@ struct ViewerWindow: View {
                     }
                 }
             }
+
+            // ⌘ shortcuts: F (search), 1 (beautify), 2 (tree)
+            if event.modifierFlags.contains(.command),
+               let chars = event.charactersIgnoringModifiers {
+                switch chars {
+                case "f":
+                    if !isSearchVisible {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isSearchVisible = true
+                        }
+                    }
+                case "1":
+                    switchViewMode(to: .beautify)
+                case "2":
+                    switchViewMode(to: .tree)
+                default:
+                    break
+                }
+            }
+
             return event
         }
     }
