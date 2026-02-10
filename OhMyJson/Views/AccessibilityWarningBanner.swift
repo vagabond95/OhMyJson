@@ -77,7 +77,7 @@ struct AccessibilityWarningModifier: ViewModifier {
                 AccessibilityWarningBanner()
                     .padding(.bottom, 12)
             }
-            .animation(.easeInOut(duration: 0.3), value: AccessibilityManager.shared.isAccessibilityGranted)
+            .animation(.easeInOut(duration: Animation.slow), value: AccessibilityManager.shared.isAccessibilityGranted)
         }
     }
 }

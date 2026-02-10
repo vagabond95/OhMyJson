@@ -58,7 +58,7 @@ struct TreeNodeView: View {
         }
         .padding(.vertical, 2)
         .background(backgroundColor)
-        .animation(.easeInOut(duration: 0.15), value: isCurrentSearchResult)
+        .animation(.easeInOut(duration: Animation.quick), value: isCurrentSearchResult)
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovered = hovering

@@ -44,13 +44,15 @@ struct ViewerWindow: View {
     @State private var isDraggingDivider = false
     @State private var dragStartRatio: CGFloat = 0
     @State private var dragStartX: CGFloat = 0
-    private let minPanelWidth: CGFloat = 200
-    private let dividerHitAreaWidth: CGFloat = 9
-    private let defaultDividerRatio: CGFloat = 0.35
+    private enum Layout {
+        static let minPanelWidth: CGFloat = 200
+        static let dividerHitAreaWidth: CGFloat = 9
+        static let defaultDividerRatio: CGFloat = 0.35
+    }
 
     @State private var debounceTask: DispatchWorkItem?
-    private let debounceInterval: TimeInterval = 0.3
-    private let largeFileSizeThreshold = 5 * 1024 * 1024 // 5MB
+    private let debounceInterval: TimeInterval = Timing.parseDebounce
+    private let largeFileSizeThreshold = FileSize.largeThreshold
 
     // Confetti
     @State private var confettiCounter: Int = 0
@@ -59,7 +61,7 @@ struct ViewerWindow: View {
     @State private var isRestoringTabState: Bool = false
     @State private var restoreTask: DispatchWorkItem? = nil
     @State private var hasRestoredCurrentTab: Bool = false
-    private let restoreDebounceInterval: TimeInterval = 0.2
+    private let restoreDebounceInterval: TimeInterval = Timing.tabRestoreDebounce
 
     @State private var isCheatSheetVisible = false
 
@@ -80,8 +82,8 @@ struct ViewerWindow: View {
                 // Main Content: Input (35%) | Resizable Divider | Viewer (65%)
                 GeometryReader { geometry in
                     let totalWidth = geometry.size.width
-                    let effectiveWidth = totalWidth - dividerHitAreaWidth
-                    let inputWidth = max(minPanelWidth, min(effectiveWidth - minPanelWidth, effectiveWidth * dividerRatio))
+                    let effectiveWidth = totalWidth - Layout.dividerHitAreaWidth
+                    let inputWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, effectiveWidth * dividerRatio))
                     HStack(spacing: 0) {
                         // Left: Input Panel
                         InputPanel(
@@ -97,7 +99,7 @@ struct ViewerWindow: View {
                         // Resizable Divider
                         Rectangle()
                             .fill(Color.clear)
-                            .frame(width: 9)
+                            .frame(width: Layout.dividerHitAreaWidth)
                             .overlay(alignment: .top) {
                                 VStack(spacing: 0) {
                                     Rectangle()
@@ -120,8 +122,8 @@ struct ViewerWindow: View {
                             .simultaneousGesture(
                                 TapGesture(count: 2)
                                     .onEnded {
-                                        dividerRatio = defaultDividerRatio
-                                        settings.dividerRatio = defaultDividerRatio
+                                        dividerRatio = Layout.defaultDividerRatio
+                                        settings.dividerRatio = Layout.defaultDividerRatio
                                     }
                             )
                             .gesture(
@@ -135,9 +137,9 @@ struct ViewerWindow: View {
                                         }
                                         let deltaX = value.location.x - dragStartX
                                         let newInputWidth = effectiveWidth * dragStartRatio + deltaX
-                                        let clampedWidth = max(minPanelWidth, min(effectiveWidth - minPanelWidth, newInputWidth))
+                                        let clampedWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, newInputWidth))
                                         let newRatio = clampedWidth / effectiveWidth
-                                        if abs(newRatio - dividerRatio) * effectiveWidth > 0.5 {
+                                        if abs(newRatio - dividerRatio) * effectiveWidth > Timing.dividerDragThreshold {
                                             dividerRatio = newRatio
                                         }
                                     }
@@ -166,7 +168,7 @@ struct ViewerWindow: View {
                     totalCount: searchResultCount,
                     onNext: nextSearchResult,
                     onPrevious: previousSearchResult,
-                    onClose: { withAnimation(.easeInOut(duration: 0.15)) { closeSearch() } },
+                    onClose: { withAnimation(.easeInOut(duration: Animation.quick)) { closeSearch() } },
                     shouldAutoFocus: !isRestoringTabState
                 )
                 .padding(.top, 80)
@@ -183,7 +185,7 @@ struct ViewerWindow: View {
                 .padding(.trailing, 12)
                 .padding(.bottom, 12)
         }
-        .frame(minWidth: 800, minHeight: 400)
+        .frame(minWidth: WindowSize.minWidth, minHeight: WindowSize.minHeight)
         .ignoresSafeArea(edges: .top)
         .preferredColorScheme(theme.colorScheme)
         .confettiCannon(
@@ -625,13 +627,13 @@ struct ViewerWindow: View {
     private func setupKeyboardShortcuts() {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // ESC to close cheat sheet or search
-            if event.keyCode == 53 {
+            if event.keyCode == KeyCode.escape {
                 if isCheatSheetVisible {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    withAnimation(.easeInOut(duration: Animation.quick)) {
                         isCheatSheetVisible = false
                     }
                 } else if isSearchVisible {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    withAnimation(.easeInOut(duration: Animation.quick)) {
                         closeSearch()
                     }
                 }
@@ -643,7 +645,7 @@ struct ViewerWindow: View {
                 switch chars {
                 case "f":
                     if !isSearchVisible {
-                        withAnimation(.easeInOut(duration: 0.15)) {
+                        withAnimation(.easeInOut(duration: Animation.quick)) {
                             isSearchVisible = true
                         }
                     }

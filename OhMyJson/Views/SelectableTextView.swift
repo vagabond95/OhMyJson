@@ -322,7 +322,7 @@ struct SelectableTextView: NSViewRepresentable {
             let currentY = clipView.bounds.origin.y
 
             // Only update if position actually changed (with small threshold to reduce noise)
-            if abs(parent.scrollPosition - currentY) > 0.5 {
+            if abs(parent.scrollPosition - currentY) > Timing.scrollPositionThreshold {
                 DispatchQueue.main.async {
                     self.parent.scrollPosition = currentY
                 }
@@ -367,7 +367,7 @@ struct SelectableTextView: NSViewRepresentable {
 
             if animated {
                 NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.15
+                    context.duration = Animation.quick
                     context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                     scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: clampedY))
                     // Animate gutter scroll too

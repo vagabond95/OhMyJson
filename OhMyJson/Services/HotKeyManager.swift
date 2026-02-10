@@ -18,7 +18,7 @@ class HotKeyManager {
 
     // Throttle mechanism
     private var lastHotKeyTime: Date?
-    private let throttleInterval: TimeInterval = 0.5 // 500ms
+    private let throttleInterval: TimeInterval = Timing.hotKeyThrottle
 
     private init() {
         NotificationCenter.default.addObserver(

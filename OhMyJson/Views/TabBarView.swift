@@ -15,29 +15,31 @@ struct TabBarView: View {
 
     private var theme: AppTheme { settings.currentTheme }
 
-    private let fixedTabWidth: CGFloat = 150
-    private let tabSpacing: CGFloat = 6
-    private let elementPadding: CGFloat = 10
-    private let themeButtonWidth: CGFloat = 30
-    private let addTabButtonWidth: CGFloat = 10
-    private let buttonHeight: CGFloat = 28
-    private let trafficLightWidth: CGFloat = 60
+    private enum Layout {
+        static let fixedTabWidth: CGFloat = 150
+        static let tabSpacing: CGFloat = 6
+        static let elementPadding: CGFloat = 10
+        static let themeButtonWidth: CGFloat = 30
+        static let addTabButtonWidth: CGFloat = 10
+        static let buttonHeight: CGFloat = 28
+        static let trafficLightWidth: CGFloat = 60
+    }
 
     private func maxTabAreaWidth(totalWidth: CGFloat) -> CGFloat {
-        let fixedElements = trafficLightWidth + themeButtonWidth + addTabButtonWidth
-        let gaps = elementPadding * 3          // 3 gaps between 4 elements
-        let edgePadding = elementPadding * 2   // .padding(.horizontal)
+        let fixedElements = Layout.trafficLightWidth + Layout.themeButtonWidth + Layout.addTabButtonWidth
+        let gaps = Layout.elementPadding * 3          // 3 gaps between 4 elements
+        let edgePadding = Layout.elementPadding * 2   // .padding(.horizontal)
         return max(totalWidth - fixedElements - gaps - edgePadding, 0)
     }
 
     private func calculatedTabWidth(tabCount: Int, availableWidth: CGFloat) -> CGFloat {
-        guard tabCount > 0 else { return fixedTabWidth }
-        let totalSpacing = CGFloat(tabCount - 1) * tabSpacing
-        let requiredWidth = CGFloat(tabCount) * fixedTabWidth + totalSpacing
+        guard tabCount > 0 else { return Layout.fixedTabWidth }
+        let totalSpacing = CGFloat(tabCount - 1) * Layout.tabSpacing
+        let requiredWidth = CGFloat(tabCount) * Layout.fixedTabWidth + totalSpacing
         if requiredWidth > availableWidth {
             return max((availableWidth - totalSpacing) / CGFloat(tabCount), 0)
         }
-        return fixedTabWidth
+        return Layout.fixedTabWidth
     }
 
     private func tabBackgroundColor(isActive: Bool, isHovered: Bool) -> Color {
@@ -53,17 +55,17 @@ struct TabBarView: View {
                 tabCount: tabManager.tabs.count,
                 availableWidth: maxTabWidth
             )
-            let isCompressed = tabWidth < fixedTabWidth
-            
+            let isCompressed = tabWidth < Layout.fixedTabWidth
+
             let actualTabsWidth = min(
-                        CGFloat(tabManager.tabs.count) * tabWidth + CGFloat(max(0, tabManager.tabs.count - 1)) * tabSpacing,
+                        CGFloat(tabManager.tabs.count) * tabWidth + CGFloat(max(0, tabManager.tabs.count - 1)) * Layout.tabSpacing,
                         maxTabWidth
                     )
 
-            HStack(spacing: elementPadding) {
+            HStack(spacing: Layout.elementPadding) {
                 // Traffic light area
                 Color.clear
-                    .frame(width: trafficLightWidth, height: buttonHeight)
+                    .frame(width: Layout.trafficLightWidth, height: Layout.buttonHeight)
 
                 // Theme toggle button
                 Button(action: {
@@ -72,14 +74,14 @@ struct TabBarView: View {
                     Image(systemName: AppSettings.shared.isDarkMode ? "moon.fill" : "sun.max.fill")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(theme.secondaryText)
-                        .frame(width: themeButtonWidth, height: buttonHeight)
+                        .frame(width: Layout.themeButtonWidth, height: Layout.buttonHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
 
                 // Tab container (weight(1f) equivalent)
-                HStack(spacing: tabSpacing) {
+                HStack(spacing: Layout.tabSpacing) {
                     ForEach(tabManager.tabs) { tab in
                         let isActive = tab.id == tabManager.activeTabId
                         let isHovered = tab.id == hoveredTabId
@@ -112,14 +114,14 @@ struct TabBarView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(theme.secondaryText)
-                    .frame(width: addTabButtonWidth, height: buttonHeight)
+                    .frame(width: Layout.addTabButtonWidth, height: Layout.buttonHeight)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         tabManager.createTab(with: nil)
                     }
                     .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
             }
-            .padding(.horizontal, elementPadding)
+            .padding(.horizontal, Layout.elementPadding)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
         }
         .frame(height: 40)
@@ -141,12 +143,14 @@ struct TabItemView: View {
     @ObservedObject private var settings = AppSettings.shared
     private var theme: AppTheme { settings.currentTheme }
     
-    private let closeButtonWidth: CGFloat = 14
-    private let horizontalPadding: CGFloat = 8
-    private let spacing: CGFloat = 4
+    private enum Layout {
+        static let closeButtonWidth: CGFloat = 14
+        static let horizontalPadding: CGFloat = 8
+        static let spacing: CGFloat = 4
+    }
 
     private var availableTextWidth: CGFloat {
-        tabWidth - (horizontalPadding * 2) - closeButtonWidth - spacing
+        tabWidth - (Layout.horizontalPadding * 2) - Layout.closeButtonWidth - Layout.spacing
     }
 
     private var textWithGradient: some View {
@@ -173,20 +177,20 @@ struct TabItemView: View {
     }
 
     var body: some View {
-        HStack(spacing: spacing) {
+        HStack(spacing: Layout.spacing) {
             textWithGradient
 
             // Close button
             Image(systemName: "xmark")
                 .font(.system(size: 8, weight: .medium))
                 .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
-                .frame(width: closeButtonWidth, height: closeButtonWidth)
+                .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     onClose()
                 }
         }
-        .padding(.horizontal, horizontalPadding)
+        .padding(.horizontal, Layout.horizontalPadding)
         .padding(.vertical, 6)
         .frame(width: tabWidth)
         .background(

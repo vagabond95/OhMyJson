@@ -50,7 +50,7 @@ class HotKeyRecorderNSView: NSView {
             return
         }
 
-        if event.keyCode == 53 {
+        if event.keyCode == KeyCode.escape {
             onCancel?()
             return
         }

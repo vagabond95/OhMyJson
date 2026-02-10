@@ -68,7 +68,7 @@ struct CheatSheetButton: View {
 
             // Floating ? button
             Button(action: {
-                withAnimation(.easeInOut(duration: 0.15)) {
+                withAnimation(.easeInOut(duration: Animation.quick)) {
                     isVisible.toggle()
                 }
             }) {
@@ -89,7 +89,7 @@ struct CheatSheetButton: View {
     }
 
     private func dismiss() {
-        withAnimation(.easeInOut(duration: 0.15)) {
+        withAnimation(.easeInOut(duration: Animation.quick)) {
             isVisible = false
         }
     }

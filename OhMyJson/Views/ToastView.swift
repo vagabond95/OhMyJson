@@ -16,17 +16,17 @@ class ToastManager: ObservableObject {
 
     private init() {}
 
-    func show(_ message: String, duration: TimeInterval = 1.5) {
+    func show(_ message: String, duration: TimeInterval = Duration.toastDefault) {
         hideTask?.cancel()
 
         self.message = message
 
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: Animation.standard)) {
             self.isShowing = true
         }
 
         let task = DispatchWorkItem { [weak self] in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: Animation.standard)) {
                 self?.isShowing = false
             }
         }

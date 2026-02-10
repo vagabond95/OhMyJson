@@ -37,11 +37,11 @@ class TabManager: ObservableObject {
             // Auto-close oldest tab (LRU)
             if let oldestTabId = getOldestTab() {
                 closeTab(id: oldestTabId)
-                ToastManager.shared.show("Oldest tab auto-closed", duration: 2.0)
+                ToastManager.shared.show("Oldest tab auto-closed", duration: Duration.toastLong)
             }
         } else if tabs.count >= warningThreshold {
             // Show warning when approaching limit
-            ToastManager.shared.show("Too many tabs open. Please close unused tabs", duration: 2.0)
+            ToastManager.shared.show("Too many tabs open. Please close unused tabs", duration: Duration.toastLong)
         }
 
         // Create new tab with timestamp-based title

@@ -98,7 +98,7 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
     @available(*, deprecated, renamed: "createNewTab(with:)")
     func openViewerWithError(message: String) {
         createNewTab(with: nil)
-        ToastManager.shared.show(message, duration: 2.0)
+        ToastManager.shared.show(message, duration: Duration.toastLong)
     }
 
     /// Flag to allow programmatic close without interception
@@ -112,7 +112,7 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
         let hostingView = ClickThroughHostingView(rootView: contentView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
+            contentRect: NSRect(x: 0, y: 0, width: WindowSize.defaultWidth, height: WindowSize.defaultHeight),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -126,7 +126,7 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
         window.center()
         window.setFrameAutosaveName("ViewerWindow")
 
-        window.minSize = NSSize(width: 800, height: 400)
+        window.minSize = NSSize(width: WindowSize.minWidth, height: WindowSize.minHeight)
 
         // CRITICAL: Disable window dragging from background to allow button clicks in titlebar area
         window.isMovableByWindowBackground = false

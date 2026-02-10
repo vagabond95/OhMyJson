@@ -26,7 +26,7 @@ class EditableTextView: NSTextView {
 
         let keyCode = event.keyCode
         // Space: 49, Return: 36, Enter(numpad): 76
-        if keyCode == 49 || keyCode == 36 || keyCode == 76 {
+        if keyCode == KeyCode.space || keyCode == KeyCode.returnKey || keyCode == KeyCode.numpadEnter {
             let isEmpty = self.string.isEmpty
             let isAtEnd = self.selectedRange().location >= self.string.count
             if isEmpty || isAtEnd {
@@ -250,7 +250,7 @@ struct UndoableTextView: NSViewRepresentable {
             guard !parent.isRestoringTabState,
                   let scrollView = scrollView else { return }
             let currentY = scrollView.contentView.bounds.origin.y
-            if abs(parent.scrollPosition - currentY) > 0.5 {
+            if abs(parent.scrollPosition - currentY) > Timing.scrollPositionThreshold {
                 DispatchQueue.main.async {
                     self.parent.scrollPosition = currentY
                 }

@@ -113,7 +113,7 @@ struct TreeView: View {
                     isReady = true
 
                     // Mark restoration complete after a brief delay to prevent position tracking during initial render
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Timing.treeRestoreDelay) {
                         hasRestoredScroll = true
                     }
                 }
@@ -204,7 +204,7 @@ struct TreeView: View {
 
         // Scroll with animation (use DispatchQueue to ensure layout is updated)
         DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.easeInOut(duration: Animation.quick)) {
                 proxy.scrollTo(targetNode.id, anchor: .center)
             }
         }

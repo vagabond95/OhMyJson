@@ -13,7 +13,7 @@ class AccessibilityManager: ObservableObject {
     @Published var isAccessibilityGranted: Bool = false
 
     private var pollingTimer: Timer?
-    private let pollingInterval: TimeInterval = 0.3
+    private let pollingInterval: TimeInterval = Timing.accessibilityPolling
 
     private init() {
         isAccessibilityGranted = AXIsProcessTrusted()

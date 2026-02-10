@@ -240,7 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Check size (5MB limit)
         let sizeInBytes = trimmed.utf8.count
-        let sizeInMB = Double(sizeInBytes) / (1024 * 1024)
+        let sizeInMB = Double(sizeInBytes) / Double(FileSize.megabyte)
 
         if sizeInMB > 5.0 {
             // Case: Size exceeds 5MB → show confirmation dialog
@@ -258,7 +258,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         case .failure:
             // Case 2: Invalid JSON → show toast only (no new tab)
-            ToastManager.shared.show(String(localized: "toast.invalid_json"), duration: 2.0)
+            ToastManager.shared.show(String(localized: "toast.invalid_json"), duration: Duration.toastLong)
             if WindowManager.shared.isViewerOpen {
                 WindowManager.shared.bringToFront()
             }
@@ -303,7 +303,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         WindowManager.shared.createNewTab(with: SampleData.json)
 
         // Trigger confetti in ViewerWindow after a short delay for window to appear
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.confettiDelay) {
             NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
         }
     }
