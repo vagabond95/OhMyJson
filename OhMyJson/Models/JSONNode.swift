@@ -219,6 +219,24 @@ class JSONNode: Identifiable {
         }
     }
 
+    var plainValue: String {
+        switch value {
+        case .string(let s):
+            return s
+        case .number(let n):
+            if n.truncatingRemainder(dividingBy: 1) == 0 {
+                return String(format: "%.0f", n)
+            }
+            return String(n)
+        case .bool(let b):
+            return b ? "true" : "false"
+        case .null:
+            return "null"
+        case .object, .array:
+            return value.toJSONString(prettyPrinted: true) ?? ""
+        }
+    }
+
     func toggleExpanded() {
         isExpanded.toggle()
     }

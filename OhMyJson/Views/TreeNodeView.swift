@@ -79,6 +79,7 @@ struct TreeNodeView: View {
                     }
                 }
                 .fixedSize()
+                .offset(x: -50)
                 .allowsHitTesting(true)
             }
         }

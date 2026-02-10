@@ -31,7 +31,7 @@ struct CopyButtonsOverlay: View {
                 copyButton(label: "V", tooltip: String(localized: "tooltip.copy_value")) {
                     copyValueOnly()
                 }
-                copyButton(label: "{}", tooltip: String(localized: "tooltip.copy_key_value")) {
+                copyButton(label: "K&V", tooltip: String(localized: "tooltip.copy_key_value")) {
                     copyKeyValue()
                 }
             } else {
@@ -66,6 +66,7 @@ struct CopyButtonsOverlay: View {
             Text(label)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
+                .padding(.horizontal, 4)
                 .frame(minWidth: 20, minHeight: 20)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
@@ -121,9 +122,9 @@ struct CopyButtonsOverlay: View {
     private func copyKeyValue() {
         let text: String
         if let key = node.key {
-            text = "\"\(key)\": \(node.copyValue)"
+            text = "\(key) - \(node.plainValue)"
         } else {
-            text = node.copyValue
+            text = node.plainValue
         }
         ClipboardService.shared.writeText(text)
         ToastManager.shared.show(String(localized: "toast.copied"))
