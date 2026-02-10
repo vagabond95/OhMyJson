@@ -46,6 +46,7 @@ enum Timing {
     static let scrollPositionThreshold: CGFloat   = 0.5
     static let dividerDragThreshold: CGFloat      = 0.5
     static let accessibilityPolling: TimeInterval = 0.3
+    static let hoverDismissGrace: TimeInterval    = 0.15
 }
 
 // MARK: - Window Sizes

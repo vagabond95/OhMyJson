@@ -16,7 +16,8 @@ struct TreeNodeView: View {
     let ancestorIsLast: [Bool]
 
     @State private var isHovered = false
-    @State private var hoverLocation: CGPoint = .zero
+    @State private var isOverlayHovered = false
+    @State private var dismissWorkItem: DispatchWorkItem?
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -57,26 +58,34 @@ struct TreeNodeView: View {
         }
         .onContinuousHover { phase in
             switch phase {
-            case .active(let location):
-                if !isHovered {
-                    hoverLocation = location
-                }
+            case .active:
+                dismissWorkItem?.cancel()
+                dismissWorkItem = nil
                 isHovered = true
             case .ended:
-                isHovered = false
+                scheduleDismissIfNeeded()
             }
         }
-        .overlay(alignment: .topLeading) {
-            if isSelected && isHovered {
-                GeometryReader { geo in
-                    let availableWidth = max(90, hoverLocation.x - 8)
-                    CopyButtonsOverlay(node: node)
-                        .fixedSize()
-                        .frame(width: availableWidth, alignment: .trailing)
-                        .frame(height: geo.size.height)
+        .overlay(alignment: .leading) {
+            if shouldShowOverlay {
+                CopyButtonsOverlay(node: node) { hovering in
+                    if hovering {
+                        dismissWorkItem?.cancel()
+                        dismissWorkItem = nil
+                        isOverlayHovered = true
+                    } else {
+                        isOverlayHovered = false
+                        scheduleDismissIfNeeded()
+                    }
                 }
+                .fixedSize()
                 .allowsHitTesting(true)
             }
+        }
+        .zIndex(shouldShowOverlay ? 1 : 0)
+        .onDisappear {
+            dismissWorkItem?.cancel()
+            dismissWorkItem = nil
         }
     }
 
@@ -202,9 +211,23 @@ struct TreeNodeView: View {
         return Text(attrStr)
     }
 
+    private var shouldShowOverlay: Bool {
+        isSelected && (isHovered || isOverlayHovered)
+    }
+
+    private func scheduleDismissIfNeeded() {
+        dismissWorkItem?.cancel()
+        let item = DispatchWorkItem {
+            if !self.isOverlayHovered {
+                self.isHovered = false
+            }
+        }
+        dismissWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.hoverDismissGrace, execute: item)
+    }
+
     private var backgroundColor: Color {
         if isSelected { return selectionColor }
-        if isHovered { return hoverColor }
         return Color.clear
     }
 }

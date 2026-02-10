@@ -8,6 +8,7 @@ import SwiftUI
 #if os(macOS)
 struct CopyButtonsOverlay: View {
     let node: JSONNode
+    var onHoverChanged: ((Bool) -> Void)? = nil
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -15,7 +16,12 @@ struct CopyButtonsOverlay: View {
     private var isLeaf: Bool { !node.value.isContainer }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
+            Image(systemName: "doc.on.doc")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(theme.secondaryText.opacity(0.6))
+                .padding(.trailing, 1)
+
             if isLeaf {
                 if node.key != nil {
                     copyButton(label: "K", tooltip: String(localized: "tooltip.copy_key")) {
@@ -34,22 +40,51 @@ struct CopyButtonsOverlay: View {
                 }
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
-        .background(theme.panelBackground)
-        .cornerRadius(4)
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(theme.border, lineWidth: 0.5)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(theme.panelBackground)
+                .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(theme.border.opacity(0.8), lineWidth: 0.5)
+        )
+        .onContinuousHover { phase in
+            switch phase {
+            case .active:
+                onHoverChanged?(true)
+            case .ended:
+                onHoverChanged?(false)
+            }
+        }
     }
 
     private func copyButton(label: String, tooltip: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
-                .frame(minWidth: 18, minHeight: 18)
+                .frame(minWidth: 20, minHeight: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    theme.secondaryBackground.opacity(0.9),
+                                    theme.secondaryBackground.opacity(0.5)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: Color.black.opacity(0.12), radius: 0.5, x: 0, y: 1)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(theme.border.opacity(0.6), lineWidth: 0.5)
+                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
