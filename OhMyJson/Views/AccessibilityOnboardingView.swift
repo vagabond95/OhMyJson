@@ -21,11 +21,11 @@ struct AccessibilityOnboardingView: View {
             
 
             VStack(spacing: 16) {
-                Text("Accessibility Access")
+                Text("accessibility.title")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(textPrimary)
 
-                Text("OhMyJson needs accessibility\npermission to listen for\nglobal hotkeys.")
+                Text("accessibility.description")
                     .font(.system(size: 11))
                     .foregroundColor(textSecondary)
                     .multilineTextAlignment(.center)
@@ -36,7 +36,7 @@ struct AccessibilityOnboardingView: View {
 
             HStack(spacing: 10) {
                 Button(action: onSkip) {
-                    Text("Skip")
+                    Text("accessibility.skip")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(textSecondary)
                         .frame(maxWidth: .infinity)
@@ -55,7 +55,7 @@ struct AccessibilityOnboardingView: View {
                 Button(action: {
                     AccessibilityManager.shared.openSystemSettingsAccessibility()
                 }) {
-                    Text("Open Settings")
+                    Text("accessibility.open_settings")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(textPrimary)
                         .frame(maxWidth: .infinity)

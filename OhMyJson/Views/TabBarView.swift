@@ -76,7 +76,7 @@ struct TabBarView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .instantTooltip("Toggle Theme", position: .bottom)
+                .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
 
                 // Tab container (weight(1f) equivalent)
                 HStack(spacing: tabSpacing) {
@@ -117,7 +117,7 @@ struct TabBarView: View {
                     .onTapGesture {
                         tabManager.createTab(with: nil)
                     }
-                    .instantTooltip("New Tab", position: .bottom)
+                    .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
             }
             .padding(.horizontal, elementPadding)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)

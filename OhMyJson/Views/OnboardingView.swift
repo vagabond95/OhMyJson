@@ -38,7 +38,7 @@ struct OnboardingView: View {
                             Image(systemName: "doc.on.clipboard")
                                 .font(.system(size: 30, weight: .light))
                                 .foregroundColor(textPrimary)
-                            Text("Copy JSON")
+                            Text("onboarding.copy_json")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(textPrimary)
                         }
@@ -96,7 +96,7 @@ struct OnboardingView: View {
             if showToast {
                 VStack {
                     Spacer()
-                    Text("JSON copied!")
+                    Text("toast.json_copied")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(textPrimary)
                         .padding(.horizontal, 16)

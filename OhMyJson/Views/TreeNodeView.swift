@@ -205,7 +205,7 @@ struct TreeNodeView: View {
     }
 
     private func showCopyFeedback() {
-        ToastManager.shared.show("Key-value copied to clipboard")
+        ToastManager.shared.show(String(localized: "toast.key_value_copied"))
     }
 }
 

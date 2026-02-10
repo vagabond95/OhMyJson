@@ -13,7 +13,7 @@ struct PlaceholderView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("waiting json..")
+            Text("viewer.placeholder")
                 .font(.system(.body, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
                 .modifier(ShimmerEffect(offset: shimmerOffset, color: theme.searchHighlight))

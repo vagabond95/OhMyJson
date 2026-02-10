@@ -324,7 +324,7 @@ struct ViewerWindow: View {
                     .buttonStyle(.plain)
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
-                    .instantTooltip("Copy All", position: .bottom)
+                    .instantTooltip(String(localized: "tooltip.copy_all"), position: .bottom)
                 }
             }
             .padding(.horizontal, 12)
@@ -342,18 +342,18 @@ struct ViewerWindow: View {
                 .padding(8)
         }
         .background(theme.background)
-        .alert("Large File Warning", isPresented: $showLargeFileWarning) {
-            Button("View Anyway") {
+        .alert("alert.large_file.title", isPresented: $showLargeFileWarning) {
+            Button("alert.large_file.view_anyway") {
                 // Keep current mode (Beautify)
             }
-            Button("Switch to Tree") {
+            Button("alert.large_file.switch_to_tree") {
                 viewMode = .tree
                 if let activeTabId = tabManager.activeTabId {
                     tabManager.updateTabViewMode(id: activeTabId, viewMode: .tree)
                 }
             }
         } message: {
-            Text("This JSON exceeds 5MB. Beautify mode may be slow.")
+            Text("alert.large_file.message")
         }
     }
 
@@ -365,7 +365,7 @@ struct ViewerWindow: View {
                 Button(action: {
                     switchViewMode(to: mode)
                 }) {
-                    Text(mode.rawValue)
+                    Text(mode.displayName)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(viewMode == mode ? theme.primaryText : theme.secondaryText)
                         .padding(.horizontal, 14)
@@ -717,10 +717,10 @@ struct ViewerWindow: View {
 
         if let formatted = JSONParser.shared.formatJSON(json, indentSize: AppSettings.shared.jsonIndent) {
             ClipboardService.shared.writeText(formatted)
-            ToastManager.shared.show("Copied to clipboard")
+            ToastManager.shared.show(String(localized: "toast.copied"))
         } else {
             ClipboardService.shared.writeText(json)
-            ToastManager.shared.show("Copied to clipboard")
+            ToastManager.shared.show(String(localized: "toast.copied"))
         }
     }
 

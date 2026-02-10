@@ -33,14 +33,14 @@ struct AccessibilityWarningBanner: View {
                     .font(.system(size: 12))
                     .foregroundColor(bannerIcon)
 
-                Text("Accessibility permission required for hotkeys")
+                Text("accessibility.warning")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(bannerText)
 
                 Button(action: {
                     AccessibilityManager.shared.openSystemSettingsAccessibility()
                 }) {
-                    Text("Fix")
+                    Text("accessibility.fix")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 10)

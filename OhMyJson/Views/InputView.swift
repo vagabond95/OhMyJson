@@ -181,11 +181,11 @@ struct UndoableTextView: NSViewRepresentable {
                 }
 
                 if oldText.isEmpty && !newText.isEmpty {
-                    undoManager.setActionName("Set Text")
+                    undoManager.setActionName(String(localized: "undo.set_text"))
                 } else if !oldText.isEmpty && newText.isEmpty {
-                    undoManager.setActionName("Clear")
+                    undoManager.setActionName(String(localized: "undo.clear"))
                 } else {
-                    undoManager.setActionName("Change Text")
+                    undoManager.setActionName(String(localized: "undo.change_text"))
                 }
             }
 
@@ -277,7 +277,7 @@ struct InputView: View {
             // Text Editor with placeholder
             ZStack(alignment: .topLeading) {
                 if text.isEmpty {
-                    Text("Paste or type JSON here...")
+                    Text("input.placeholder")
                         .foregroundColor(theme.secondaryText)
                         .font(.system(.body, design: .monospaced))
                         .padding(.horizontal, 5)
@@ -314,7 +314,7 @@ struct InputPanel: View {
         VStack(spacing: 0) {
             // Toolbar
             HStack {
-                Text("Json Input")
+                Text("input.title")
                     .font(.headline)
                     .foregroundColor(theme.secondaryText)
 
@@ -328,7 +328,7 @@ struct InputPanel: View {
                 .buttonStyle(.plain)
                 .frame(width: 24, height: 24)
                 .contentShape(Rectangle())
-                .instantTooltip("Clear", position: .bottom)
+                .instantTooltip(String(localized: "tooltip.clear"), position: .bottom)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

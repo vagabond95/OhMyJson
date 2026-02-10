@@ -21,30 +21,30 @@ private struct ShortcutGroup {
 
 private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
     [
-        ShortcutGroup(title: "General", items: [
-            ShortcutItem(action: "Import JSON from clipboard", keys: openHotKey),
-            ShortcutItem(action: "Settings", keys: "⌘,"),
-            ShortcutItem(action: "Quit", keys: "⌘Q"),
+        ShortcutGroup(title: String(localized: "shortcuts.group.general"), items: [
+            ShortcutItem(action: String(localized: "shortcuts.import_json"), keys: openHotKey),
+            ShortcutItem(action: String(localized: "shortcuts.settings"), keys: "⌘,"),
+            ShortcutItem(action: String(localized: "shortcuts.quit"), keys: "⌘Q"),
         ]),
-        ShortcutGroup(title: "Tabs", items: [
-            ShortcutItem(action: "New Tab", keys: "⌘N"),
-            ShortcutItem(action: "Close Tab", keys: "⌘W"),
-            ShortcutItem(action: "Previous Tab", keys: "⇧⌘["),
-            ShortcutItem(action: "Next Tab", keys: "⇧⌘]"),
+        ShortcutGroup(title: String(localized: "shortcuts.group.tabs"), items: [
+            ShortcutItem(action: String(localized: "shortcuts.new_tab"), keys: "⌘N"),
+            ShortcutItem(action: String(localized: "shortcuts.close_tab"), keys: "⌘W"),
+            ShortcutItem(action: String(localized: "shortcuts.previous_tab"), keys: "⇧⌘["),
+            ShortcutItem(action: String(localized: "shortcuts.next_tab"), keys: "⇧⌘]"),
         ]),
-        ShortcutGroup(title: "View", items: [
-            ShortcutItem(action: "Beautify Mode", keys: "⌘1"),
-            ShortcutItem(action: "Tree Mode", keys: "⌘2"),
+        ShortcutGroup(title: String(localized: "shortcuts.group.view"), items: [
+            ShortcutItem(action: String(localized: "shortcuts.beautify_mode"), keys: "⌘1"),
+            ShortcutItem(action: String(localized: "shortcuts.tree_mode"), keys: "⌘2"),
         ]),
-        ShortcutGroup(title: "Search", items: [
-            ShortcutItem(action: "Find", keys: "⌘F"),
-            ShortcutItem(action: "Close Search", keys: "ESC"),
-            ShortcutItem(action: "Navigate Results", keys: "↑/↓"),
+        ShortcutGroup(title: String(localized: "shortcuts.group.search"), items: [
+            ShortcutItem(action: String(localized: "shortcuts.find"), keys: "⌘F"),
+            ShortcutItem(action: String(localized: "shortcuts.close_search"), keys: "ESC"),
+            ShortcutItem(action: String(localized: "shortcuts.navigate_results"), keys: "↑/↓"),
         ]),
-        ShortcutGroup(title: "Edit", items: [
-            ShortcutItem(action: "Undo", keys: "⌘Z"),
-            ShortcutItem(action: "Redo", keys: "⇧⌘Z"),
-            ShortcutItem(action: "Copy / Paste / Cut", keys: "⌘C / ⌘V / ⌘X"),
+        ShortcutGroup(title: String(localized: "shortcuts.group.edit"), items: [
+            ShortcutItem(action: String(localized: "shortcuts.undo"), keys: "⌘Z"),
+            ShortcutItem(action: String(localized: "shortcuts.redo"), keys: "⇧⌘Z"),
+            ShortcutItem(action: String(localized: "shortcuts.copy_paste_cut"), keys: "⌘C / ⌘V / ⌘X"),
         ]),
     ]
 }
@@ -111,7 +111,7 @@ private struct CheatSheetPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             // Header
             HStack {
-                Text("Keyboard Shortcuts")
+                Text("shortcuts.title")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(theme.primaryText)
                 Spacer()

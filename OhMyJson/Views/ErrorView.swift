@@ -14,7 +14,7 @@ struct ErrorView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Invalid JSON Format")
+            Text("viewer.invalid_json")
                 .font(.system(.body, design: .monospaced))
                 .foregroundColor(theme.accent)
 

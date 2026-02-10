@@ -11,6 +11,13 @@ import Foundation
 enum ViewMode: String, CaseIterable {
     case beautify = "Beautify"
     case tree = "Tree"
+
+    var displayName: String {
+        switch self {
+        case .beautify: return String(localized: "viewer.mode.beautify")
+        case .tree: return String(localized: "viewer.mode.tree")
+        }
+    }
 }
 
 struct JSONTab: Identifiable, Equatable {

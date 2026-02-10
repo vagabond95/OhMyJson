@@ -79,7 +79,7 @@ struct SettingsWindowView: View {
 
     private var versionString: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        return "Version \(version)"
+        return String(format: String(localized: "app.version"), version)
     }
 
     var body: some View {
@@ -104,7 +104,7 @@ struct SettingsWindowView: View {
 
     private var aboutSection: some View {
         VStack(spacing: 6) {
-            Text("OhMyJson")
+            Text("app.name")
                 .font(.system(.title2, design: .monospaced).bold())
                 .foregroundColor(theme.primaryText)
 
@@ -121,7 +121,7 @@ struct SettingsWindowView: View {
                     Image("github_mark")
                         .resizable()
                         .frame(width: 14, height: 14)
-                    Text("GitHub")
+                    Text("settings.github")
                         .font(.system(.caption, design: .monospaced))
                 }
                 .foregroundColor(theme.secondaryText)
@@ -142,7 +142,7 @@ struct SettingsWindowView: View {
 
     private var hotKeysSection: some View {
         VStack(alignment: .center, spacing: 12) {
-            Text("Hotkey")
+            Text("settings.hotkey")
                 .font(.system(.subheadline, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
 
@@ -173,7 +173,7 @@ struct SettingsWindowView: View {
             Button(action: {
                 isRecording.wrappedValue = true
             }) {
-                Text(isRecording.wrappedValue ? "Press keys..." : displayString)
+                Text(isRecording.wrappedValue ? String(localized: "settings.hotkey.press_keys") : displayString)
                     .font(.system(.body, design: .monospaced))
                     .foregroundColor(theme.primaryText)
                     .frame(minWidth: 100)
@@ -194,7 +194,7 @@ struct SettingsWindowView: View {
 
     private var jsonIndentSection: some View {
         VStack(alignment: .center, spacing: 8) {
-            Text("JSON Indent")
+            Text("settings.json_indent")
                 .font(.system(.subheadline, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
 

@@ -46,15 +46,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         let appMenuItem = NSMenuItem()
         appMenuItem.submenu = appMenu
-        let aboutItem = NSMenuItem(title: "About OhMyJson", action: #selector(showSettings), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: String(localized: "menu.about"), action: #selector(showSettings), keyEquivalent: "")
         aboutItem.target = self
         appMenu.addItem(aboutItem)
         appMenu.addItem(NSMenuItem.separator())
-        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         appMenu.addItem(settingsItem)
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(NSMenuItem(title: "Quit OhMyJson", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenu.addItem(NSMenuItem(title: String(localized: "menu.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         mainMenu.addItem(appMenuItem)
 
         // File Menu - Only Command+N and Command+W overrides
@@ -62,23 +62,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let fileMenuItem = NSMenuItem()
         fileMenuItem.submenu = fileMenu
 
-        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(newTab), keyEquivalent: "n")
+        let newTabItem = NSMenuItem(title: String(localized: "menu.new_tab"), action: #selector(newTab), keyEquivalent: "n")
         newTabItem.target = self
         fileMenu.addItem(newTabItem)
 
         // Command+W is handled by WindowManager.windowShouldClose, but add menu item for visibility
-        let closeTabItem = NSMenuItem(title: "Close Tab", action: #selector(closeTab), keyEquivalent: "w")
+        let closeTabItem = NSMenuItem(title: String(localized: "menu.close_tab"), action: #selector(closeTab), keyEquivalent: "w")
         closeTabItem.target = self
         fileMenu.addItem(closeTabItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
-        let prevTabItem = NSMenuItem(title: "Show Previous Tab", action: #selector(showPreviousTab), keyEquivalent: "[")
+        let prevTabItem = NSMenuItem(title: String(localized: "menu.previous_tab"), action: #selector(showPreviousTab), keyEquivalent: "[")
         prevTabItem.keyEquivalentModifierMask = [.command, .shift]
         prevTabItem.target = self
         fileMenu.addItem(prevTabItem)
 
-        let nextTabItem = NSMenuItem(title: "Show Next Tab", action: #selector(showNextTab), keyEquivalent: "]")
+        let nextTabItem = NSMenuItem(title: String(localized: "menu.next_tab"), action: #selector(showNextTab), keyEquivalent: "]")
         nextTabItem.keyEquivalentModifierMask = [.command, .shift]
         nextTabItem.target = self
         fileMenu.addItem(nextTabItem)
@@ -89,13 +89,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let editMenu = NSMenu(title: "Edit")
         let editMenuItem = NSMenuItem()
         editMenuItem.submenu = editMenu
-        editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
-        editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.undo"), action: Selector(("undo:")), keyEquivalent: "z"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.redo"), action: Selector(("redo:")), keyEquivalent: "Z"))
         editMenu.addItem(NSMenuItem.separator())
-        editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
-        editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
-        editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
-        editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.select_all"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
         mainMenu.addItem(editMenuItem)
 
         NSApplication.shared.mainMenu = mainMenu
@@ -144,20 +144,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         // Open
-        let openItem = NSMenuItem(title: "Open", action: #selector(openViewer), keyEquivalent: "")
+        let openItem = NSMenuItem(title: String(localized: "menu.open"), action: #selector(openViewer), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
 
         menu.addItem(NSMenuItem.separator())
 
         // Settings
-        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: ",")
         menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
         // Quit
-        let quitItem = NSMenuItem(title: "Quit OhMyJson", action: #selector(quitApp), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: String(localized: "menu.quit"), action: #selector(quitApp), keyEquivalent: "q")
         menu.addItem(quitItem)
 
         statusItem?.menu = menu
@@ -180,7 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            panel.title = "OhMyJson Settings"
+            panel.title = String(localized: "settings.title")
             panel.isReleasedWhenClosed = false
             panel.hidesOnDeactivate = false
             panel.contentViewController = NSHostingController(rootView: SettingsWindowView())
@@ -258,7 +258,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         case .failure:
             // Case 2: Invalid JSON → show toast only (no new tab)
-            ToastManager.shared.show("Invalid JSON in clipboard", duration: 2.0)
+            ToastManager.shared.show(String(localized: "toast.invalid_json"), duration: 2.0)
             if WindowManager.shared.isViewerOpen {
                 WindowManager.shared.bringToFront()
             }
@@ -267,11 +267,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showSizeConfirmationDialog(size: Double, text: String) {
         let alert = NSAlert()
-        alert.messageText = "Lager JSON "
-        alert.informativeText = String(format: "Exceed JSON size over 5MB (%.1f MB)\nLoading..", size)
+        alert.messageText = String(localized: "alert.large_json.title")
+        alert.informativeText = String(format: String(localized: "alert.large_json.message"), size)
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Continue")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: String(localized: "alert.large_json.continue"))
+        alert.addButton(withTitle: String(localized: "alert.large_json.cancel"))
 
         let response = alert.runModal()
 
