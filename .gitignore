@@ -92,6 +92,9 @@ iOSInjectionProject/
 # Claude Code context and conversation history
 .claude/
 .agents/
+CLAUDE.md
+release.sh
+*.dmg
 
 # macOS
 #
