@@ -9,6 +9,11 @@ import Carbon.HIToolbox
 
 // MARK: - Custom NSTextView that handles key equivalents directly
 class EditableTextView: NSTextView {
+    override func resignFirstResponder() -> Bool {
+        setSelectedRange(NSRange(location: selectedRange().location, length: 0))
+        return super.resignFirstResponder()
+    }
+
     override func keyDown(with event: NSEvent) {
         // Ignore hotkey combo so it doesn't insert characters into the text view
         let combo = AppSettings.shared.openHotKeyCombo

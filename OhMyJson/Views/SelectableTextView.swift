@@ -9,6 +9,14 @@ import SwiftUI
 import AppKit
 
 #if os(macOS)
+// MARK: - NSTextView that clears selection on focus loss
+private class DeselectOnResignTextView: NSTextView {
+    override func resignFirstResponder() -> Bool {
+        setSelectedRange(NSRange(location: selectedRange().location, length: 0))
+        return super.resignFirstResponder()
+    }
+}
+
 /// A read-only text view that supports text selection, wrapping NSTextView
 /// Optionally displays line numbers in a non-selectable gutter
 struct SelectableTextView: NSViewRepresentable {
@@ -49,7 +57,7 @@ struct SelectableTextView: NSViewRepresentable {
 
         // Create the main content scroll view with 1.5x scroll speed
         let contentScrollView = FastScrollView()
-        let contentTextView = NSTextView()
+        let contentTextView = DeselectOnResignTextView()
 
         // Configure text view sizing
         contentTextView.minSize = NSSize(width: 0, height: 0)
