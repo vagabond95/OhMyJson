@@ -143,7 +143,7 @@ struct OnboardingView: View {
                         )
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
-                .padding(.bottom, 16)
+                .padding(.bottom, -24)
                 .allowsHitTesting(false)
             }
         }
