@@ -196,8 +196,12 @@ struct ViewerWindow: View {
         .onChange(of: viewModel.treeSearchIndex) { _, _ in
             viewModel.syncSearchState()
         }
-        .onChange(of: viewModel.selectedNodeId) { _, _ in
+        .onChange(of: viewModel.selectedNodeId) { _, newId in
             viewModel.syncSelectedNodeId()
+            // Resign input view focus when a tree node is selected
+            if newId != nil, !viewModel.isRestoringTabState {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
         }
         .onChange(of: viewModel.treeScrollAnchorId) { _, _ in
             viewModel.syncTreeScrollAnchor()

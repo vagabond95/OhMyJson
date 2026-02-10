@@ -52,6 +52,7 @@ struct TreeNodeView: View {
         .animation(.easeInOut(duration: Animation.quick), value: isCurrentSearchResult)
         .contentShape(Rectangle())
         .onTapGesture {
+            NSApp.keyWindow?.makeFirstResponder(nil)
             onSelect()
         }
         .onContinuousHover { phase in
