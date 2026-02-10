@@ -18,6 +18,14 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
         window != nil
     }
 
+    deinit {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        accessibilityCancellable = nil
+        window?.delegate = nil
+    }
+
     func show() {
         if AXIsProcessTrusted() {
             showHotkeyPhase()
@@ -82,8 +90,8 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
 
     private func showHotkeyPhase() {
         let onboardingView = OnboardingView(
-            onGetStarted: {
-                self.dismissWithFade()
+            onGetStarted: { [weak self] in
+                self?.dismissWithFade()
             },
             onCopySampleJson: {}
         )
@@ -149,6 +157,7 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
             context.duration = 0.3
             window.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
+            window.delegate = nil
             window.orderOut(nil)
             self?.window = nil
             self?.onDismiss?()

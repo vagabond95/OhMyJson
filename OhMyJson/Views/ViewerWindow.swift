@@ -18,6 +18,7 @@ struct ViewerWindow: View {
     @State private var dividerRatio: CGFloat = AppSettings.shared.dividerRatio
     @State private var isDraggingDivider = false
     @State private var dragStartRatio: CGFloat = 0
+    @State private var keyMonitor: Any?
     @State private var dragStartX: CGFloat = 0
     private enum Layout {
         static let minPanelWidth: CGFloat = 200
@@ -177,6 +178,12 @@ struct ViewerWindow: View {
             setupKeyboardShortcuts()
             viewModel.loadInitialContent()
         }
+        .onDisappear {
+            if let monitor = keyMonitor {
+                NSEvent.removeMonitor(monitor)
+                keyMonitor = nil
+            }
+        }
         .onChange(of: viewModel.activeTabId) { oldId, newId in
             viewModel.onActiveTabChanged(oldId: oldId, newId: newId)
         }
@@ -329,17 +336,23 @@ struct ViewerWindow: View {
     // MARK: - Keyboard Shortcuts
 
     private func setupKeyboardShortcuts() {
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // Remove existing monitor to prevent accumulation
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+        let vm = viewModel
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // ESC to close cheat sheet or search
             if event.keyCode == KeyCode.escape {
-                if viewModel.isCheatSheetVisible {
+                if vm.isCheatSheetVisible {
                     withAnimation(.easeInOut(duration: Animation.quick)) {
-                        viewModel.isCheatSheetVisible = false
+                        vm.isCheatSheetVisible = false
                     }
                     return nil
-                } else if viewModel.isSearchVisible {
+                } else if vm.isSearchVisible {
                     withAnimation(.easeInOut(duration: Animation.quick)) {
-                        viewModel.closeSearch()
+                        vm.closeSearch()
                     }
                     return nil
                 }

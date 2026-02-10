@@ -157,11 +157,13 @@ struct UndoableTextView: NSViewRepresentable {
         let textView = scrollView.documentView as! NSTextView
         let currentTheme = theme
 
-        // Update theme colors
-        let expectedBg = currentTheme.nsBackground
-        if textView.backgroundColor != expectedBg {
-            scrollView.backgroundColor = expectedBg
-            textView.backgroundColor = expectedBg
+        // Update theme colors only when color scheme actually changes
+        // (Avoids NSColor comparison issues that can cause layout loops)
+        let currentScheme = currentTheme.colorScheme
+        if context.coordinator.lastAppliedColorScheme != currentScheme {
+            context.coordinator.lastAppliedColorScheme = currentScheme
+            scrollView.backgroundColor = currentTheme.nsBackground
+            textView.backgroundColor = currentTheme.nsBackground
             textView.textColor = currentTheme.nsPrimaryText
             textView.insertionPointColor = currentTheme.nsInsertionPoint
             textView.selectedTextAttributes = [
@@ -225,6 +227,7 @@ struct UndoableTextView: NSViewRepresentable {
         weak var textView: NSTextView?
         weak var scrollView: NSScrollView?
         var isProgrammaticUpdate = false
+        var lastAppliedColorScheme: ColorScheme?
 
         init(_ parent: UndoableTextView) {
             self.parent = parent

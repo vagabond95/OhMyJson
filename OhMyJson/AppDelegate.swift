@@ -19,6 +19,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var viewModel: ViewerViewModel!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        terminateOldInstances()
+
         // Create ViewModel with real service dependencies
         viewModel = ViewerViewModel(
             tabManager: TabManager.shared,
@@ -321,9 +323,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - Duplicate Process Detection
+
+    /// Terminate any previously running instances of this app to prevent zombie processes
+    private func terminateOldInstances() {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        guard !bundleID.isEmpty else { return }
+
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        for app in runningApps where app.processIdentifier != currentPID {
+            app.terminate()
+            print("Terminated old instance: PID \(app.processIdentifier)")
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         HotKeyManager.shared.stop()
         AccessibilityManager.shared.stopMonitoring()
+        accessibilityCancellable = nil
+        hotKeyCancellable = nil
+        WindowManager.shared.closeViewer()
     }
 }
 #endif

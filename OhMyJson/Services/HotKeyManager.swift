@@ -12,6 +12,7 @@ class HotKeyManager: HotKeyManagerProtocol {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var runLoop: CFRunLoop?
     private var onHotKeyPressed: (() -> Void)?
     private var currentCombo: HotKeyCombo = .default
     var isEnabled: Bool = true
@@ -54,7 +55,8 @@ class HotKeyManager: HotKeyManagerProtocol {
 
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         self.runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+        self.runLoop = CFRunLoopGetCurrent()
+        CFRunLoopAddSource(self.runLoop, source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
 
         print("HotKey monitoring started: \(combo.displayString)")
@@ -65,12 +67,18 @@ class HotKeyManager: HotKeyManagerProtocol {
             CGEvent.tapEnable(tap: tap, enable: false)
         }
 
-        if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+        if let source = runLoopSource, let rl = runLoop {
+            CFRunLoopRemoveSource(rl, source, .commonModes)
+        }
+
+        // Invalidate mach port to release internal kernel resources
+        if let tap = eventTap {
+            CFMachPortInvalidate(tap)
         }
 
         eventTap = nil
         runLoopSource = nil
+        runLoop = nil
         onHotKeyPressed = nil
 
         print("HotKey monitoring stopped")

@@ -130,6 +130,8 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
 
     func windowWillClose(_ notification: Notification) {
         isViewerOpen = false
+        // Break delegate retain cycle before releasing window
+        viewerWindow?.delegate = nil
         viewerWindow = nil
         // Delegate cleanup to ViewModel
         viewModel?.onWindowWillClose()

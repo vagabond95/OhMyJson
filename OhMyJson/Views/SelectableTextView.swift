@@ -19,6 +19,8 @@ struct SelectableTextView: NSViewRepresentable {
     var scrollToRange: NSRange?
     var isRestoringTabState: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
+
     init(
         attributedString: NSAttributedString,
         lineNumberString: NSAttributedString? = nil,
@@ -261,14 +263,23 @@ struct SelectableTextView: NSViewRepresentable {
                     }
                 }
             }
-            gutterTextView.backgroundColor = backgroundColor
-            gutterScrollView.backgroundColor = backgroundColor
         }
 
-        // Update background color
-        containerView.layer?.backgroundColor = backgroundColor.cgColor
-        contentScrollView.backgroundColor = backgroundColor
-        contentTextView.backgroundColor = backgroundColor
+        // Update background colors only when color scheme changes
+        // (Avoids NSColor comparison issues that can cause layout loops)
+        if context.coordinator.lastAppliedColorScheme != colorScheme {
+            context.coordinator.lastAppliedColorScheme = colorScheme
+
+            if let gutterTextView = context.coordinator.gutterTextView,
+               let gutterScrollView = context.coordinator.gutterScrollView {
+                gutterTextView.backgroundColor = backgroundColor
+                gutterScrollView.backgroundColor = backgroundColor
+            }
+
+            containerView.layer?.backgroundColor = backgroundColor.cgColor
+            contentScrollView.backgroundColor = backgroundColor
+            contentTextView.backgroundColor = backgroundColor
+        }
 
         // During tab restoration: restore saved scroll position, skip search-to-range
         if isRestoringTabState {
@@ -302,6 +313,7 @@ struct SelectableTextView: NSViewRepresentable {
         weak var gutterScrollView: NSScrollView?
         weak var gutterTextView: NSTextView?
         var gutterWidth: CGFloat = 0
+        var lastAppliedColorScheme: ColorScheme?
         /// Tracks the last scrolled range to avoid duplicate scrolls
         var lastScrolledRange: NSRange?
         /// Flag to prevent scroll binding updates during programmatic scrolls (search navigation)

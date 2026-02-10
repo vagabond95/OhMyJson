@@ -77,6 +77,13 @@ class ViewerViewModel {
     /// Callback for when ViewModel needs to show the window (set by AppDelegate)
     @ObservationIgnored var onNeedShowWindow: (() -> Void)?
 
+    deinit {
+        debounceTask?.cancel()
+        restoreTask?.cancel()
+        indentCancellable = nil
+        onNeedShowWindow = nil
+    }
+
     // MARK: - Computed
 
     var currentSearchIndex: Int {
