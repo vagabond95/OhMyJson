@@ -23,28 +23,30 @@ private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
     [
         ShortcutGroup(title: String(localized: "shortcuts.group.general"), items: [
             ShortcutItem(action: String(localized: "shortcuts.import_json"), keys: openHotKey),
-            ShortcutItem(action: String(localized: "shortcuts.settings"), keys: "⌘,"),
-            ShortcutItem(action: String(localized: "shortcuts.quit"), keys: "⌘Q"),
+            ShortcutItem(action: String(localized: "shortcuts.settings"), keys: AppShortcut.settings.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.quit"), keys: AppShortcut.quit.displayString),
         ]),
         ShortcutGroup(title: String(localized: "shortcuts.group.tabs"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.new_tab"), keys: "⌘N"),
-            ShortcutItem(action: String(localized: "shortcuts.close_tab"), keys: "⌘W"),
-            ShortcutItem(action: String(localized: "shortcuts.previous_tab"), keys: "⇧⌘["),
-            ShortcutItem(action: String(localized: "shortcuts.next_tab"), keys: "⇧⌘]"),
+            ShortcutItem(action: String(localized: "shortcuts.new_tab"), keys: AppShortcut.newTab.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.close_tab"), keys: AppShortcut.closeTab.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.previous_tab"), keys: AppShortcut.previousTab.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.next_tab"), keys: AppShortcut.nextTab.displayString),
         ]),
         ShortcutGroup(title: String(localized: "shortcuts.group.view"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.beautify_mode"), keys: "⌘1"),
-            ShortcutItem(action: String(localized: "shortcuts.tree_mode"), keys: "⌘2"),
+            ShortcutItem(action: String(localized: "shortcuts.beautify_mode"), keys: AppShortcut.beautifyMode.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.tree_mode"), keys: AppShortcut.treeMode.displayString),
         ]),
         ShortcutGroup(title: String(localized: "shortcuts.group.search"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.find"), keys: "⌘F"),
+            ShortcutItem(action: String(localized: "shortcuts.find"), keys: AppShortcut.find.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.find_next"), keys: AppShortcut.findNext.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.find_previous"), keys: AppShortcut.findPrevious.displayString),
             ShortcutItem(action: String(localized: "shortcuts.close_search"), keys: "ESC"),
             ShortcutItem(action: String(localized: "shortcuts.navigate_results"), keys: "↑/↓"),
         ]),
         ShortcutGroup(title: String(localized: "shortcuts.group.edit"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.undo"), keys: "⌘Z"),
-            ShortcutItem(action: String(localized: "shortcuts.redo"), keys: "⇧⌘Z"),
-            ShortcutItem(action: String(localized: "shortcuts.copy_paste_cut"), keys: "⌘C / ⌘V / ⌘X"),
+            ShortcutItem(action: String(localized: "shortcuts.undo"), keys: AppShortcut.undo.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.redo"), keys: AppShortcut.redo.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.copy_paste_cut"), keys: "\(AppShortcut.copy.displayString) / \(AppShortcut.paste.displayString) / \(AppShortcut.cut.displayString)"),
         ]),
     ]
 }

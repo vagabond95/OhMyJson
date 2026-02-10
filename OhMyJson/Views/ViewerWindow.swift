@@ -393,10 +393,10 @@ struct ViewerWindow: View {
             }
 
             // Cmd+G / Cmd+Shift+G: search navigation (when search bar is visible)
-            if event.modifierFlags.contains(.command),
+            if event.modifierFlags.contains(AppShortcut.findNext.modifiers),
                event.keyCode == KeyCode.gKey,
                vm.isSearchVisible {
-                if event.modifierFlags.contains(.shift) {
+                if event.modifierFlags.contains(AppShortcut.findPrevious.modifiers) {
                     vm.previousSearchResult()
                 } else {
                     vm.nextSearchResult()

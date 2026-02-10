@@ -71,11 +71,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         aboutItem.target = self
         appMenu.addItem(aboutItem)
         appMenu.addItem(NSMenuItem.separator())
-        let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: AppShortcut.settings.keyEquivalent)
         settingsItem.target = self
         appMenu.addItem(settingsItem)
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(NSMenuItem(title: String(localized: "menu.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenu.addItem(NSMenuItem(title: String(localized: "menu.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: AppShortcut.quit.keyEquivalent))
         mainMenu.addItem(appMenuItem)
 
         // File Menu - Only Command+N and Command+W overrides
@@ -83,24 +83,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let fileMenuItem = NSMenuItem()
         fileMenuItem.submenu = fileMenu
 
-        let newTabItem = NSMenuItem(title: String(localized: "menu.new_tab"), action: #selector(newTab), keyEquivalent: "n")
+        let newTabItem = NSMenuItem(title: String(localized: "menu.new_tab"), action: #selector(newTab), keyEquivalent: AppShortcut.newTab.keyEquivalent)
         newTabItem.target = self
         fileMenu.addItem(newTabItem)
 
         // Command+W is handled by WindowManager.windowShouldClose, but add menu item for visibility
-        let closeTabItem = NSMenuItem(title: String(localized: "menu.close_tab"), action: #selector(closeTab), keyEquivalent: "w")
+        let closeTabItem = NSMenuItem(title: String(localized: "menu.close_tab"), action: #selector(closeTab), keyEquivalent: AppShortcut.closeTab.keyEquivalent)
         closeTabItem.target = self
         fileMenu.addItem(closeTabItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
-        let prevTabItem = NSMenuItem(title: String(localized: "menu.previous_tab"), action: #selector(showPreviousTab), keyEquivalent: "[")
-        prevTabItem.keyEquivalentModifierMask = [.command, .shift]
+        let prevTabItem = NSMenuItem(title: String(localized: "menu.previous_tab"), action: #selector(showPreviousTab), keyEquivalent: AppShortcut.previousTab.keyEquivalent)
+        prevTabItem.keyEquivalentModifierMask = AppShortcut.previousTab.modifiers
         prevTabItem.target = self
         fileMenu.addItem(prevTabItem)
 
-        let nextTabItem = NSMenuItem(title: String(localized: "menu.next_tab"), action: #selector(showNextTab), keyEquivalent: "]")
-        nextTabItem.keyEquivalentModifierMask = [.command, .shift]
+        let nextTabItem = NSMenuItem(title: String(localized: "menu.next_tab"), action: #selector(showNextTab), keyEquivalent: AppShortcut.nextTab.keyEquivalent)
+        nextTabItem.keyEquivalentModifierMask = AppShortcut.nextTab.modifiers
         nextTabItem.target = self
         fileMenu.addItem(nextTabItem)
 
@@ -111,17 +111,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let viewMenuItem = NSMenuItem()
         viewMenuItem.submenu = viewMenu
 
-        let findItem = NSMenuItem(title: String(localized: "menu.find"), action: #selector(toggleSearch), keyEquivalent: "f")
+        let findItem = NSMenuItem(title: String(localized: "menu.find"), action: #selector(toggleSearch), keyEquivalent: AppShortcut.find.keyEquivalent)
         findItem.target = self
         viewMenu.addItem(findItem)
 
         viewMenu.addItem(NSMenuItem.separator())
 
-        let beautifyItem = NSMenuItem(title: String(localized: "menu.beautify_mode"), action: #selector(switchToBeautify), keyEquivalent: "1")
+        let beautifyItem = NSMenuItem(title: String(localized: "menu.beautify_mode"), action: #selector(switchToBeautify), keyEquivalent: AppShortcut.beautifyMode.keyEquivalent)
         beautifyItem.target = self
         viewMenu.addItem(beautifyItem)
 
-        let treeItem = NSMenuItem(title: String(localized: "menu.tree_mode"), action: #selector(switchToTree), keyEquivalent: "2")
+        let treeItem = NSMenuItem(title: String(localized: "menu.tree_mode"), action: #selector(switchToTree), keyEquivalent: AppShortcut.treeMode.keyEquivalent)
         treeItem.target = self
         viewMenu.addItem(treeItem)
 
@@ -131,13 +131,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let editMenu = NSMenu(title: "Edit")
         let editMenuItem = NSMenuItem()
         editMenuItem.submenu = editMenu
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.undo"), action: Selector(("undo:")), keyEquivalent: "z"))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.redo"), action: Selector(("redo:")), keyEquivalent: "Z"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.undo"), action: Selector(("undo:")), keyEquivalent: AppShortcut.undo.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.redo"), action: Selector(("redo:")), keyEquivalent: AppShortcut.redo.keyEquivalent))
         editMenu.addItem(NSMenuItem.separator())
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.select_all"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.cut"), action: #selector(NSText.cut(_:)), keyEquivalent: AppShortcut.cut.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.copy"), action: #selector(NSText.copy(_:)), keyEquivalent: AppShortcut.copy.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.paste"), action: #selector(NSText.paste(_:)), keyEquivalent: AppShortcut.paste.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: String(localized: "menu.select_all"), action: #selector(NSText.selectAll(_:)), keyEquivalent: AppShortcut.selectAll.keyEquivalent))
         mainMenu.addItem(editMenuItem)
 
         NSApplication.shared.mainMenu = mainMenu
