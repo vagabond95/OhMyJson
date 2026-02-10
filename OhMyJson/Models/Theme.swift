@@ -98,9 +98,9 @@ struct DarkTheme: AppTheme {
     let primaryText = Color(hex: "E4E3E0")
     let secondaryText = Color(hex: "9E9D9B")
 
-    let key = Color(hex: "E8B4B4")
+    let key = Color(hex: "C792EA")
     let string = Color(hex: "A8CC8C")
-    let number = Color(hex: "DBAB79")
+    let number = Color(hex: "E8B4B4")
     let boolean = Color(hex: "66C2CD")
     let null = Color(hex: "808080")
     let structure = Color(hex: "D4D4D4")
