@@ -41,7 +41,12 @@ private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
             ShortcutItem(action: String(localized: "shortcuts.find_next"), keys: AppShortcut.findNext.displayString),
             ShortcutItem(action: String(localized: "shortcuts.find_previous"), keys: AppShortcut.findPrevious.displayString),
             ShortcutItem(action: String(localized: "shortcuts.close_search"), keys: "ESC"),
-            ShortcutItem(action: String(localized: "shortcuts.navigate_results"), keys: "↑/↓"),
+        ]),
+        ShortcutGroup(title: String(localized: "shortcuts.group.tree"), items: [
+            ShortcutItem(action: String(localized: "shortcuts.move_up"), keys: "↑"),
+            ShortcutItem(action: String(localized: "shortcuts.move_down"), keys: "↓"),
+            ShortcutItem(action: String(localized: "shortcuts.expand_node"), keys: "→"),
+            ShortcutItem(action: String(localized: "shortcuts.collapse_node"), keys: "←"),
         ]),
         ShortcutGroup(title: String(localized: "shortcuts.group.edit"), items: [
             ShortcutItem(action: String(localized: "shortcuts.undo"), keys: AppShortcut.undo.displayString),

@@ -484,12 +484,32 @@
         }
       }
     },
+    "shortcuts.collapse_node" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse / Move Left"
+          }
+        }
+      }
+    },
     "shortcuts.copy_paste_cut" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy / Paste / Cut"
+          }
+        }
+      }
+    },
+    "shortcuts.expand_node" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand / Move Right"
           }
         }
       }
@@ -564,6 +584,16 @@
         }
       }
     },
+    "shortcuts.group.tree" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tree"
+          }
+        }
+      }
+    },
     "shortcuts.group.view" : {
       "localizations" : {
         "en" : {
@@ -584,7 +614,28 @@
         }
       }
     },
+    "shortcuts.move_down" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Down"
+          }
+        }
+      }
+    },
+    "shortcuts.move_up" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move Up"
+          }
+        }
+      }
+    },
     "shortcuts.navigate_results" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
