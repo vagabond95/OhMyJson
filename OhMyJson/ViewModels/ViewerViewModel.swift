@@ -196,6 +196,13 @@ class ViewerViewModel {
     // MARK: - Tab Creation (mediator: TabManager + WindowManager + Toast)
 
     func createNewTab(with jsonString: String?) {
+        // If the last tab has an empty input, reuse it instead of creating a new tab
+        if let lastTab = tabManager.tabs.last,
+           lastTab.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            reuseEmptyTab(lastTab, with: jsonString)
+            return
+        }
+
         // LRU check — ViewModel mediates
         if tabManager.tabs.count >= tabManager.maxTabs {
             if let oldestTabId = tabManager.getOldestTab() {
@@ -232,6 +239,46 @@ class ViewerViewModel {
         // Update ViewModel data state
         currentJSON = jsonString
         parseResult = result
+    }
+
+    private func reuseEmptyTab(_ tab: JSONTab, with jsonString: String?) {
+        let wasAlreadyActive = (activeTabId == tab.id)
+
+        // Parse JSON if provided
+        let result: JSONParseResult?
+        if let json = jsonString {
+            result = jsonParser.parse(json)
+            tabManager.updateTabInput(id: tab.id, text: json)
+        } else {
+            result = nil
+        }
+        if let r = result {
+            tabManager.updateTabParseResult(id: tab.id, result: r)
+        }
+
+        // Select the tab (marks as accessed, triggers tab change if needed)
+        tabManager.selectTab(id: tab.id)
+
+        // Show / bring window to front
+        if !windowManager.isViewerOpen {
+            onNeedShowWindow?()
+        } else {
+            windowManager.bringToFront()
+        }
+
+        // Update ViewModel data state
+        currentJSON = jsonString
+        parseResult = result
+
+        // If this tab was already active, manually restore inputText
+        // (selectTab won't trigger onActiveTabChanged for same tab)
+        if wasAlreadyActive {
+            isRestoringTabState = true
+            inputText = jsonString ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.isRestoringTabState = false
+            }
+        }
     }
 
     // MARK: - Tab Close (mediator: TabManager + WindowManager)

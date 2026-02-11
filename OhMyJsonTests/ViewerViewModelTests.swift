@@ -160,6 +160,111 @@ struct ViewerViewModelTests {
         #expect(windowManager.bringToFrontCallCount == 1)
     }
 
+    // MARK: - createNewTab (reuse empty last tab)
+
+    @Test("createNewTab reuses last tab when its input is empty")
+    func createNewTabReusesEmptyLastTab() {
+        let json = #"{"a": 1}"#
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        // Create an empty tab first
+        let emptyTabId = tabManager.createTab(with: nil)
+        let initialCreateCount = tabManager.createTabCallCount
+
+        // Configure parser for the new JSON
+        let node = JSONNode(value: .object(["a": .number(1)]))
+        parser.parseResult = .success(node)
+
+        // createNewTab should reuse the empty tab, not create a new one
+        vm.createNewTab(with: json)
+
+        #expect(tabManager.createTabCallCount == initialCreateCount) // no new tab created
+        #expect(tabManager.tabs.count == 1) // still just one tab
+
+        // The existing tab should now have the JSON content
+        let tab = tabManager.tabs.first(where: { $0.id == emptyTabId })
+        #expect(tab?.inputText == json)
+        #expect(vm.currentJSON == json)
+    }
+
+    @Test("createNewTab reuses last tab with whitespace-only input")
+    func createNewTabReusesWhitespaceLastTab() {
+        let json = #"{"b": 2}"#
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        // Create a tab with whitespace-only input
+        let tabId = tabManager.createTab(with: "   \n  ")
+        let initialCreateCount = tabManager.createTabCallCount
+
+        let node = JSONNode(value: .object(["b": .number(2)]))
+        parser.parseResult = .success(node)
+
+        vm.createNewTab(with: json)
+
+        #expect(tabManager.createTabCallCount == initialCreateCount)
+        #expect(tabManager.tabs.count == 1)
+
+        let tab = tabManager.tabs.first(where: { $0.id == tabId })
+        #expect(tab?.inputText == json)
+    }
+
+    @Test("createNewTab does not reuse last tab when it has content")
+    func createNewTabDoesNotReuseNonEmptyTab() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        // Create a tab with content
+        let _ = tabManager.createTab(with: #"{"existing": true}"#)
+        let initialCreateCount = tabManager.createTabCallCount
+
+        let node = JSONNode(value: .null)
+        parser.parseResult = .success(node)
+
+        vm.createNewTab(with: #"{"new": true}"#)
+
+        // Should create a new tab since last tab has content
+        #expect(tabManager.createTabCallCount == initialCreateCount + 1)
+        #expect(tabManager.tabs.count == 2)
+    }
+
+    @Test("createNewTab with nil reuses empty last tab without changing content")
+    func createNewTabNilReusesEmptyTab() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        // Create an empty tab
+        let emptyTabId = tabManager.createTab(with: nil)
+        let initialCreateCount = tabManager.createTabCallCount
+
+        vm.createNewTab(with: nil)
+
+        #expect(tabManager.createTabCallCount == initialCreateCount) // no new tab
+        #expect(tabManager.tabs.count == 1)
+        #expect(tabManager.activeTabId == emptyTabId)
+        #expect(vm.currentJSON == nil)
+    }
+
+    @Test("createNewTab reuses empty last tab and updates inputText when tab is already active")
+    func createNewTabReusesActiveEmptyTab() {
+        let json = #"{"c": 3}"#
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        // Create empty tab (it becomes active)
+        let _ = tabManager.createTab(with: nil)
+
+        let node = JSONNode(value: .object(["c": .number(3)]))
+        parser.parseResult = .success(node)
+
+        vm.createNewTab(with: json)
+
+        // inputText should be updated directly since tab was already active
+        #expect(vm.inputText == json)
+        #expect(vm.currentJSON == json)
+    }
+
     // MARK: - closeTab
 
     @Test("closeTab with last tab closes viewer")
