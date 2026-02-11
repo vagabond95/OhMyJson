@@ -150,5 +150,9 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
         NSApp.activate(ignoringOtherApps: true)
         viewerWindow?.makeKeyAndOrderFront(nil)
     }
+
+    func isViewerWindow(_ window: NSWindow) -> Bool {
+        viewerWindow != nil && window === viewerWindow
+    }
 }
 #endif

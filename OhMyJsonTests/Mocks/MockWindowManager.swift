@@ -4,6 +4,7 @@
 //
 
 #if os(macOS)
+import AppKit
 @testable import OhMyJson
 
 final class MockWindowManager: WindowManagerProtocol {
@@ -27,6 +28,10 @@ final class MockWindowManager: WindowManagerProtocol {
 
     func bringToFront() {
         bringToFrontCallCount += 1
+    }
+
+    func isViewerWindow(_ window: NSWindow) -> Bool {
+        false
     }
 }
 #endif
