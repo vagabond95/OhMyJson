@@ -1,5 +1,5 @@
 //
-//  EditableTextViewTests.swift
+//  SelectableTextViewTests.swift
 //  OhMyJsonTests
 //
 
@@ -9,9 +9,9 @@ import Carbon.HIToolbox
 @testable import OhMyJson
 
 #if os(macOS)
-@Suite("EditableTextView Key Equivalent Tests")
+@Suite("DeselectOnResignTextView Key Equivalent Tests")
 @MainActor
-struct EditableTextViewTests {
+struct SelectableTextViewTests {
 
     private func makeEvent(
         keyCode: Int,
@@ -32,21 +32,11 @@ struct EditableTextViewTests {
         )!
     }
 
-    // MARK: - Handled cases (must return true — text view handles them directly)
+    // MARK: - Handled cases (must return true — read-only view handles copy/selectAll)
 
-    @Test("⌘V returns true — handled by text view")
-    func commandV_returnsTrue() {
-        let textView = EditableTextView()
-        let event = makeEvent(keyCode: kVK_ANSI_V, characters: "v")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == true)
-    }
-
-    @Test("⌘C returns true — handled by text view")
+    @Test("⌘C returns true — copy handled by read-only text view")
     func commandC_returnsTrue() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(keyCode: kVK_ANSI_C, characters: "c")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -54,46 +44,10 @@ struct EditableTextViewTests {
         #expect(result == true)
     }
 
-    @Test("⌘X returns true — handled by text view")
-    func commandX_returnsTrue() {
-        let textView = EditableTextView()
-        let event = makeEvent(keyCode: kVK_ANSI_X, characters: "x")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == true)
-    }
-
-    @Test("⌘A returns true — handled by text view")
+    @Test("⌘A returns true — selectAll handled by read-only text view")
     func commandA_returnsTrue() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(keyCode: kVK_ANSI_A, characters: "a")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == true)
-    }
-
-    @Test("⌘Z returns true — handled by text view")
-    func commandZ_returnsTrue() {
-        let textView = EditableTextView()
-        textView.allowsUndo = true
-        let event = makeEvent(keyCode: kVK_ANSI_Z, characters: "z")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == true)
-    }
-
-    @Test("⇧⌘Z returns true — redo handled by text view")
-    func shiftCommandZ_returnsTrue() {
-        let textView = EditableTextView()
-        textView.allowsUndo = true
-        let event = makeEvent(
-            keyCode: kVK_ANSI_Z,
-            characters: "z",
-            modifierFlags: [.command, .shift]
-        )
 
         let result = textView.performKeyEquivalent(with: event)
 
@@ -102,39 +56,9 @@ struct EditableTextViewTests {
 
     // MARK: - Bypass cases (must return false so menu items can handle them)
 
-    @Test("⌘F returns false — bypasses to menu for Find")
-    func commandF_returnsFalse() {
-        let textView = EditableTextView()
-        let event = makeEvent(keyCode: kVK_ANSI_F, characters: "f")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == false)
-    }
-
-    @Test("⌘1 returns false — bypasses to menu for Beautify mode")
-    func command1_returnsFalse() {
-        let textView = EditableTextView()
-        let event = makeEvent(keyCode: kVK_ANSI_1, characters: "1")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == false)
-    }
-
-    @Test("⌘2 returns false — bypasses to menu for Tree mode")
-    func command2_returnsFalse() {
-        let textView = EditableTextView()
-        let event = makeEvent(keyCode: kVK_ANSI_2, characters: "2")
-
-        let result = textView.performKeyEquivalent(with: event)
-
-        #expect(result == false)
-    }
-
     @Test("⌘N returns false — bypasses to menu for New Tab")
     func commandN_returnsFalse() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(keyCode: kVK_ANSI_N, characters: "n")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -144,8 +68,38 @@ struct EditableTextViewTests {
 
     @Test("⌘W returns false — bypasses to menu for Close Tab")
     func commandW_returnsFalse() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(keyCode: kVK_ANSI_W, characters: "w")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
+    }
+
+    @Test("⌘F returns false — bypasses to menu for Find")
+    func commandF_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_F, characters: "f")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
+    }
+
+    @Test("⌘1 returns false — bypasses to menu for Beautify mode")
+    func command1_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_1, characters: "1")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
+    }
+
+    @Test("⌘2 returns false — bypasses to menu for Tree mode")
+    func command2_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_2, characters: "2")
 
         let result = textView.performKeyEquivalent(with: event)
 
@@ -154,7 +108,7 @@ struct EditableTextViewTests {
 
     @Test("⌘, returns false — bypasses to menu for Settings")
     func commandComma_returnsFalse() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(keyCode: kVK_ANSI_Comma, characters: ",")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -164,7 +118,7 @@ struct EditableTextViewTests {
 
     @Test("⌘Q returns false — bypasses to menu for Quit")
     func commandQ_returnsFalse() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(keyCode: kVK_ANSI_Q, characters: "q")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -172,10 +126,20 @@ struct EditableTextViewTests {
         #expect(result == false)
     }
 
-    @Test("⌘B returns false — bypasses to menu for custom shortcut")
-    func commandB_returnsFalse() {
-        let textView = EditableTextView()
-        let event = makeEvent(keyCode: kVK_ANSI_B, characters: "b")
+    @Test("⌘V returns false — paste not applicable to read-only view")
+    func commandV_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_V, characters: "v")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
+    }
+
+    @Test("⌘X returns false — cut not applicable to read-only view")
+    func commandX_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_X, characters: "x")
 
         let result = textView.performKeyEquivalent(with: event)
 
@@ -184,7 +148,7 @@ struct EditableTextViewTests {
 
     @Test("⇧⌘[ returns false — bypasses to menu for Previous Tab")
     func shiftCommandLeftBracket_returnsFalse() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(
             keyCode: kVK_ANSI_LeftBracket,
             characters: "[",
@@ -198,7 +162,7 @@ struct EditableTextViewTests {
 
     @Test("⇧⌘] returns false — bypasses to menu for Next Tab")
     func shiftCommandRightBracket_returnsFalse() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(
             keyCode: kVK_ANSI_RightBracket,
             characters: "]",
@@ -214,7 +178,7 @@ struct EditableTextViewTests {
 
     @Test("Key without command modifier delegates to super")
     func nonCommandKey_delegatesToSuper() {
-        let textView = EditableTextView()
+        let textView = DeselectOnResignTextView()
         let event = makeEvent(
             keyCode: kVK_ANSI_F,
             characters: "f",

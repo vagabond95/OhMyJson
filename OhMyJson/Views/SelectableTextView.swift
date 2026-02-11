@@ -10,10 +10,31 @@ import AppKit
 
 #if os(macOS)
 // MARK: - NSTextView that clears selection on focus loss
-private class DeselectOnResignTextView: NSTextView {
+class DeselectOnResignTextView: NSTextView {
     override func resignFirstResponder() -> Bool {
         setSelectedRange(NSRange(location: selectedRange().location, length: 0))
         return super.resignFirstResponder()
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard event.modifierFlags.contains(.command) else {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        let characters = event.charactersIgnoringModifiers ?? ""
+
+        switch characters {
+        case "c":
+            copy(nil)
+            return true
+        case "a":
+            selectAll(nil)
+            return true
+        default:
+            // Let menu items handle all other ⌘-shortcuts.
+            // This is a read-only view — only copy and selectAll are relevant.
+            return false
+        }
     }
 }
 

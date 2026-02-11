@@ -69,11 +69,10 @@ class EditableTextView: NSTextView {
                 undoManager?.undo()
             }
             return true
-        case "f", "1", "2":
-            // Let menu items handle ⌘F, ⌘1, ⌘2 — bypass NSTextView's built-in handling
-            return false
         default:
-            return super.performKeyEquivalent(with: event)
+            // Let menu items handle all other ⌘-shortcuts (⌘N, ⌘W, ⌘F, ⌘1, ⌘2, etc.)
+            // All editing shortcuts (C/V/X/A/Z) are explicitly handled above.
+            return false
         }
     }
 }
