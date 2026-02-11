@@ -19,7 +19,6 @@ struct TabBarView: View {
         switch settings.themeMode {
         case .light: return "sun.max.fill"
         case .dark: return "moon.fill"
-        case .system: return "circle.lefthalf.filled"
         }
     }
 

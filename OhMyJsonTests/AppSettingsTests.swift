@@ -252,14 +252,10 @@ struct AppSettingsDefaultsTests {
         settings.themeMode = .dark
         #expect(settings.isDarkMode == true)
 
-        // System mode returns value based on current system appearance
-        settings.themeMode = .system
-        let _ = settings.isDarkMode // just verify it doesn't crash
-
         settings.themeMode = savedMode
     }
 
-    @Test("toggleTheme cycles through modes")
+    @Test("toggleTheme toggles between light and dark")
     func toggleThemeCycles() {
         let settings = AppSettings.shared
         let savedMode = settings.themeMode
@@ -269,10 +265,6 @@ struct AppSettingsDefaultsTests {
         #expect(settings.themeMode == .light)
 
         settings.toggleTheme() // light -> dark
-        #expect(settings.themeMode == .dark)
-
-        settings.themeMode = .system
-        settings.toggleTheme() // system -> dark
         #expect(settings.themeMode == .dark)
 
         settings.themeMode = savedMode

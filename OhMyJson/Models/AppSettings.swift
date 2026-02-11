@@ -15,7 +15,6 @@ import Observation
 enum ThemeMode: Int, Codable, CaseIterable {
     case light = 0
     case dark = 1
-    case system = 2
 }
 
 // MARK: - HotKeyCombo
@@ -169,10 +168,6 @@ class AppSettings {
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
 
-    // MARK: - System Appearance Observer
-
-    @ObservationIgnored private var appearanceObserver: NSObjectProtocol?
-
     // MARK: - Open HotKey (Global)
 
     var openHotKeyCombo: HotKeyCombo {
@@ -261,27 +256,13 @@ class AppSettings {
     var themeMode: ThemeMode {
         didSet {
             UserDefaults.standard.set(themeMode.rawValue, forKey: themeModeKey)
-            updateAppearanceObserver()
         }
     }
 
-    /// Observation trigger for System mode appearance changes.
-    /// Incrementing this stored property forces @Observable to re-notify
-    /// views that depend on `isDarkMode` when the macOS system appearance changes.
-    private(set) var systemAppearanceVersion: Int = 0
-
     var isDarkMode: Bool {
-        // Access systemAppearanceVersion to create an @Observable dependency,
-        // so views re-evaluate when system appearance changes in System mode.
-        _ = systemAppearanceVersion
         switch themeMode {
         case .light: return false
         case .dark: return true
-        case .system:
-            if let appearance = NSApp?.effectiveAppearance {
-                return appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            }
-            return true
         }
     }
 
@@ -290,11 +271,7 @@ class AppSettings {
     }
 
     func toggleTheme() {
-        switch themeMode {
-        case .system: themeMode = .dark
-        case .dark: themeMode = .light
-        case .light: themeMode = .dark
-        }
+        themeMode = isDarkMode ? .light : .dark
     }
 
     // MARK: - Default View Mode
@@ -373,6 +350,7 @@ class AppSettings {
         let loadedThemeMode: ThemeMode
         if UserDefaults.standard.object(forKey: themeModeKey) != nil {
             let rawValue = UserDefaults.standard.integer(forKey: themeModeKey)
+            // Fall back to .dark for removed system mode (rawValue 2)
             loadedThemeMode = ThemeMode(rawValue: rawValue) ?? .dark
         } else if UserDefaults.standard.object(forKey: isDarkModeKey) != nil {
             let wasDark = UserDefaults.standard.bool(forKey: isDarkModeKey)
@@ -398,14 +376,6 @@ class AppSettings {
         let savedRatio = UserDefaults.standard.double(forKey: dividerRatioKey)
         self.dividerRatio = (savedRatio > 0 && savedRatio < 1) ? CGFloat(savedRatio) : 0.35
 
-        // Set up system appearance observer if needed
-        updateAppearanceObserver()
-    }
-
-    deinit {
-        if let observer = appearanceObserver {
-            DistributedNotificationCenter.default().removeObserver(observer)
-        }
     }
 
     // MARK: - Hotkey Persistence
@@ -456,28 +426,6 @@ class AppSettings {
         return nil
     }
 
-    // MARK: - System Appearance Observer
-
-    private func updateAppearanceObserver() {
-        // Remove existing observer
-        if let observer = appearanceObserver {
-            DistributedNotificationCenter.default().removeObserver(observer)
-            appearanceObserver = nil
-        }
-
-        // Only observe if in system mode
-        guard themeMode == .system else { return }
-
-        appearanceObserver = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, self.themeMode == .system else { return }
-            // Increment trigger so @Observable re-notifies views depending on isDarkMode
-            self.systemAppearanceVersion += 1
-        }
-    }
 
     // MARK: - Launch at Login
 

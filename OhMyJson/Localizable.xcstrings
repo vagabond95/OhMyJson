@@ -480,6 +480,7 @@
       }
     },
     "settings.general.appearance.system" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

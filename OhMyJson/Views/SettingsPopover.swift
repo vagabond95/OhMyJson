@@ -238,7 +238,6 @@ private struct GeneralSettingsView: View {
                             switch mode {
                             case .light: return String(localized: "settings.general.appearance.light")
                             case .dark: return String(localized: "settings.general.appearance.dark")
-                            case .system: return String(localized: "settings.general.appearance.system")
                             }
                         }
                     )
