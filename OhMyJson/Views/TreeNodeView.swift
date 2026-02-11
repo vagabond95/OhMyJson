@@ -18,6 +18,7 @@ struct TreeNodeView: View {
     @State private var isHovered = false
     @State private var isOverlayHovered = false
     @State private var dismissWorkItem: DispatchWorkItem?
+    @State private var hoverStartX: CGFloat?
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -58,16 +59,19 @@ struct TreeNodeView: View {
         }
         .onContinuousHover { phase in
             switch phase {
-            case .active:
+            case .active(let location):
                 dismissWorkItem?.cancel()
                 dismissWorkItem = nil
+                if !isHovered {
+                    hoverStartX = location.x
+                }
                 isHovered = true
             case .ended:
                 scheduleDismissIfNeeded()
             }
         }
         .overlay(alignment: .leading) {
-            if shouldShowOverlay {
+            if shouldShowOverlay, let startX = hoverStartX {
                 CopyButtonsOverlay(node: node) { hovering in
                     if hovering {
                         dismissWorkItem?.cancel()
@@ -79,7 +83,7 @@ struct TreeNodeView: View {
                     }
                 }
                 .fixedSize()
-                .alignmentGuide(.leading) { d in d[.trailing] + 4 }
+                .frame(width: max(startX - 4, 0), alignment: .trailing)
                 .allowsHitTesting(true)
             }
         }
@@ -87,6 +91,7 @@ struct TreeNodeView: View {
         .onDisappear {
             dismissWorkItem?.cancel()
             dismissWorkItem = nil
+            hoverStartX = nil
         }
     }
 
@@ -221,6 +226,7 @@ struct TreeNodeView: View {
         let item = DispatchWorkItem {
             if !self.isOverlayHovered {
                 self.isHovered = false
+                self.hoverStartX = nil
             }
         }
         dismissWorkItem = item
