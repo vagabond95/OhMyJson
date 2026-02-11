@@ -355,9 +355,14 @@ struct SelectableTextView: NSViewRepresentable {
         /// Scrolls to a specific character range with center alignment and animation
         func scrollToCharacterRange(_ range: NSRange, animated: Bool = true) {
             guard let scrollView = contentScrollView,
-                  let textView = contentTextView,
-                  let layoutManager = textView.layoutManager,
-                  let textContainer = textView.textContainer else { return }
+                  let textView = contentTextView else { return }
+
+            // Fallback if layoutManager is nil (TextKit 2)
+            guard let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else {
+                textView.scrollRangeToVisible(range)
+                return
+            }
 
             // Ensure range is valid
             guard range.location < textView.string.count else { return }

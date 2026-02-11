@@ -71,6 +71,7 @@ struct ToastModifier: ViewModifier {
                 ToastView()
                     .padding(.bottom, 40)
             }
+            .animation(.easeInOut(duration: Animation.standard), value: ToastManager.shared.isShowing)
         }
     }
 }

@@ -57,16 +57,19 @@ struct OnboardingView: View {
                 .scaleEffect(!showKeycap && isHoveringCopy ? 1.05 : 1.0)
                 .brightness(!showKeycap && isHoveringCopy ? 0.08 : 0)
                 .opacity(showKeycap ? 0.4 : 1.0)
-                .shadow(color: Color.white.opacity(isPulsing && !showKeycap ? 0.3 : 0), radius: isPulsing && !showKeycap ? 8 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.clear)
+                        .shadow(color: Color.white.opacity(isPulsing && !showKeycap ? 0.3 : 0), radius: isPulsing && !showKeycap ? 8 : 0)
+                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
+                )
                 .onHover { hovering in
                     withAnimation(.easeOut(duration: 0.15)) {
                         isHoveringCopy = hovering
                     }
                 }
                 .onAppear {
-                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                        isPulsing = true
-                    }
+                    isPulsing = true
                 }
 
                 if showKeycap {
@@ -80,7 +83,12 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                     .scaleEffect(isHoveringKeycap ? 1.05 : 1.0)
                     .brightness(isHoveringKeycap ? 0.08 : 0)
-                    .shadow(color: Color.white.opacity(isPulsing ? 0.3 : 0.1), radius: isPulsing ? 8 : 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.clear)
+                            .shadow(color: Color.white.opacity(isPulsing ? 0.3 : 0.1), radius: isPulsing ? 8 : 4)
+                            .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
+                    )
                     .onHover { hovering in
                         withAnimation(.easeOut(duration: 0.15)) {
                             isHoveringKeycap = hovering
@@ -148,6 +156,7 @@ struct OnboardingView: View {
             }
         }
         .frame(width: 250, height: 250)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(.dark)
     }
 

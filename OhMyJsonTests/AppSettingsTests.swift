@@ -284,6 +284,26 @@ struct AppSettingsDefaultsTests {
         settings.themeMode = savedMode
     }
 
+    @Test("currentTheme observation triggers on themeMode change")
+    func currentThemeObservation() {
+        let settings = AppSettings.shared
+        let savedMode = settings.themeMode
+
+        settings.themeMode = .dark
+
+        var didChange = false
+        withObservationTracking {
+            _ = settings.currentTheme
+        } onChange: {
+            didChange = true
+        }
+
+        settings.themeMode = .light
+        #expect(didChange == true, "Accessing currentTheme must register observation on themeMode")
+
+        settings.themeMode = savedMode
+    }
+
     // MARK: - Hotkey Conflict Detection Tests
 
     @Test("conflictingAction detects conflict")

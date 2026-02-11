@@ -8,6 +8,7 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import Combine
 
 // Custom NSHostingView that prevents window dragging from titlebar area
 class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
@@ -21,12 +22,23 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     private(set) var isViewerOpen = false
 
     private var viewerWindow: NSWindow?
+    private var themeCancellable: AnyCancellable?
 
     /// Weak reference to ViewModel for window delegate callbacks
     weak var viewModel: ViewerViewModel?
 
     private override init() {
         super.init()
+        // Update window background color when theme changes
+        themeCancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.viewerWindow?.backgroundColor = AppSettings.shared.currentTheme.nsBackground
+            }
+    }
+
+    deinit {
+        themeCancellable?.cancel()
     }
 
     // MARK: - Window Lifecycle
@@ -46,7 +58,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
         window.title = "OhMyJson"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.backgroundColor = NSColor(red: 0.145, green: 0.145, blue: 0.145, alpha: 1.0)  // #252525
+        window.backgroundColor = AppSettings.shared.currentTheme.nsBackground
         window.center()
         window.setFrameAutosaveName("ViewerWindow")
 
@@ -84,19 +96,19 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
         guard let closeButton = window.standardWindowButton(.closeButton),
               let titlebarView = closeButton.superview else { return }
 
-        // TabBarView total height (content ~28pt + vertical padding 12pt = 40pt)
         let tabBarHeight: CGFloat = 40
         let titlebarHeight = titlebarView.frame.height
+        guard titlebarHeight > 0 else { return }
 
-        // Push buttons down so they center within the taller tab bar area
-        // Default: centered in titlebar (~28pt). Target: centered in tab bar (40pt).
         let pushDown = (tabBarHeight - titlebarHeight) / 2
+        guard pushDown > 0 else { return }
 
         let buttonTypes: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
         for type in buttonTypes {
             guard let button = window.standardWindowButton(type) else { continue }
             let buttonHeight = button.frame.height
             let defaultY = (titlebarHeight - buttonHeight) / 2
+            // Use default x position from AppKit (reset on each resize) + consistent left padding
             button.setFrameOrigin(NSPoint(x: button.frame.origin.x + 8, y: defaultY - pushDown))
         }
     }
@@ -135,8 +147,11 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
         viewerWindow = nil
         // Delegate cleanup to ViewModel
         viewModel?.onWindowWillClose()
-        // Return to accessory app (hide from Dock)
-        NSApp.setActivationPolicy(.accessory)
+        // Return to accessory app only if no other visible windows remain
+        let hasOtherWindows = NSApp.windows.contains { $0.isVisible && $0 !== notification.object as? NSWindow }
+        if !hasOtherWindows {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 
     func closeViewer() {
@@ -145,10 +160,11 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     }
 
     func bringToFront() {
-        NSApp.setActivationPolicy(.regular)
-        viewerWindow?.orderFrontRegardless()
-        NSApp.activate()
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
         viewerWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate()
     }
 
     func isViewerWindow(_ window: NSWindow) -> Bool {

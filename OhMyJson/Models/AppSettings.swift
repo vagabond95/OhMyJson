@@ -256,8 +256,12 @@ class AppSettings {
     var themeMode: ThemeMode {
         didSet {
             UserDefaults.standard.set(themeMode.rawValue, forKey: themeModeKey)
+            _cachedTheme = isDarkMode ? DarkTheme() : LightTheme()
         }
     }
+
+    @ObservationIgnored
+    private var _cachedTheme: AppTheme?
 
     var isDarkMode: Bool {
         switch themeMode {
@@ -267,7 +271,14 @@ class AppSettings {
     }
 
     var currentTheme: AppTheme {
-        isDarkMode ? DarkTheme() : LightTheme()
+        // Access themeMode to register observation tracking
+        // (_cachedTheme is @ObservationIgnored, so without this,
+        //  views reading currentTheme won't be notified on theme toggle)
+        let _ = themeMode
+        if let cached = _cachedTheme { return cached }
+        let theme: AppTheme = isDarkMode ? DarkTheme() : LightTheme()
+        _cachedTheme = theme
+        return theme
     }
 
     func toggleTheme() {

@@ -124,6 +124,7 @@ struct AccessibilityOnboardingView: View {
                 )
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(.dark)
     }
 }

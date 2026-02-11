@@ -67,8 +67,8 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
 
             // Replace content
             let onboardingView = OnboardingView(
-                onGetStarted: {
-                    self.dismissWithFade()
+                onGetStarted: { [weak self] in
+                    self?.dismissWithFade()
                 },
                 onCopySampleJson: {}
             )

@@ -123,15 +123,14 @@ struct TreeView: View {
                     }
                 }
 
-                // Delay scroll restoration slightly to ensure binding is updated
-                DispatchQueue.main.async {
-                    if let nodeId = scrollAnchorId {
+                // Delay scroll restoration to ensure LazyVStack layout is complete
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    if let nodeId = scrollAnchorId,
+                       visibleNodes.contains(where: { $0.id == nodeId }) {
                         proxy.scrollTo(nodeId, anchor: .top)
                     }
-                    // Reveal the view after scroll is positioned
                     isReady = true
 
-                    // Mark restoration complete after a brief delay to prevent position tracking during initial render
                     DispatchQueue.main.asyncAfter(deadline: .now() + Timing.treeRestoreDelay) {
                         hasRestoredScroll = true
                     }

@@ -53,8 +53,25 @@ enum JSONValue: Equatable {
             let options: JSONSerialization.WritingOptions = prettyPrinted ? [.prettyPrinted, .sortedKeys] : []
             let data = try JSONSerialization.data(withJSONObject: wrapIfNeeded(any), options: options)
             var result = String(data: data, encoding: .utf8)
-            if prettyPrinted {
-                result = result?.replacingOccurrences(of: "  ", with: "    ")
+            if prettyPrinted, let str = result {
+                // Re-indent leading spaces only (preserve string values intact)
+                let lines = str.components(separatedBy: "\n")
+                var nativeIndent = 0
+                for line in lines {
+                    let stripped = line.drop(while: { $0 == " " })
+                    let leading = line.count - stripped.count
+                    if leading > 0 { nativeIndent = leading; break }
+                }
+                let target = 4
+                if nativeIndent > 0 && nativeIndent != target {
+                    result = lines.map { line -> String in
+                        let stripped = line.drop(while: { $0 == " " })
+                        let leading = line.count - stripped.count
+                        guard leading > 0 else { return line }
+                        let level = leading / nativeIndent
+                        return String(repeating: " ", count: level * target) + stripped
+                    }.joined(separator: "\n")
+                }
             }
             return result
         } catch {

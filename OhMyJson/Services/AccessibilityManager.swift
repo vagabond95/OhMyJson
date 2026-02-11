@@ -49,7 +49,12 @@ class AccessibilityManager: AccessibilityManagerProtocol {
 
     func openSystemSettingsAccessibility() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-        NSWorkspace.shared.open(url)
+        if !NSWorkspace.shared.open(url) {
+            // Fallback: open System Settings root if deep link fails
+            if let fallback = URL(string: "x-apple.systempreferences:") {
+                NSWorkspace.shared.open(fallback)
+            }
+        }
     }
 }
 #endif

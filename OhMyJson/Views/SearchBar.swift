@@ -99,7 +99,9 @@ struct FloatingSearchBar: View {
         .shadow(color: Color.black.opacity(theme.shadowOpacity), radius: 8, x: 0, y: 4)
         .onAppear {
             if shouldAutoFocus {
-                isFocused = true
+                DispatchQueue.main.async {
+                    isFocused = true
+                }
             }
         }
     }

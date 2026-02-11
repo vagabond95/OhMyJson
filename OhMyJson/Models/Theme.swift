@@ -6,6 +6,29 @@
 import SwiftUI
 import AppKit
 
+// MARK: - NSColor Hex Extension (sRGB)
+
+extension NSColor {
+    convenience init(sRGBHex hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let r: CGFloat
+        let g: CGFloat
+        let b: CGFloat
+        switch hex.count {
+        case 6:
+            r = CGFloat((int >> 16) & 0xFF) / 255
+            g = CGFloat((int >> 8) & 0xFF) / 255
+            b = CGFloat(int & 0xFF) / 255
+        default:
+            r = 0; g = 0; b = 0
+        }
+        var components: [CGFloat] = [r, g, b, 1.0]
+        self.init(colorSpace: .sRGB, components: &components, count: 4)
+    }
+}
+
 // MARK: - Color Hex Extension
 
 extension Color {
@@ -123,10 +146,10 @@ struct DarkTheme: AppTheme {
     let inactiveTabBorder = Color(hex: "404040")
     let hoveredTabBackground = Color(hex: "1C1C1C")
 
-    let nsBackground = NSColor(Color(hex: "131313"))
-    let nsPrimaryText = NSColor(Color(hex: "FAF9F6"))
-    let nsInsertionPoint = NSColor(Color(hex: "FAF9F6"))
-    let nsSelectedTextBackground = NSColor(Color(hex: "264F78"))
+    let nsBackground = NSColor(sRGBHex: "131313")
+    let nsPrimaryText = NSColor(sRGBHex: "FAF9F6")
+    let nsInsertionPoint = NSColor(sRGBHex: "FAF9F6")
+    let nsSelectedTextBackground = NSColor(sRGBHex: "264F78")
 
     let shadowOpacity: Double = 0.3
 
@@ -168,10 +191,10 @@ struct LightTheme: AppTheme {
     let inactiveTabBorder = Color(hex: "D4D4D4")
     let hoveredTabBackground = Color(hex: "E8E8E8")
 
-    let nsBackground = NSColor(Color(hex: "FFFFFF"))
-    let nsPrimaryText = NSColor(Color(hex: "1E1E1E"))
-    let nsInsertionPoint = NSColor(Color(hex: "1E1E1E"))
-    let nsSelectedTextBackground = NSColor(Color(hex: "ADD6FF"))
+    let nsBackground = NSColor(sRGBHex: "FFFFFF")
+    let nsPrimaryText = NSColor(sRGBHex: "1E1E1E")
+    let nsInsertionPoint = NSColor(sRGBHex: "1E1E1E")
+    let nsSelectedTextBackground = NSColor(sRGBHex: "ADD6FF")
 
     let shadowOpacity: Double = 0.1
 

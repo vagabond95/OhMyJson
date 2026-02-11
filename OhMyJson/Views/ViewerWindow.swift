@@ -380,7 +380,7 @@ struct ViewerWindow: View {
             }
 
             // ←/→: tree mode + selection + NOT in TextField focus
-            let isTextFieldFocused = NSApp.keyWindow?.firstResponder is NSTextView
+            let isTextFieldFocused = NSApp.keyWindow?.firstResponder is NSText
             if vm.viewMode == .tree, vm.selectedNodeId != nil, !isTextFieldFocused {
                 if event.keyCode == KeyCode.rightArrow {
                     vm.expandOrMoveRight()
@@ -416,7 +416,10 @@ private struct ResizeCursorView: NSViewRepresentable {
         return view
     }
     func updateNSView(_ nsView: NSView, context: Context) {
-        nsView.window?.invalidateCursorRects(for: nsView)
+        // Only invalidate when the view has a valid window and bounds
+        if nsView.window != nil {
+            nsView.window?.invalidateCursorRects(for: nsView)
+        }
     }
     private class CursorView: NSView {
         override func resetCursorRects() {

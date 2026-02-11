@@ -28,8 +28,9 @@ struct HotKeyRecorderView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: HotKeyRecorderNSView, context: Context) {
+        let wasRecording = nsView.isRecording
         nsView.isRecording = isRecording
-        if isRecording {
+        if isRecording && !wasRecording {
             DispatchQueue.main.async {
                 nsView.window?.makeFirstResponder(nsView)
             }

@@ -28,6 +28,9 @@ struct PlaceholderView: View {
                 shimmerOffset = 1.0
             }
         }
+        .onDisappear {
+            shimmerOffset = -1.0
+        }
     }
 }
 
