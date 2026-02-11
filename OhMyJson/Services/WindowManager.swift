@@ -63,7 +63,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
 
         NSApp.setActivationPolicy(.regular)
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         repositionTrafficLights(in: window)
     }
 
@@ -147,7 +147,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     func bringToFront() {
         NSApp.setActivationPolicy(.regular)
         viewerWindow?.orderFrontRegardless()
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         viewerWindow?.makeKeyAndOrderFront(nil)
     }
 

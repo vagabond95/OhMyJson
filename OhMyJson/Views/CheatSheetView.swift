@@ -156,6 +156,7 @@ private struct CheatSheetPanel: View {
                 .stroke(theme.border, lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(theme.shadowOpacity), radius: 8, x: 0, y: 4)
+        .focusable()
         .onKeyPress(.escape) {
             onDismiss()
             return .handled

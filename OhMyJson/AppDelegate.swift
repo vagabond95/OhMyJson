@@ -8,7 +8,7 @@ import AppKit
 import SwiftUI
 import Combine
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var onboardingController: OnboardingWindowController?
@@ -280,7 +280,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showSettings(_ sender: Any?) {
         if let existing = settingsWindow, existing.isVisible {
             existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             return
         }
 
@@ -297,11 +297,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             rootView: SettingsWindowView()
                 .environment(AppSettings.shared)
         )
+        window.delegate = self
         settingsWindow = window
 
         window.center()
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
+    }
+
+    // MARK: - NSWindowDelegate (Settings window)
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === settingsWindow else { return }
+        settingsWindow?.delegate = nil
+        settingsWindow = nil
     }
 
     @objc private func quitApp(_ sender: Any?) {

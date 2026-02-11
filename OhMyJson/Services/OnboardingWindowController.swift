@@ -124,7 +124,7 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
 
         NSApp.setActivationPolicy(.regular)
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
     }
 
     private func installKeyMonitor() {
