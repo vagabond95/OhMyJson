@@ -182,6 +182,7 @@
       }
     },
     "app.name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -192,6 +193,7 @@
       }
     },
     "app.version" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -394,6 +396,9 @@
     "null" : {
 
     },
+    "OhMyJson" : {
+
+    },
     "onboarding.copy_json" : {
       "localizations" : {
         "en" : {
@@ -404,7 +409,118 @@
         }
       }
     },
+    "settings.about.copyright" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copyright © 2026 vagabond95"
+          }
+        }
+      }
+    },
+    "settings.about.github" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub"
+          }
+        }
+      }
+    },
+    "settings.about.quit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit OhMyJson"
+          }
+        }
+      }
+    },
+    "settings.about.report_bug" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report a Bug"
+          }
+        }
+      }
+    },
+    "settings.general.appearance" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        }
+      }
+    },
+    "settings.general.appearance.dark" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        }
+      }
+    },
+    "settings.general.appearance.light" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        }
+      }
+    },
+    "settings.general.appearance.system" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        }
+      }
+    },
+    "settings.general.default_view" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default View"
+          }
+        }
+      }
+    },
+    "settings.general.json_indent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON Indent"
+          }
+        }
+      }
+    },
+    "settings.general.launch_at_login" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Launch at Login"
+          }
+        }
+      }
+    },
     "settings.github" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -415,6 +531,7 @@
       }
     },
     "settings.hotkey" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -425,6 +542,7 @@
       }
     },
     "settings.hotkey.press_keys" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -434,12 +552,193 @@
         }
       }
     },
+    "settings.hotkeys.beautify_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beautify Mode"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.close_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Tab"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.conflict" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "'%@' is already used by '%@'"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.find_next" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Next"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.find_previous" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Previous"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.group.global" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Global"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.group.tabs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabs"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.group.view" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.new_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Tab"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.next_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Tab"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open OhMyJson"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.press_keys" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press keys..."
+          }
+        }
+      }
+    },
+    "settings.hotkeys.previous_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous Tab"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.reset_to_default" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset to default"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.tree_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tree Mode"
+          }
+        }
+      }
+    },
     "settings.json_indent" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "JSON Indent"
+          }
+        }
+      }
+    },
+    "settings.tab.about" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        }
+      }
+    },
+    "settings.tab.general" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        }
+      }
+    },
+    "settings.tab.hotkeys" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hotkeys"
           }
         }
       }

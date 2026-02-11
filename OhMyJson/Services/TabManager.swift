@@ -36,7 +36,7 @@ class TabManager: TabManagerProtocol {
         // Note: LRU eviction and toast warnings are now handled by ViewerViewModel (mediator).
         // TabManager only manages tab data.
 
-        // Create new tab with timestamp-based title
+        // Create new tab with timestamp-based title and default view mode
         let now = Date()
         let newTab = JSONTab(
             id: UUID(),
@@ -44,7 +44,8 @@ class TabManager: TabManagerProtocol {
             parseResult: nil,
             createdAt: now,
             lastAccessedAt: now,
-            title: tabTitleFormatter.string(from: now)
+            title: tabTitleFormatter.string(from: now),
+            viewMode: AppSettings.shared.defaultViewMode
         )
 
         tabs.append(newTab)

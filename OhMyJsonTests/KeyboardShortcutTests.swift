@@ -5,6 +5,7 @@
 
 import Testing
 import AppKit
+import Carbon.HIToolbox
 @testable import OhMyJson
 
 @Suite("KeyboardShortcut Tests")
@@ -42,7 +43,17 @@ struct KeyboardShortcutTests {
         #expect(key.displayString == "A")
     }
 
-    // MARK: - AppShortcut Definitions
+    // MARK: - ShortcutKey init from HotKeyCombo
+
+    @Test("ShortcutKey initializes from HotKeyCombo")
+    func initFromHotKeyCombo() {
+        let combo = HotKeyCombo.defaultNewTab
+        let key = ShortcutKey(from: combo)
+        #expect(key.modifiers == combo.nsEventModifierFlags)
+        #expect(key.keyEquivalent == combo.keyEquivalent)
+    }
+
+    // MARK: - Fixed AppShortcut Definitions
 
     @Test("AppShortcut.settings displays ⌘,")
     func settingsShortcut() {
@@ -56,57 +67,9 @@ struct KeyboardShortcutTests {
         #expect(AppShortcut.quit.keyEquivalent == "q")
     }
 
-    @Test("AppShortcut.newTab displays ⌘N")
-    func newTabShortcut() {
-        #expect(AppShortcut.newTab.displayString == "⌘N")
-        #expect(AppShortcut.newTab.keyEquivalent == "n")
-    }
-
-    @Test("AppShortcut.closeTab displays ⌘W")
-    func closeTabShortcut() {
-        #expect(AppShortcut.closeTab.displayString == "⌘W")
-        #expect(AppShortcut.closeTab.keyEquivalent == "w")
-    }
-
-    @Test("AppShortcut.previousTab displays ⇧⌘[")
-    func previousTabShortcut() {
-        #expect(AppShortcut.previousTab.displayString == "⇧⌘[")
-        #expect(AppShortcut.previousTab.keyEquivalent == "[")
-        #expect(AppShortcut.previousTab.modifiers == [.command, .shift])
-    }
-
-    @Test("AppShortcut.nextTab displays ⇧⌘]")
-    func nextTabShortcut() {
-        #expect(AppShortcut.nextTab.displayString == "⇧⌘]")
-        #expect(AppShortcut.nextTab.keyEquivalent == "]")
-        #expect(AppShortcut.nextTab.modifiers == [.command, .shift])
-    }
-
     @Test("AppShortcut.find displays ⌘F")
     func findShortcut() {
         #expect(AppShortcut.find.displayString == "⌘F")
-    }
-
-    @Test("AppShortcut.findNext displays ⌘G")
-    func findNextShortcut() {
-        #expect(AppShortcut.findNext.displayString == "⌘G")
-        #expect(AppShortcut.findNext.modifiers == [.command])
-    }
-
-    @Test("AppShortcut.findPrevious displays ⇧⌘G")
-    func findPreviousShortcut() {
-        #expect(AppShortcut.findPrevious.displayString == "⇧⌘G")
-        #expect(AppShortcut.findPrevious.modifiers == [.command, .shift])
-    }
-
-    @Test("AppShortcut.beautifyMode displays ⌘1")
-    func beautifyModeShortcut() {
-        #expect(AppShortcut.beautifyMode.displayString == "⌘1")
-    }
-
-    @Test("AppShortcut.treeMode displays ⌘2")
-    func treeModeShortcut() {
-        #expect(AppShortcut.treeMode.displayString == "⌘2")
     }
 
     @Test("AppShortcut.undo displays ⌘Z")
@@ -126,5 +89,40 @@ struct KeyboardShortcutTests {
         #expect(AppShortcut.copy.displayString == "⌘C")
         #expect(AppShortcut.paste.displayString == "⌘V")
         #expect(AppShortcut.selectAll.displayString == "⌘A")
+    }
+
+    // MARK: - Dynamic AppShortcut Tests (read from AppSettings)
+
+    @Test("Dynamic shortcuts reflect default AppSettings values")
+    func dynamicShortcutsDefault() {
+        let settings = AppSettings.shared
+
+        // Ensure defaults are set
+        let savedNewTab = settings.newTabHotKey
+        let savedCloseTab = settings.closeTabHotKey
+        settings.newTabHotKey = .defaultNewTab
+        settings.closeTabHotKey = .defaultCloseTab
+
+        #expect(AppShortcut.newTab.keyEquivalent == "n")
+        #expect(AppShortcut.closeTab.keyEquivalent == "w")
+
+        // Restore
+        settings.newTabHotKey = savedNewTab
+        settings.closeTabHotKey = savedCloseTab
+    }
+
+    @Test("Dynamic shortcuts update when AppSettings changes")
+    func dynamicShortcutsUpdate() {
+        let settings = AppSettings.shared
+        let savedBeautify = settings.beautifyModeHotKey
+
+        // Change to a custom hotkey
+        let customCombo = HotKeyCombo(keyCode: UInt32(kVK_ANSI_B), modifiers: UInt32(cmdKey))
+        settings.beautifyModeHotKey = customCombo
+
+        #expect(AppShortcut.beautifyMode.keyEquivalent == "b")
+
+        // Restore
+        settings.beautifyModeHotKey = savedBeautify
     }
 }

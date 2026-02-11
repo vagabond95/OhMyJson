@@ -10,6 +10,16 @@ import Combine
 import Observation
 
 
+// MARK: - ThemeMode
+
+enum ThemeMode: Int, Codable, CaseIterable {
+    case light = 0
+    case dark = 1
+    case system = 2
+}
+
+// MARK: - HotKeyCombo
+
 struct HotKeyCombo: Equatable, Codable {
     var keyCode: UInt32
     var modifiers: UInt32
@@ -21,6 +31,17 @@ struct HotKeyCombo: Equatable, Codable {
 
     // Legacy support
     static let `default` = defaultOpen
+
+    // MARK: - Default Hotkeys for Customizable Actions
+
+    static let defaultNewTab = HotKeyCombo(keyCode: UInt32(kVK_ANSI_N), modifiers: UInt32(cmdKey))
+    static let defaultCloseTab = HotKeyCombo(keyCode: UInt32(kVK_ANSI_W), modifiers: UInt32(cmdKey))
+    static let defaultPreviousTab = HotKeyCombo(keyCode: UInt32(kVK_ANSI_LeftBracket), modifiers: UInt32(cmdKey | shiftKey))
+    static let defaultNextTab = HotKeyCombo(keyCode: UInt32(kVK_ANSI_RightBracket), modifiers: UInt32(cmdKey | shiftKey))
+    static let defaultBeautifyMode = HotKeyCombo(keyCode: UInt32(kVK_ANSI_1), modifiers: UInt32(cmdKey))
+    static let defaultTreeMode = HotKeyCombo(keyCode: UInt32(kVK_ANSI_2), modifiers: UInt32(cmdKey))
+    static let defaultFindNext = HotKeyCombo(keyCode: UInt32(kVK_ANSI_G), modifiers: UInt32(cmdKey))
+    static let defaultFindPrevious = HotKeyCombo(keyCode: UInt32(kVK_ANSI_G), modifiers: UInt32(cmdKey | shiftKey))
 
     var displayString: String {
         var parts: [String] = []
@@ -58,6 +79,32 @@ struct HotKeyCombo: Equatable, Codable {
         return flags
     }
 
+    /// Key equivalent string for NSMenuItem (lowercase letter or symbol)
+    var keyEquivalent: String {
+        let keyEquivMap: [UInt32: String] = [
+            UInt32(kVK_ANSI_A): "a", UInt32(kVK_ANSI_B): "b", UInt32(kVK_ANSI_C): "c",
+            UInt32(kVK_ANSI_D): "d", UInt32(kVK_ANSI_E): "e", UInt32(kVK_ANSI_F): "f",
+            UInt32(kVK_ANSI_G): "g", UInt32(kVK_ANSI_H): "h", UInt32(kVK_ANSI_I): "i",
+            UInt32(kVK_ANSI_J): "j", UInt32(kVK_ANSI_K): "k", UInt32(kVK_ANSI_L): "l",
+            UInt32(kVK_ANSI_M): "m", UInt32(kVK_ANSI_N): "n", UInt32(kVK_ANSI_O): "o",
+            UInt32(kVK_ANSI_P): "p", UInt32(kVK_ANSI_Q): "q", UInt32(kVK_ANSI_R): "r",
+            UInt32(kVK_ANSI_S): "s", UInt32(kVK_ANSI_T): "t", UInt32(kVK_ANSI_U): "u",
+            UInt32(kVK_ANSI_V): "v", UInt32(kVK_ANSI_W): "w", UInt32(kVK_ANSI_X): "x",
+            UInt32(kVK_ANSI_Y): "y", UInt32(kVK_ANSI_Z): "z",
+            UInt32(kVK_ANSI_0): "0", UInt32(kVK_ANSI_1): "1", UInt32(kVK_ANSI_2): "2",
+            UInt32(kVK_ANSI_3): "3", UInt32(kVK_ANSI_4): "4", UInt32(kVK_ANSI_5): "5",
+            UInt32(kVK_ANSI_6): "6", UInt32(kVK_ANSI_7): "7", UInt32(kVK_ANSI_8): "8",
+            UInt32(kVK_ANSI_9): "9",
+            UInt32(kVK_ANSI_LeftBracket): "[", UInt32(kVK_ANSI_RightBracket): "]",
+        ]
+        let base = keyEquivMap[keyCode] ?? ""
+        // NSMenuItem uses uppercase keyEquivalent when Shift is included
+        if modifiers & UInt32(shiftKey) != 0, base.count == 1, base.first?.isLetter == true {
+            return base.uppercased()
+        }
+        return base
+    }
+
     private func keyCodeToString(_ keyCode: UInt32) -> String? {
         let keyCodeMap: [UInt32: String] = [
             UInt32(kVK_ANSI_A): "A", UInt32(kVK_ANSI_B): "B", UInt32(kVK_ANSI_C): "C",
@@ -91,25 +138,48 @@ struct HotKeyCombo: Equatable, Codable {
 class AppSettings {
     static let shared = AppSettings()
 
-    // Explicit Combine publishers for non-SwiftUI subscribers (AppDelegate, ViewerViewModel)
+    // MARK: - Combine Publishers
+
     @ObservationIgnored let hotKeyChanged = PassthroughSubject<HotKeyCombo, Never>()
     @ObservationIgnored let jsonIndentChanged = PassthroughSubject<Int, Never>()
+    @ObservationIgnored let appShortcutsChanged = PassthroughSubject<Void, Never>()
+
+    // MARK: - UserDefaults Keys
 
     private let openHotKeyKey = "openHotKeyCombo"
     private let launchAtLoginKey = "launchAtLogin"
     private let jsonIndentKey = "jsonIndent"
     private let isDarkModeKey = "isDarkMode"
+    private let themeModeKey = "themeMode"
     private let hasSeenOnboardingKey = "hasSeenOnboarding"
     private let dividerRatioKey = "dividerRatio"
     private let lastInstalledVersionKey = "lastInstalledVersion"
+    private let defaultViewModeKey = "defaultViewMode"
+
+    // Hotkey UserDefaults keys
+    private let newTabHotKeyKey = "newTabHotKey"
+    private let closeTabHotKeyKey = "closeTabHotKey"
+    private let previousTabHotKeyKey = "previousTabHotKey"
+    private let nextTabHotKeyKey = "nextTabHotKey"
+    private let beautifyModeHotKeyKey = "beautifyModeHotKey"
+    private let treeModeHotKeyKey = "treeModeHotKey"
+    private let findNextHotKeyKey = "findNextHotKey"
+    private let findPreviousHotKeyKey = "findPreviousHotKey"
 
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
 
+    // MARK: - System Appearance Observer
+
+    @ObservationIgnored private var appearanceObserver: NSObjectProtocol?
+
+    // MARK: - Open HotKey (Global)
+
     var openHotKeyCombo: HotKeyCombo {
         didSet {
-            saveOpenHotKey()
+            saveHotKey(openHotKeyCombo, forKey: openHotKeyKey)
             hotKeyChanged.send(openHotKeyCombo)
+            appShortcutsChanged.send()
         }
     }
 
@@ -119,6 +189,66 @@ class AppSettings {
         set { openHotKeyCombo = newValue }
     }
 
+    // MARK: - Customizable Hotkeys
+
+    var newTabHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(newTabHotKey, forKey: newTabHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var closeTabHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(closeTabHotKey, forKey: closeTabHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var previousTabHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(previousTabHotKey, forKey: previousTabHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var nextTabHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(nextTabHotKey, forKey: nextTabHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var beautifyModeHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(beautifyModeHotKey, forKey: beautifyModeHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var treeModeHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(treeModeHotKey, forKey: treeModeHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var findNextHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(findNextHotKey, forKey: findNextHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    var findPreviousHotKey: HotKeyCombo {
+        didSet {
+            saveHotKey(findPreviousHotKey, forKey: findPreviousHotKeyKey)
+            appShortcutsChanged.send()
+        }
+    }
+
+    // MARK: - JSON Indent
+
     var jsonIndent: Int {
         didSet {
             UserDefaults.standard.set(jsonIndent, forKey: jsonIndentKey)
@@ -126,11 +256,56 @@ class AppSettings {
         }
     }
 
-    var isDarkMode: Bool {
+    // MARK: - Theme Mode
+
+    var themeMode: ThemeMode {
         didSet {
-            UserDefaults.standard.set(isDarkMode, forKey: isDarkModeKey)
+            UserDefaults.standard.set(themeMode.rawValue, forKey: themeModeKey)
+            updateAppearanceObserver()
         }
     }
+
+    /// Observation trigger for System mode appearance changes.
+    /// Incrementing this stored property forces @Observable to re-notify
+    /// views that depend on `isDarkMode` when the macOS system appearance changes.
+    private(set) var systemAppearanceVersion: Int = 0
+
+    var isDarkMode: Bool {
+        // Access systemAppearanceVersion to create an @Observable dependency,
+        // so views re-evaluate when system appearance changes in System mode.
+        _ = systemAppearanceVersion
+        switch themeMode {
+        case .light: return false
+        case .dark: return true
+        case .system:
+            if let appearance = NSApp?.effectiveAppearance {
+                return appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            }
+            return true
+        }
+    }
+
+    var currentTheme: AppTheme {
+        isDarkMode ? DarkTheme() : LightTheme()
+    }
+
+    func toggleTheme() {
+        switch themeMode {
+        case .system: themeMode = .dark
+        case .dark: themeMode = .light
+        case .light: themeMode = .dark
+        }
+    }
+
+    // MARK: - Default View Mode
+
+    var defaultViewMode: ViewMode {
+        didSet {
+            UserDefaults.standard.set(defaultViewMode.rawValue, forKey: defaultViewModeKey)
+        }
+    }
+
+    // MARK: - Other Settings
 
     var hasSeenOnboarding: Bool {
         didSet {
@@ -144,20 +319,14 @@ class AppSettings {
         }
     }
 
-    var currentTheme: AppTheme {
-        isDarkMode ? DarkTheme() : LightTheme()
-    }
-
-    func toggleTheme() {
-        isDarkMode.toggle()
-    }
-
     var launchAtLogin: Bool {
         didSet {
             UserDefaults.standard.set(launchAtLogin, forKey: launchAtLoginKey)
             updateLaunchAtLogin()
         }
     }
+
+    // MARK: - Init
 
     private init() {
         // --- Version-based UserDefaults reset ---
@@ -179,11 +348,20 @@ class AppSettings {
             self.openHotKeyCombo = combo
         } else if let data = UserDefaults.standard.data(forKey: legacyHotKeyKey),
                   let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: data) {
-            // Migrate from legacy key
             self.openHotKeyCombo = combo
         } else {
             self.openHotKeyCombo = .defaultOpen
         }
+
+        // Load customizable hotkeys
+        self.newTabHotKey = Self.loadHotKey(forKey: newTabHotKeyKey, default: .defaultNewTab)
+        self.closeTabHotKey = Self.loadHotKey(forKey: closeTabHotKeyKey, default: .defaultCloseTab)
+        self.previousTabHotKey = Self.loadHotKey(forKey: previousTabHotKeyKey, default: .defaultPreviousTab)
+        self.nextTabHotKey = Self.loadHotKey(forKey: nextTabHotKeyKey, default: .defaultNextTab)
+        self.beautifyModeHotKey = Self.loadHotKey(forKey: beautifyModeHotKeyKey, default: .defaultBeautifyMode)
+        self.treeModeHotKey = Self.loadHotKey(forKey: treeModeHotKeyKey, default: .defaultTreeMode)
+        self.findNextHotKey = Self.loadHotKey(forKey: findNextHotKeyKey, default: .defaultFindNext)
+        self.findPreviousHotKey = Self.loadHotKey(forKey: findPreviousHotKeyKey, default: .defaultFindPrevious)
 
         // Load JSON Indent
         let savedIndent = UserDefaults.standard.integer(forKey: jsonIndentKey)
@@ -191,11 +369,26 @@ class AppSettings {
 
         self.launchAtLogin = UserDefaults.standard.bool(forKey: launchAtLoginKey)
 
-        // Load Dark Mode (default: true)
-        if UserDefaults.standard.object(forKey: isDarkModeKey) != nil {
-            self.isDarkMode = UserDefaults.standard.bool(forKey: isDarkModeKey)
+        // Load Theme Mode (with isDarkMode migration)
+        let loadedThemeMode: ThemeMode
+        if UserDefaults.standard.object(forKey: themeModeKey) != nil {
+            let rawValue = UserDefaults.standard.integer(forKey: themeModeKey)
+            loadedThemeMode = ThemeMode(rawValue: rawValue) ?? .dark
+        } else if UserDefaults.standard.object(forKey: isDarkModeKey) != nil {
+            let wasDark = UserDefaults.standard.bool(forKey: isDarkModeKey)
+            loadedThemeMode = wasDark ? .dark : .light
+            UserDefaults.standard.set(loadedThemeMode.rawValue, forKey: themeModeKey)
         } else {
-            self.isDarkMode = true
+            loadedThemeMode = .dark
+        }
+        self.themeMode = loadedThemeMode
+
+        // Load Default View Mode
+        if let rawValue = UserDefaults.standard.string(forKey: defaultViewModeKey),
+           let mode = ViewMode(rawValue: rawValue) {
+            self.defaultViewMode = mode
+        } else {
+            self.defaultViewMode = .beautify
         }
 
         // Load Onboarding flag (default: false)
@@ -204,13 +397,89 @@ class AppSettings {
         // Load Divider Ratio (default: 0.35)
         let savedRatio = UserDefaults.standard.double(forKey: dividerRatioKey)
         self.dividerRatio = (savedRatio > 0 && savedRatio < 1) ? CGFloat(savedRatio) : 0.35
+
+        // Set up system appearance observer if needed
+        updateAppearanceObserver()
     }
 
-    private func saveOpenHotKey() {
-        if let data = try? JSONEncoder().encode(openHotKeyCombo) {
-            UserDefaults.standard.set(data, forKey: openHotKeyKey)
+    deinit {
+        if let observer = appearanceObserver {
+            DistributedNotificationCenter.default().removeObserver(observer)
         }
     }
+
+    // MARK: - Hotkey Persistence
+
+    private func saveHotKey(_ combo: HotKeyCombo, forKey key: String) {
+        if let data = try? JSONEncoder().encode(combo) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    // Legacy compatibility
+    private func saveOpenHotKey() {
+        saveHotKey(openHotKeyCombo, forKey: openHotKeyKey)
+    }
+
+    private static func loadHotKey(forKey key: String, default defaultValue: HotKeyCombo) -> HotKeyCombo {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: data) else {
+            return defaultValue
+        }
+        return combo
+    }
+
+    // MARK: - Conflict Detection
+
+    /// Returns all hotkey actions and their combos
+    var allHotKeyActions: [(name: String, combo: HotKeyCombo)] {
+        [
+            ("Open OhMyJson", openHotKeyCombo),
+            ("New Tab", newTabHotKey),
+            ("Close Tab", closeTabHotKey),
+            ("Previous Tab", previousTabHotKey),
+            ("Next Tab", nextTabHotKey),
+            ("Beautify Mode", beautifyModeHotKey),
+            ("Tree Mode", treeModeHotKey),
+            ("Find Next", findNextHotKey),
+            ("Find Previous", findPreviousHotKey),
+        ]
+    }
+
+    /// Returns the action name that conflicts with the given combo, excluding the specified action
+    func conflictingAction(for combo: HotKeyCombo, excluding action: String) -> String? {
+        for (name, existingCombo) in allHotKeyActions {
+            if name != action && existingCombo == combo {
+                return name
+            }
+        }
+        return nil
+    }
+
+    // MARK: - System Appearance Observer
+
+    private func updateAppearanceObserver() {
+        // Remove existing observer
+        if let observer = appearanceObserver {
+            DistributedNotificationCenter.default().removeObserver(observer)
+            appearanceObserver = nil
+        }
+
+        // Only observe if in system mode
+        guard themeMode == .system else { return }
+
+        appearanceObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, self.themeMode == .system else { return }
+            // Increment trigger so @Observable re-notifies views depending on isDarkMode
+            self.systemAppearanceVersion += 1
+        }
+    }
+
+    // MARK: - Launch at Login
 
     private func updateLaunchAtLogin() {
         #if os(macOS)
@@ -228,11 +497,22 @@ class AppSettings {
         #endif
     }
 
+    // MARK: - Reset
+
     func resetToDefaults() {
         openHotKeyCombo = .defaultOpen
+        newTabHotKey = .defaultNewTab
+        closeTabHotKey = .defaultCloseTab
+        previousTabHotKey = .defaultPreviousTab
+        nextTabHotKey = .defaultNextTab
+        beautifyModeHotKey = .defaultBeautifyMode
+        treeModeHotKey = .defaultTreeMode
+        findNextHotKey = .defaultFindNext
+        findPreviousHotKey = .defaultFindPrevious
         jsonIndent = 4
         launchAtLogin = false
-        isDarkMode = true
+        themeMode = .dark
+        defaultViewMode = .beautify
     }
 }
 

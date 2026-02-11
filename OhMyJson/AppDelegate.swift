@@ -10,10 +10,19 @@ import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var settingsPanel: NSPanel?
+    private var settingsWindow: NSWindow?
     private var onboardingController: OnboardingWindowController?
     private var accessibilityCancellable: AnyCancellable?
     private var hotKeyCancellable: AnyCancellable?
+    private var shortcutsCancellable: AnyCancellable?
+
+    // Menu item references for dynamic shortcut updates
+    private weak var newTabMenuItem: NSMenuItem?
+    private weak var closeTabMenuItem: NSMenuItem?
+    private weak var prevTabMenuItem: NSMenuItem?
+    private weak var nextTabMenuItem: NSMenuItem?
+    private weak var beautifyMenuItem: NSMenuItem?
+    private weak var treeMenuItem: NSMenuItem?
 
     /// ViewModel — created and owned here, shared with Views via .environmentObject()
     private var viewModel: ViewerViewModel!
@@ -52,6 +61,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.setupHotKey()
             }
 
+        // Listen for app shortcut changes to update menu key equivalents
+        shortcutsCancellable = AppSettings.shared.appShortcutsChanged
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                self?.updateMenuShortcuts()
+            }
+
         // Show onboarding on first launch, otherwise open window immediately
         if !AppSettings.shared.hasSeenOnboarding {
             showOnboarding()
@@ -84,13 +100,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenuItem.submenu = fileMenu
 
         let newTabItem = NSMenuItem(title: String(localized: "menu.new_tab"), action: #selector(newTab), keyEquivalent: AppShortcut.newTab.keyEquivalent)
+        newTabItem.keyEquivalentModifierMask = AppShortcut.newTab.modifiers
         newTabItem.target = self
         fileMenu.addItem(newTabItem)
+        self.newTabMenuItem = newTabItem
 
-        // Command+W is handled by WindowManager.windowShouldClose, but add menu item for visibility
         let closeTabItem = NSMenuItem(title: String(localized: "menu.close_tab"), action: #selector(closeTab), keyEquivalent: AppShortcut.closeTab.keyEquivalent)
+        closeTabItem.keyEquivalentModifierMask = AppShortcut.closeTab.modifiers
         closeTabItem.target = self
         fileMenu.addItem(closeTabItem)
+        self.closeTabMenuItem = closeTabItem
 
         fileMenu.addItem(NSMenuItem.separator())
 
@@ -98,11 +117,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         prevTabItem.keyEquivalentModifierMask = AppShortcut.previousTab.modifiers
         prevTabItem.target = self
         fileMenu.addItem(prevTabItem)
+        self.prevTabMenuItem = prevTabItem
 
         let nextTabItem = NSMenuItem(title: String(localized: "menu.next_tab"), action: #selector(showNextTab), keyEquivalent: AppShortcut.nextTab.keyEquivalent)
         nextTabItem.keyEquivalentModifierMask = AppShortcut.nextTab.modifiers
         nextTabItem.target = self
         fileMenu.addItem(nextTabItem)
+        self.nextTabMenuItem = nextTabItem
 
         mainMenu.addItem(fileMenuItem)
 
@@ -118,12 +139,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenu.addItem(NSMenuItem.separator())
 
         let beautifyItem = NSMenuItem(title: String(localized: "menu.beautify_mode"), action: #selector(switchToBeautify), keyEquivalent: AppShortcut.beautifyMode.keyEquivalent)
+        beautifyItem.keyEquivalentModifierMask = AppShortcut.beautifyMode.modifiers
         beautifyItem.target = self
         viewMenu.addItem(beautifyItem)
+        self.beautifyMenuItem = beautifyItem
 
         let treeItem = NSMenuItem(title: String(localized: "menu.tree_mode"), action: #selector(switchToTree), keyEquivalent: AppShortcut.treeMode.keyEquivalent)
+        treeItem.keyEquivalentModifierMask = AppShortcut.treeMode.modifiers
         treeItem.target = self
         viewMenu.addItem(treeItem)
+        self.treeMenuItem = treeItem
 
         mainMenu.addItem(viewMenuItem)
 
@@ -143,6 +168,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.mainMenu = mainMenu
     }
 
+    private func updateMenuShortcuts() {
+        newTabMenuItem?.keyEquivalent = AppShortcut.newTab.keyEquivalent
+        newTabMenuItem?.keyEquivalentModifierMask = AppShortcut.newTab.modifiers
+
+        closeTabMenuItem?.keyEquivalent = AppShortcut.closeTab.keyEquivalent
+        closeTabMenuItem?.keyEquivalentModifierMask = AppShortcut.closeTab.modifiers
+
+        prevTabMenuItem?.keyEquivalent = AppShortcut.previousTab.keyEquivalent
+        prevTabMenuItem?.keyEquivalentModifierMask = AppShortcut.previousTab.modifiers
+
+        nextTabMenuItem?.keyEquivalent = AppShortcut.nextTab.keyEquivalent
+        nextTabMenuItem?.keyEquivalentModifierMask = AppShortcut.nextTab.modifiers
+
+        beautifyMenuItem?.keyEquivalent = AppShortcut.beautifyMode.keyEquivalent
+        beautifyMenuItem?.keyEquivalentModifierMask = AppShortcut.beautifyMode.modifiers
+
+        treeMenuItem?.keyEquivalent = AppShortcut.treeMode.keyEquivalent
+        treeMenuItem?.keyEquivalentModifierMask = AppShortcut.treeMode.modifiers
+    }
+
     @objc private func newTab(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
         openWindowWithNewTab(json: nil)
@@ -151,9 +196,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func closeTab(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
 
-        // If the Settings panel is the key window, close it instead of a tab
-        if let panel = settingsPanel, panel.isKeyWindow {
-            panel.orderOut(nil)
+        // If the Settings window is the key window, close it instead of a tab
+        if let window = settingsWindow, window.isKeyWindow {
+            window.close()
+            settingsWindow = nil
             return
         }
 
@@ -232,22 +278,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showSettings(_ sender: Any?) {
-        if settingsPanel == nil {
-            let panel = NSPanel(
-                contentRect: .zero,
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            panel.title = String(localized: "settings.title")
-            panel.isReleasedWhenClosed = false
-            panel.hidesOnDeactivate = false
-            panel.contentViewController = NSHostingController(rootView: SettingsWindowView().environment(AppSettings.shared))
-            settingsPanel = panel
-        }
+        // Always create a new window (released when closed)
+        settingsWindow = nil
 
-        settingsPanel?.center()
-        settingsPanel?.makeKeyAndOrderFront(nil)
+        let window = NSWindow(
+            contentRect: .zero,
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = String(localized: "settings.title")
+        window.isReleasedWhenClosed = true
+        window.hidesOnDeactivate = false
+        window.contentViewController = NSHostingController(
+            rootView: SettingsWindowView()
+                .environment(AppSettings.shared)
+        )
+        settingsWindow = window
+
+        window.center()
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -343,6 +393,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AccessibilityManager.shared.stopMonitoring()
         accessibilityCancellable = nil
         hotKeyCancellable = nil
+        shortcutsCancellable = nil
         WindowManager.shared.closeViewer()
     }
 }

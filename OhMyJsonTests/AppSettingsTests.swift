@@ -137,14 +137,46 @@ struct HotKeyComboTests {
         #expect(flags.contains(.option))
         #expect(flags.contains(.control))
     }
+
+    // MARK: - keyEquivalent
+
+    @Test("keyEquivalent returns lowercase letter for Cmd+N")
+    func keyEquivalentLetter() {
+        let combo = HotKeyCombo.defaultNewTab
+        #expect(combo.keyEquivalent == "n")
+    }
+
+    @Test("keyEquivalent returns uppercase letter for Cmd+Shift+G")
+    func keyEquivalentShiftLetter() {
+        let combo = HotKeyCombo.defaultFindPrevious
+        #expect(combo.keyEquivalent == "G")
+    }
+
+    @Test("keyEquivalent returns bracket for Cmd+Shift+[")
+    func keyEquivalentBracket() {
+        let combo = HotKeyCombo.defaultPreviousTab
+        #expect(combo.keyEquivalent == "[")
+    }
+
+    // MARK: - Default Hotkey Constants
+
+    @Test("All default hotkeys have non-zero modifiers")
+    func defaultHotkeysHaveModifiers() {
+        let defaults: [HotKeyCombo] = [
+            .defaultOpen, .defaultNewTab, .defaultCloseTab,
+            .defaultPreviousTab, .defaultNextTab,
+            .defaultBeautifyMode, .defaultTreeMode,
+            .defaultFindNext, .defaultFindPrevious
+        ]
+        for combo in defaults {
+            #expect(combo.modifiers != 0)
+        }
+    }
 }
 #endif
 
-@Suite("AppSettings Defaults Tests")
+@Suite("AppSettings Defaults Tests", .serialized)
 struct AppSettingsDefaultsTests {
-
-    // Note: AppSettings is a singleton with private init that depends on UserDefaults.
-    // We test the observable/public contract here without hitting UserDefaults directly.
 
     @Test("AppSettings.shared exists")
     func sharedExists() {
@@ -160,7 +192,6 @@ struct AppSettingsDefaultsTests {
 
     @Test("Default isDarkMode is boolean")
     func defaultDarkMode() {
-        // Just verify it's accessible without crash
         let _ = AppSettings.shared.isDarkMode
     }
 
@@ -168,7 +199,6 @@ struct AppSettingsDefaultsTests {
     func currentTheme() {
         let settings = AppSettings.shared
         let theme = settings.currentTheme
-        // theme should be non-nil and conform to AppTheme
         #expect(type(of: theme) is any AppTheme.Type)
     }
 
@@ -179,21 +209,137 @@ struct AppSettingsDefaultsTests {
         // Save current values
         let savedCombo = settings.openHotKeyCombo
         let savedIndent = settings.jsonIndent
-        let savedDarkMode = settings.isDarkMode
+        let savedThemeMode = settings.themeMode
         let savedLaunchLogin = settings.launchAtLogin
+        let savedDefaultViewMode = settings.defaultViewMode
 
         // Reset
         settings.resetToDefaults()
 
         #expect(settings.openHotKeyCombo == .defaultOpen)
         #expect(settings.jsonIndent == 4)
+        #expect(settings.themeMode == .dark)
         #expect(settings.isDarkMode == true)
         #expect(settings.launchAtLogin == false)
+        #expect(settings.defaultViewMode == .beautify)
+        #expect(settings.newTabHotKey == .defaultNewTab)
+        #expect(settings.closeTabHotKey == .defaultCloseTab)
+        #expect(settings.previousTabHotKey == .defaultPreviousTab)
+        #expect(settings.nextTabHotKey == .defaultNextTab)
+        #expect(settings.beautifyModeHotKey == .defaultBeautifyMode)
+        #expect(settings.treeModeHotKey == .defaultTreeMode)
+        #expect(settings.findNextHotKey == .defaultFindNext)
+        #expect(settings.findPreviousHotKey == .defaultFindPrevious)
 
         // Restore original values to not affect other tests
         settings.openHotKeyCombo = savedCombo
         settings.jsonIndent = savedIndent
-        settings.isDarkMode = savedDarkMode
+        settings.themeMode = savedThemeMode
         settings.launchAtLogin = savedLaunchLogin
+        settings.defaultViewMode = savedDefaultViewMode
+    }
+
+    // MARK: - ThemeMode Tests
+
+    @Test("ThemeMode transitions work correctly")
+    func themeModeTransitions() {
+        let settings = AppSettings.shared
+        let savedMode = settings.themeMode
+
+        settings.themeMode = .light
+        #expect(settings.isDarkMode == false)
+
+        settings.themeMode = .dark
+        #expect(settings.isDarkMode == true)
+
+        // System mode returns value based on current system appearance
+        settings.themeMode = .system
+        let _ = settings.isDarkMode // just verify it doesn't crash
+
+        settings.themeMode = savedMode
+    }
+
+    @Test("toggleTheme cycles through modes")
+    func toggleThemeCycles() {
+        let settings = AppSettings.shared
+        let savedMode = settings.themeMode
+
+        settings.themeMode = .dark
+        settings.toggleTheme() // dark -> light
+        #expect(settings.themeMode == .light)
+
+        settings.toggleTheme() // light -> dark
+        #expect(settings.themeMode == .dark)
+
+        settings.themeMode = .system
+        settings.toggleTheme() // system -> dark
+        #expect(settings.themeMode == .dark)
+
+        settings.themeMode = savedMode
+    }
+
+    @Test("currentTheme returns DarkTheme for dark mode")
+    func darkThemeForDarkMode() {
+        let settings = AppSettings.shared
+        let savedMode = settings.themeMode
+
+        settings.themeMode = .dark
+        #expect(settings.currentTheme is DarkTheme)
+
+        settings.themeMode = .light
+        #expect(settings.currentTheme is LightTheme)
+
+        settings.themeMode = savedMode
+    }
+
+    // MARK: - Hotkey Conflict Detection Tests
+
+    @Test("conflictingAction detects conflict")
+    func conflictingActionDetects() {
+        let settings = AppSettings.shared
+        let savedNewTab = settings.newTabHotKey
+
+        // Set up a known hotkey
+        settings.newTabHotKey = .defaultNewTab
+
+        // Check that the same combo conflicts
+        let conflict = settings.conflictingAction(for: .defaultNewTab, excluding: "Close Tab")
+        #expect(conflict == "New Tab")
+
+        settings.newTabHotKey = savedNewTab
+    }
+
+    @Test("conflictingAction returns nil for no conflict")
+    func conflictingActionNoConflict() {
+        let settings = AppSettings.shared
+
+        let uniqueCombo = HotKeyCombo(keyCode: UInt32(kVK_F12), modifiers: UInt32(controlKey | optionKey | shiftKey | cmdKey))
+        let conflict = settings.conflictingAction(for: uniqueCombo, excluding: "Open OhMyJson")
+        #expect(conflict == nil)
+    }
+
+    @Test("conflictingAction excludes self correctly")
+    func conflictingActionExcludesSelf() {
+        let settings = AppSettings.shared
+
+        // Checking the same action's own combo should not conflict
+        let conflict = settings.conflictingAction(for: settings.openHotKeyCombo, excluding: "Open OhMyJson")
+        #expect(conflict == nil)
+    }
+
+    // MARK: - Default View Mode Tests
+
+    @Test("defaultViewMode can be set to tree")
+    func defaultViewModeTree() {
+        let settings = AppSettings.shared
+        let savedMode = settings.defaultViewMode
+
+        settings.defaultViewMode = .tree
+        #expect(settings.defaultViewMode == .tree)
+
+        settings.defaultViewMode = .beautify
+        #expect(settings.defaultViewMode == .beautify)
+
+        settings.defaultViewMode = savedMode
     }
 }

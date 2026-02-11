@@ -15,6 +15,14 @@ struct TabBarView: View {
 
     private var theme: AppTheme { settings.currentTheme }
 
+    private var themeIconName: String {
+        switch settings.themeMode {
+        case .light: return "sun.max.fill"
+        case .dark: return "moon.fill"
+        case .system: return "circle.lefthalf.filled"
+        }
+    }
+
     private enum Layout {
         static let fixedTabWidth: CGFloat = 150
         static let tabSpacing: CGFloat = 6
@@ -71,7 +79,7 @@ struct TabBarView: View {
                 Button(action: {
                     settings.toggleTheme()
                 }) {
-                    Image(systemName: settings.isDarkMode ? "moon.fill" : "sun.max.fill")
+                    Image(systemName: themeIconName)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(theme.secondaryText)
                         .frame(width: Layout.themeButtonWidth, height: Layout.buttonHeight)
