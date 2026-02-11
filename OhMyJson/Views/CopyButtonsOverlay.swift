@@ -14,6 +14,7 @@ struct CopyButtonsOverlay: View {
     private var theme: AppTheme { settings.currentTheme }
 
     private var isLeaf: Bool { !node.value.isContainer }
+    private var isDark: Bool { theme.colorScheme == .dark }
 
     var body: some View {
         HStack(spacing: 3) {
@@ -45,11 +46,11 @@ struct CopyButtonsOverlay: View {
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(theme.panelBackground)
-                .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(isDark ? 0.5 : 0.18), radius: 4, x: 0, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(theme.border.opacity(0.8), lineWidth: 0.5)
+                .stroke(isDark ? Color.white.opacity(0.10) : theme.border.opacity(0.8), lineWidth: 0.5)
         )
         .onContinuousHover { phase in
             switch phase {
@@ -72,19 +73,18 @@ struct CopyButtonsOverlay: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(
                             LinearGradient(
-                                colors: [
-                                    theme.secondaryBackground.opacity(0.9),
-                                    theme.secondaryBackground.opacity(0.5)
-                                ],
+                                colors: isDark
+                                    ? [Color.white.opacity(0.12), Color.white.opacity(0.04)]
+                                    : [theme.secondaryBackground.opacity(0.9), theme.secondaryBackground.opacity(0.5)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
                         )
-                        .shadow(color: Color.black.opacity(0.12), radius: 0.5, x: 0, y: 1)
+                        .shadow(color: Color.black.opacity(isDark ? 0.5 : 0.12), radius: isDark ? 1 : 0.5, x: 0, y: 1)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(theme.border.opacity(0.6), lineWidth: 0.5)
+                        .stroke(isDark ? Color.white.opacity(0.14) : theme.border.opacity(0.6), lineWidth: 0.5)
                 )
                 .contentShape(Rectangle())
         }
