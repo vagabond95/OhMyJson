@@ -278,8 +278,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showSettings(_ sender: Any?) {
-        // Always create a new window (released when closed)
-        settingsWindow = nil
+        // If settings wind already exists and is visible, just bring it to front
+        if let existing = settingsWindow, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
 
         let window = NSWindow(
             contentRect: .zero,
@@ -288,7 +292,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = String(localized: "settings.title")
-        window.isReleasedWhenClosed = true
+        window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
         window.contentViewController = NSHostingController(
             rootView: SettingsWindowView()
