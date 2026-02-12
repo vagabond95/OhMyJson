@@ -162,9 +162,15 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     func bringToFront() {
         if NSApp.activationPolicy() != .regular {
             NSApp.setActivationPolicy(.regular)
+            // Delay activation to next run loop so the policy change takes effect
+            DispatchQueue.main.async { [weak self] in
+                self?.viewerWindow?.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+            }
+        } else {
+            viewerWindow?.makeKeyAndOrderFront(nil)
+            NSApp.activate()
         }
-        viewerWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate()
     }
 
     func isViewerWindow(_ window: NSWindow) -> Bool {

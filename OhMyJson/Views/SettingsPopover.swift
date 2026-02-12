@@ -433,6 +433,15 @@ private struct HotkeysSettingsView: View {
                     .transition(.opacity)
             }
         }
+        .onChange(of: recordingAction) { oldValue, newValue in
+            // Suspend/resume global hotkey when recording the "Open OhMyJson" action
+            // so the Carbon RegisterEventHotKey doesn't intercept the key combo
+            if newValue == "Open OhMyJson" {
+                HotKeyManager.shared.suspend()
+            } else if oldValue == "Open OhMyJson" {
+                HotKeyManager.shared.resume()
+            }
+        }
     }
 
     private func hotKeyGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

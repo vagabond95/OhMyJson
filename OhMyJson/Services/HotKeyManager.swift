@@ -4,15 +4,13 @@
 //
 
 #if os(macOS)
-import AppKit
 import Carbon.HIToolbox
 
 class HotKeyManager: HotKeyManagerProtocol {
     static let shared = HotKeyManager()
 
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
-    private var runLoop: CFRunLoop?
+    private var eventHandlerRef: EventHandlerRef?
+    private var hotKeyRef: EventHotKeyRef?
     private var onHotKeyPressed: (() -> Void)?
     private var currentCombo: HotKeyCombo = .default
     var isEnabled: Bool = true
@@ -20,6 +18,17 @@ class HotKeyManager: HotKeyManagerProtocol {
     // Throttle mechanism
     private var lastHotKeyTime: Date?
     private let throttleInterval: TimeInterval = Timing.hotKeyThrottle
+
+    // FourCharCode signature for this app
+    private static let signature: FourCharCode = {
+        let chars: [UInt8] = [
+            UInt8(ascii: "O"), UInt8(ascii: "M"), UInt8(ascii: "J"), UInt8(ascii: "N")
+        ]
+        return FourCharCode(chars[0]) << 24
+             | FourCharCode(chars[1]) << 16
+             | FourCharCode(chars[2]) << 8
+             | FourCharCode(chars[3])
+    }()
 
     private init() {}
 
@@ -33,112 +42,143 @@ class HotKeyManager: HotKeyManagerProtocol {
         self.currentCombo = combo
         self.onHotKeyPressed = handler
 
-        let eventMask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
+        // Install Carbon event handler for kEventHotKeyPressed
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
+                                      eventKind: UInt32(kEventHotKeyPressed))
 
-        guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly,
-            eventsOfInterest: eventMask,
-            callback: { proxy, type, event, refcon in
-                guard let refcon = refcon else { return Unmanaged.passRetained(event) }
-                let manager = Unmanaged<HotKeyManager>.fromOpaque(refcon).takeUnretainedValue()
-                return manager.handleEvent(proxy: proxy, type: type, event: event)
-            },
-            userInfo: Unmanaged.passUnretained(self).toOpaque()
-        ) else {
-            print("Failed to create event tap. Please grant Accessibility permissions.")
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        let status = InstallEventHandler(
+            GetEventDispatcherTarget(),
+            hotKeyEventHandler,
+            1,
+            &eventType,
+            selfPtr,
+            &eventHandlerRef
+        )
+
+        guard status == noErr else {
+            print("Failed to install Carbon event handler: \(status)")
             return
         }
 
-        self.eventTap = tap
-
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        self.runLoopSource = source
-        self.runLoop = CFRunLoopGetCurrent()
-        CFRunLoopAddSource(self.runLoop, source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
+        // Register the hotkey with the OS
+        registerHotKey()
 
         print("HotKey monitoring started: \(combo.displayString)")
     }
 
     func stop() {
-        if let tap = eventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
+        unregisterHotKey()
+
+        if let handler = eventHandlerRef {
+            RemoveEventHandler(handler)
+            eventHandlerRef = nil
         }
 
-        if let source = runLoopSource, let rl = runLoop {
-            CFRunLoopRemoveSource(rl, source, .commonModes)
-        }
-
-        // Invalidate mach port to release internal kernel resources
-        if let tap = eventTap {
-            CFMachPortInvalidate(tap)
-        }
-
-        eventTap = nil
-        runLoopSource = nil
-        runLoop = nil
         onHotKeyPressed = nil
 
         print("HotKey monitoring stopped")
     }
 
-    private func handleEvent(
-        proxy: CGEventTapProxy,
-        type: CGEventType,
-        event: CGEvent
-    ) -> Unmanaged<CGEvent>? {
+    func updateHotKey(_ combo: HotKeyCombo) {
+        let hadHandler = eventHandlerRef != nil
+        currentCombo = combo
 
-        // Re-enable tap if macOS disabled it due to timeout
-        if type == .tapDisabledByTimeout {
-            if let tap = eventTap {
-                CGEvent.tapEnable(tap: tap, enable: true)
-            }
-            return Unmanaged.passRetained(event)
+        if hadHandler {
+            // Re-register with new combo (keep event handler alive)
+            unregisterHotKey()
+            registerHotKey()
         }
-
-        guard type == .keyDown else {
-            return Unmanaged.passRetained(event)
-        }
-
-        let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode))
-        let flags = event.flags
-
-        var carbonModifiers: UInt32 = 0
-        if flags.contains(.maskCommand) { carbonModifiers |= UInt32(cmdKey) }
-        if flags.contains(.maskShift) { carbonModifiers |= UInt32(shiftKey) }
-        if flags.contains(.maskAlternate) { carbonModifiers |= UInt32(optionKey) }
-        if flags.contains(.maskControl) { carbonModifiers |= UInt32(controlKey) }
-
-        if keyCode == currentCombo.keyCode && carbonModifiers == currentCombo.modifiers {
-            guard isEnabled else {
-                return Unmanaged.passRetained(event)
-            }
-            // Throttle check: prevent rapid consecutive hotkey triggers
-            if let lastTime = lastHotKeyTime {
-                let elapsed = Date().timeIntervalSince(lastTime)
-                if elapsed < throttleInterval {
-                    return Unmanaged.passRetained(event)
-                }
-            }
-
-            lastHotKeyTime = Date()
-
-            DispatchQueue.main.async { [weak self] in
-                self?.onHotKeyPressed?()
-            }
-        }
-
-        return Unmanaged.passRetained(event)
     }
 
-    func updateHotKey(_ combo: HotKeyCombo) {
-        currentCombo = combo
+    func suspend() {
+        unregisterHotKey()
+    }
+
+    func resume() {
+        // Only re-register if we have an active event handler (i.e. start() was called)
+        guard eventHandlerRef != nil else { return }
+        registerHotKey()
     }
 
     var isRunning: Bool {
-        eventTap != nil
+        eventHandlerRef != nil
     }
+
+    // MARK: - Private
+
+    private func registerHotKey() {
+        guard hotKeyRef == nil else { return }
+
+        let hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
+        let carbonModifiers = carbonModifierFlags(from: currentCombo.modifiers)
+
+        var ref: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            currentCombo.keyCode,
+            carbonModifiers,
+            hotKeyID,
+            GetEventDispatcherTarget(),
+            0,
+            &ref
+        )
+
+        if status == noErr {
+            hotKeyRef = ref
+        } else {
+            print("Failed to register hotkey: \(status)")
+        }
+    }
+
+    private func unregisterHotKey() {
+        if let ref = hotKeyRef {
+            UnregisterEventHotKey(ref)
+            hotKeyRef = nil
+        }
+    }
+
+    /// Convert from our Carbon modifier bitmask (cmdKey, optionKey, etc.) to
+    /// the Carbon modifier format expected by RegisterEventHotKey.
+    private func carbonModifierFlags(from modifiers: UInt32) -> UInt32 {
+        var result: UInt32 = 0
+        if modifiers & UInt32(cmdKey) != 0     { result |= UInt32(cmdKey) }
+        if modifiers & UInt32(shiftKey) != 0   { result |= UInt32(shiftKey) }
+        if modifiers & UInt32(optionKey) != 0  { result |= UInt32(optionKey) }
+        if modifiers & UInt32(controlKey) != 0 { result |= UInt32(controlKey) }
+        return result
+    }
+
+    fileprivate func handleHotKeyEvent() {
+        guard isEnabled else { return }
+
+        // Throttle check: prevent rapid consecutive hotkey triggers
+        if let lastTime = lastHotKeyTime {
+            let elapsed = Date().timeIntervalSince(lastTime)
+            if elapsed < throttleInterval {
+                return
+            }
+        }
+
+        lastHotKeyTime = Date()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.onHotKeyPressed?()
+        }
+    }
+}
+
+// MARK: - Carbon Event Handler (free function)
+
+private func hotKeyEventHandler(
+    _ nextHandler: EventHandlerCallRef?,
+    _ event: EventRef?,
+    _ userData: UnsafeMutableRawPointer?
+) -> OSStatus {
+    guard let userData = userData else { return OSStatus(eventNotHandledErr) }
+
+    let manager = Unmanaged<HotKeyManager>.fromOpaque(userData).takeUnretainedValue()
+    manager.handleHotKeyEvent()
+
+    return noErr
 }
 #endif

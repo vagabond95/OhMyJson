@@ -6,12 +6,10 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
-import Combine
 
 class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControllerProtocol {
     private var window: NSWindow?
     private var keyMonitor: Any?
-    private var accessibilityCancellable: AnyCancellable?
     var onDismiss: (() -> Void)?
 
     var isShowing: Bool {
@@ -22,68 +20,11 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
         if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
         }
-        accessibilityCancellable = nil
         window?.delegate = nil
     }
 
     func show() {
-        if AXIsProcessTrusted() {
-            showHotkeyPhase()
-        } else {
-            showAccessibilityPhase()
-        }
-    }
-
-    // MARK: - Accessibility Phase
-
-    private func showAccessibilityPhase() {
-        let accessibilityView = AccessibilityOnboardingView(onSkip: { [weak self] in
-            self?.transitionToHotkeyPhase()
-        })
-        let hostingView = NSHostingView(rootView: accessibilityView)
-        createWindow(with: hostingView)
-
-        // Monitor for permission grant → auto-transition
-        accessibilityCancellable = AccessibilityManager.shared.accessibilityChanged
-            .filter { $0 }
-            .first()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.transitionToHotkeyPhase()
-            }
-    }
-
-    private func transitionToHotkeyPhase() {
-        accessibilityCancellable = nil
-
-        guard let window = window else { return }
-
-        // Fade out
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
-            window.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            guard let self = self, let window = self.window else { return }
-
-            // Replace content
-            let onboardingView = OnboardingView(
-                onGetStarted: { [weak self] in
-                    self?.dismissWithFade()
-                },
-                onCopySampleJson: {}
-            )
-            let hostingView = NSHostingView(rootView: onboardingView)
-            window.contentView = hostingView
-
-            // Install key monitor for hotkey phase
-            self.installKeyMonitor()
-
-            // Fade in
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.2
-                window.animator().alphaValue = 1
-            })
-        })
+        showHotkeyPhase()
     }
 
     // MARK: - Hotkey Phase
@@ -145,8 +86,6 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
 
     private func dismissWithFade() {
         guard let window = window else { return }
-
-        accessibilityCancellable = nil
 
         if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)

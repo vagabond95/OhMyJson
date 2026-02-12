@@ -12,6 +12,8 @@ final class MockHotKeyManager: HotKeyManagerProtocol {
 
     var startCallCount = 0
     var stopCallCount = 0
+    var suspendCallCount = 0
+    var resumeCallCount = 0
     var lastCombo: HotKeyCombo?
     var lastHandler: (() -> Void)?
 
@@ -29,6 +31,14 @@ final class MockHotKeyManager: HotKeyManagerProtocol {
 
     func updateHotKey(_ combo: HotKeyCombo) {
         lastCombo = combo
+    }
+
+    func suspend() {
+        suspendCallCount += 1
+    }
+
+    func resume() {
+        resumeCallCount += 1
     }
 }
 #endif

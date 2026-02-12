@@ -10,5 +10,7 @@ protocol HotKeyManagerProtocol: AnyObject {
     func start(combo: HotKeyCombo, handler: @escaping () -> Void)
     func stop()
     func updateHotKey(_ combo: HotKeyCombo)
+    func suspend()
+    func resume()
 }
 #endif

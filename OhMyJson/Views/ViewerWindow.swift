@@ -173,7 +173,6 @@ struct ViewerWindow: View {
             radius: 500
         )
         .withToast()
-        .withAccessibilityWarning()
         .onAppear {
             setupKeyboardShortcuts()
             viewModel.loadInitialContent()

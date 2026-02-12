@@ -12,7 +12,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var onboardingController: OnboardingWindowController?
-    private var accessibilityCancellable: AnyCancellable?
     private var hotKeyCancellable: AnyCancellable?
     private var shortcutsCancellable: AnyCancellable?
 
@@ -49,9 +48,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupMenuBar()
         setupMainMenu()
 
-        AccessibilityManager.shared.startMonitoring()
-        AccessibilityManager.shared.promptAccessibilityPermission()
-        setupAccessibilityObserver()
         setupHotKey()
 
         // Listen for hotkey changes via Combine
@@ -318,19 +314,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApplication.shared.terminate(nil)
     }
 
-    private func setupAccessibilityObserver() {
-        accessibilityCancellable = AccessibilityManager.shared.accessibilityChanged
-            .removeDuplicates()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] granted in
-                if granted {
-                    self?.setupHotKey()
-                } else {
-                    HotKeyManager.shared.stop()
-                }
-            }
-    }
-
     private func setupHotKey() {
         let combo = AppSettings.shared.openHotKeyCombo
 
@@ -403,8 +386,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         HotKeyManager.shared.stop()
-        AccessibilityManager.shared.stopMonitoring()
-        accessibilityCancellable = nil
         hotKeyCancellable = nil
         shortcutsCancellable = nil
         WindowManager.shared.closeViewer()
