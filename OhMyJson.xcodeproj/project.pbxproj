@@ -34,6 +34,16 @@
 		CED10E6D2F345B5500363B5C /* OhMyJsonUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OhMyJsonUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CED10E582F345B5400363B5C /* Exceptions for "OhMyJson" folder in "OhMyJson" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CED10E542F345B5400363B5C /* OhMyJson */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CE0C00012F346B0000000001 /* OhMyJsonTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -43,7 +53,7 @@
 		CED10E572F345B5400363B5C /* OhMyJson */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				CED10E582F345B5400363B5C /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				CED10E582F345B5400363B5C /* Exceptions for "OhMyJson" folder in "OhMyJson" target */,
 			);
 			path = OhMyJson;
 			sourceTree = "<group>";
@@ -54,16 +64,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CED10E582F345B5400363B5C /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = CED10E542F345B5400363B5C /* OhMyJson */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		CED10E522F345B5400363B5C /* Frameworks */ = {

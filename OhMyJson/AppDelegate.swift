@@ -54,6 +54,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupMainMenu()
 
         setupHotKey()
+        registerURLSchemeHandler()
 
         // Listen for hotkey changes via Combine
         hotKeyCancellable = AppSettings.shared.hotKeyChanged
@@ -309,6 +310,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         HotKeyManager.shared.start(combo: combo) { [weak self] in
             self?.viewModel.handleHotKey()
+        }
+    }
+
+    // MARK: - URL Scheme Handling
+
+    private func registerURLSchemeHandler() {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else { return }
+        guard onboardingController?.isShowing != true else { return }
+
+        let action = URLSchemeHandler.parseAction(from: url)
+        switch action {
+        case .openFromClipboard:
+            viewModel.handleHotKey()
+        case .unknown:
+            break
         }
     }
 
