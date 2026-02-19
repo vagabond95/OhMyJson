@@ -2,15 +2,20 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────
-# OhMyJson Release Script
+# OhMyJson Release Script (idempotent — safe to re-run)
 #
 # Usage: ./scripts/release.sh <version> [release-message]
 #   e.g. ./scripts/release.sh 0.3.0 "Add search highlighting"
 #
 # This script:
-#   1. Validates semver format, clean tree, and main branch
-#   2. Bumps MARKETING_VERSION in project.pbxproj
-#   3. Commits, tags, and pushes
+#   1. Validates semver format and main branch
+#   2. Bumps MARKETING_VERSION in project.pbxproj (skips if already done)
+#   3. Commits (skips if already committed)
+#   4. Tags (skips if already tagged)
+#   5. Pushes commit and tag (skips if already pushed)
+#
+# Each step is idempotent — if the script fails midway,
+# re-running it with the same version resumes from where it left off.
 #
 # GitHub Actions handles the rest (build, sign, notarize, DMG,
 # GitHub Release, Homebrew cask update).
@@ -45,24 +50,10 @@ fi
 
 cd "$PROJECT_ROOT"
 
-# Clean working tree
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  die "Working tree is not clean. Commit or stash changes first."
-fi
-
-if [ -n "$(git ls-files --others --exclude-standard)" ]; then
-  die "Untracked files found. Commit or remove them first."
-fi
-
 # Must be on main branch
 BRANCH=$(git symbolic-ref --short HEAD)
 if [ "$BRANCH" != "main" ]; then
   die "Must be on 'main' branch (currently on '$BRANCH')."
-fi
-
-# Tag must not exist
-if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-  die "Tag v${VERSION} already exists."
 fi
 
 # project.pbxproj must exist
@@ -70,9 +61,15 @@ if [ ! -f "$PBXPROJ" ]; then
   die "Cannot find $PBXPROJ"
 fi
 
-# ── Detect current version ───────────────────────────────────
+# Check if tag already exists on remote (fully done — nothing to do)
+if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q "v${VERSION}"; then
+  echo "Tag v${VERSION} already exists on remote. Release already complete."
+  echo "Monitor at: https://github.com/vagabond95/OhMyJson/actions"
+  exit 0
+fi
 
-# Find the current app MARKETING_VERSION (X.Y.Z format, not "1.0" which is test target)
+# ── Detect current state ─────────────────────────────────────
+
 CURRENT_VERSION=$(grep 'MARKETING_VERSION = ' "$PBXPROJ" \
   | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
   | head -1)
@@ -81,8 +78,47 @@ if [ -z "$CURRENT_VERSION" ]; then
   die "Could not detect current MARKETING_VERSION in $PBXPROJ"
 fi
 
+# Determine what's already done
+NEED_BUMP=true
+NEED_COMMIT=true
+NEED_TAG=true
+
 if [ "$CURRENT_VERSION" = "$VERSION" ]; then
-  die "Version is already $VERSION"
+  NEED_BUMP=false
+fi
+
+# Check for uncommitted changes (only pbxproj modification is allowed for resume)
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  # Only allow if the sole change is pbxproj with our version
+  CHANGED_FILES=$(git diff --name-only; git diff --cached --name-only)
+  if [ "$CHANGED_FILES" != "$PBXPROJ" ]; then
+    die "Working tree has unexpected changes. Commit or stash them first.\n$(git status --short)"
+  fi
+  if [ "$NEED_BUMP" = true ]; then
+    die "Working tree has changes to $PBXPROJ but version is not $VERSION. Resolve manually."
+  fi
+  # pbxproj is modified with target version — just need to commit
+  NEED_COMMIT=true
+fi
+
+if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+  die "Untracked files found. Commit or remove them first."
+fi
+
+# If version already matches and tree is clean, check if commit exists
+if [ "$NEED_BUMP" = false ] && git diff --quiet && git diff --cached --quiet; then
+  # Check if HEAD commit is the version bump
+  if git log -1 --format='%s' | grep -q "chore: bump version to $VERSION"; then
+    NEED_COMMIT=false
+  else
+    # Version matches but commit is not the bump — already committed and more commits on top
+    NEED_COMMIT=false
+  fi
+fi
+
+# Check if local tag exists
+if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+  NEED_TAG=false
 fi
 
 # ── Summary & confirmation ───────────────────────────────────
@@ -90,9 +126,19 @@ fi
 echo ""
 echo "  OhMyJson Release"
 echo "  ────────────────────────────"
-echo "  Version:  $CURRENT_VERSION -> $VERSION"
+if [ "$NEED_BUMP" = true ]; then
+  echo "  Version:  $CURRENT_VERSION -> $VERSION"
+else
+  echo "  Version:  $VERSION (already bumped)"
+fi
 echo "  Tag:      v${VERSION}"
 echo "  Message:  $RELEASE_MSG"
+echo ""
+echo "  Steps:"
+[ "$NEED_BUMP" = true ]   && echo "    - Bump version" || echo "    - Bump version (skip)"
+[ "$NEED_COMMIT" = true ] && echo "    - Commit"       || echo "    - Commit (skip)"
+[ "$NEED_TAG" = true ]    && echo "    - Create tag"    || echo "    - Create tag (skip)"
+echo "    - Push to origin"
 echo ""
 read -rp "  Proceed? [y/N] " confirm
 echo ""
@@ -102,31 +148,45 @@ if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-# ── Bump version ─────────────────────────────────────────────
+# ── Step 1: Bump version ─────────────────────────────────────
 
-echo "Bumping MARKETING_VERSION: $CURRENT_VERSION -> $VERSION ..."
+if [ "$NEED_BUMP" = true ]; then
+  echo "Bumping MARKETING_VERSION: $CURRENT_VERSION -> $VERSION ..."
 
-# Replace only the app target's version (X.Y.Z format), not the test target's "1.0"
-sed -i '' "s/MARKETING_VERSION = ${CURRENT_VERSION};/MARKETING_VERSION = ${VERSION};/g" "$PBXPROJ"
+  sed -i '' "s/MARKETING_VERSION = ${CURRENT_VERSION};/MARKETING_VERSION = ${VERSION};/g" "$PBXPROJ"
 
-# Verify exactly 2 replacements (Debug + Release build configurations)
-MATCH_COUNT=$(grep -c "MARKETING_VERSION = ${VERSION};" "$PBXPROJ")
-if [ "$MATCH_COUNT" -ne 2 ]; then
-  echo "error: Expected 2 MARKETING_VERSION replacements, found $MATCH_COUNT. Rolling back."
-  git checkout -- "$PBXPROJ"
-  exit 1
+  MATCH_COUNT=$(grep -c "MARKETING_VERSION = ${VERSION};" "$PBXPROJ")
+  if [ "$MATCH_COUNT" -ne 2 ]; then
+    echo "error: Expected 2 MARKETING_VERSION replacements, found $MATCH_COUNT. Rolling back."
+    git checkout -- "$PBXPROJ"
+    exit 1
+  fi
+
+  echo "  Updated $MATCH_COUNT occurrences in $PBXPROJ"
+else
+  echo "Version already $VERSION, skipping bump."
 fi
 
-echo "  Updated $MATCH_COUNT occurrences in $PBXPROJ"
+# ── Step 2: Commit ───────────────────────────────────────────
 
-# ── Commit, tag, push ────────────────────────────────────────
+if [ "$NEED_COMMIT" = true ]; then
+  echo "Committing version bump..."
+  git add "$PBXPROJ"
+  git commit -m "chore: bump version to $VERSION"
+else
+  echo "Version bump already committed, skipping commit."
+fi
 
-echo "Committing version bump..."
-git add "$PBXPROJ"
-git commit -m "chore: bump version to $VERSION"
+# ── Step 3: Tag ──────────────────────────────────────────────
 
-echo "Creating tag v${VERSION}..."
-git tag -a "v${VERSION}" -m "$RELEASE_MSG"
+if [ "$NEED_TAG" = true ]; then
+  echo "Creating tag v${VERSION}..."
+  git tag -a "v${VERSION}" -m "$RELEASE_MSG"
+else
+  echo "Tag v${VERSION} already exists locally, skipping tag."
+fi
+
+# ── Step 4: Push ─────────────────────────────────────────────
 
 echo "Pushing to origin..."
 git push origin main
