@@ -37,109 +37,113 @@ struct TreeView: View {
     @State private var isDirty = false
 
     var body: some View {
-        GeometryReader { geometry in
         ScrollViewReader { proxy in
-            ScrollView([.horizontal, .vertical]) {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(visibleNodes) { node in
-                        TreeNodeView(
-                            node: node,
-                            searchText: searchText,
-                            isCurrentSearchResult: currentSearchResultId == node.id,
-                            isSelected: selectedNodeId == node.id,
-                            onSelect: { selectedNodeId = node.id },
-                            onToggleExpand: {
-                                updateVisibleNodes()
-                            },
-                            ancestorIsLast: ancestorLastMap[node.id] ?? [],
-                            minRowWidth: geometry.size.width - 18
-                        )
-                        .frame(height: TreeLayout.rowHeight)
-                        .id(node.id)
-                    }
+            treeScrollView(proxy: proxy)
+        }
+    }
+
+    @ViewBuilder
+    private func treeScrollView(proxy: ScrollViewProxy) -> some View {
+        ScrollView {
+            treeContent()
+        }
+        .coordinateSpace(name: "scrollView")
+        .opacity(isReady ? 1 : 0)
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+            guard hasRestoredScroll, !isRestoringTabState, !visibleNodes.isEmpty else { return }
+            let adjustedOffset = -(offset - 4)
+            let topIndex = max(0, min(visibleNodes.count - 1, Int(adjustedOffset / TreeLayout.rowHeight)))
+            scrollAnchorId = visibleNodes[topIndex].id
+        }
+        .onChange(of: rootNode.id) { _, _ in
+            guard isActive else { isDirty = true; return }
+            updateVisibleNodes()
+            currentSearchResultId = nil
+            if !searchText.isEmpty {
+                updateSearchResults()
+            }
+        }
+        .onChange(of: rootNode.isExpanded) { _, _ in
+            guard isActive else { isDirty = true; return }
+            updateVisibleNodes()
+        }
+        .onChange(of: searchText) { _, newValue in
+            guard isActive else { isDirty = true; return }
+            updateSearchResults()
+            if !newValue.isEmpty && !searchResults.isEmpty {
+                currentSearchIndex = 0
+                navigateToSearchResult(index: 0, proxy: proxy)
+            } else {
+                currentSearchResultId = nil
+            }
+        }
+        .onChange(of: currentSearchIndex) { _, newIndex in
+            guard isActive else { return }
+            if !searchResults.isEmpty {
+                navigateToSearchResult(index: newIndex, proxy: proxy)
+            }
+        }
+        .onChange(of: treeStructureVersion) { _, _ in
+            guard isActive else { isDirty = true; return }
+            updateVisibleNodes()
+        }
+        .onChange(of: selectedNodeId) { _, newId in
+            guard isActive else { return }
+            if let nodeId = newId {
+                withAnimation(.easeInOut(duration: Animation.quick)) {
+                    proxy.scrollTo(nodeId, anchor: nil)
                 }
-                .padding(.leading, 10).padding(.trailing, 8)
-                .padding(.vertical, 4)
-                .frame(minWidth: geometry.size.width, alignment: .leading)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: ScrollOffsetPreferenceKey.self,
-                            value: geo.frame(in: .named("scrollView")).minY
-                        )
-                    }
+            }
+        }
+        .onAppear {
+            guard isActive else { return }
+            performFullInit(proxy: proxy)
+        }
+        .onChange(of: isActive) { _, newValue in
+            guard newValue else { return }
+            if !hasInitialized {
+                performFullInit(proxy: proxy)
+            } else if isDirty {
+                updateVisibleNodes()
+                restoreSearchHighlighting()
+                isDirty = false
+            }
+        }
+        .onDisappear {
+            hasRestoredScroll = false
+            isReady = false
+        }
+    }
+
+    @ViewBuilder
+    private func treeContent() -> some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(visibleNodes) { node in
+                TreeNodeView(
+                    node: node,
+                    searchText: searchText,
+                    isCurrentSearchResult: currentSearchResultId == node.id,
+                    isSelected: selectedNodeId == node.id,
+                    onSelect: { selectedNodeId = node.id },
+                    onToggleExpand: {
+                        updateVisibleNodes()
+                    },
+                    ancestorIsLast: ancestorLastMap[node.id] ?? []
+                )
+                .frame(height: TreeLayout.rowHeight)
+                .id(node.id)
+            }
+        }
+        .padding(.leading, 10).padding(.trailing, 8)
+        .padding(.vertical, 4)
+        .background(
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: ScrollOffsetPreferenceKey.self,
+                    value: geo.frame(in: .named("scrollView")).minY
                 )
             }
-            .coordinateSpace(name: "scrollView")
-            .opacity(isReady ? 1 : 0)
-            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                // Calculate top visible node index from scroll offset
-                guard hasRestoredScroll, !isRestoringTabState, !visibleNodes.isEmpty else { return }
-                // offset is negative when scrolled down; account for vertical padding (4pt)
-                let adjustedOffset = -(offset - 4)
-                let topIndex = max(0, min(visibleNodes.count - 1, Int(adjustedOffset / TreeLayout.rowHeight)))
-                scrollAnchorId = visibleNodes[topIndex].id
-            }
-            .onChange(of: rootNode.id) { _, _ in
-                guard isActive else { isDirty = true; return }
-                updateVisibleNodes()
-                currentSearchResultId = nil
-                if !searchText.isEmpty {
-                    updateSearchResults()
-                }
-            }
-            .onChange(of: rootNode.isExpanded) { _, _ in
-                guard isActive else { isDirty = true; return }
-                updateVisibleNodes()
-            }
-            .onChange(of: searchText) { _, newValue in
-                guard isActive else { isDirty = true; return }
-                updateSearchResults()
-                if !newValue.isEmpty && !searchResults.isEmpty {
-                    currentSearchIndex = 0
-                    navigateToSearchResult(index: 0, proxy: proxy)
-                } else {
-                    currentSearchResultId = nil
-                }
-            }
-            .onChange(of: currentSearchIndex) { _, newIndex in
-                guard isActive else { return }
-                if !searchResults.isEmpty {
-                    navigateToSearchResult(index: newIndex, proxy: proxy)
-                }
-            }
-            .onChange(of: treeStructureVersion) { _, _ in
-                guard isActive else { isDirty = true; return }
-                updateVisibleNodes()
-            }
-            .onChange(of: selectedNodeId) { _, newId in
-                guard isActive else { return }
-                if let nodeId = newId {
-                    withAnimation(.easeInOut(duration: Animation.quick)) {
-                        proxy.scrollTo(nodeId, anchor: nil)
-                    }
-                }
-            }
-            .onAppear {
-                guard isActive else { return }
-                performFullInit(proxy: proxy)
-            }
-            .onChange(of: isActive) { _, newValue in
-                guard newValue else { return }
-                if !hasInitialized {
-                    performFullInit(proxy: proxy)
-                } else if isDirty {
-                    updateVisibleNodes()
-                    restoreSearchHighlighting()
-                    isDirty = false
-                }
-            }
-            .onDisappear {
-                hasRestoredScroll = false
-                isReady = false
-            }
-        }
-        }
+        )
     }
 
     private func performFullInit(proxy: ScrollViewProxy) {
