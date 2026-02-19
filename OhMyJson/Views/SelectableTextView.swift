@@ -89,11 +89,11 @@ struct SelectableTextView: NSViewRepresentable {
 
         // Configure scroll view
         contentScrollView.documentView = contentTextView
-        contentScrollView.backgroundColor = backgroundColor
-        contentScrollView.drawsBackground = true
+        contentScrollView.drawsBackground = false
         contentScrollView.hasVerticalScroller = true
         contentScrollView.hasHorizontalScroller = true
         contentScrollView.autohidesScrollers = true
+        contentScrollView.scrollerStyle = .overlay
 
         // Configure content text view for read-only selection
         contentTextView.isEditable = false
@@ -306,7 +306,6 @@ struct SelectableTextView: NSViewRepresentable {
             }
 
             containerView.layer?.backgroundColor = backgroundColor.cgColor
-            contentScrollView.backgroundColor = backgroundColor
             contentTextView.backgroundColor = backgroundColor
         }
 

@@ -106,13 +106,13 @@ struct UndoableTextView: NSViewRepresentable {
 
         // Configure scroll view
         scrollView.documentView = textView
-        scrollView.backgroundColor = currentTheme.nsBackground
-        scrollView.drawsBackground = true
+        scrollView.drawsBackground = false
 
         // Show scroll bars only when content overflows
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
 
         // Configure text view
         textView.font = font
@@ -166,7 +166,6 @@ struct UndoableTextView: NSViewRepresentable {
         let currentScheme = currentTheme.colorScheme
         if context.coordinator.lastAppliedColorScheme != currentScheme {
             context.coordinator.lastAppliedColorScheme = currentScheme
-            scrollView.backgroundColor = currentTheme.nsBackground
             textView.backgroundColor = currentTheme.nsBackground
             textView.textColor = currentTheme.nsPrimaryText
             textView.insertionPointColor = currentTheme.nsInsertionPoint

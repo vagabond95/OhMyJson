@@ -7,6 +7,13 @@
 
 import AppKit
 
+/// NSScroller that doesn't draw the knob slot (track background)
+class ClearTrackScroller: NSScroller {
+    override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {
+        // No-op: skip drawing the track background
+    }
+}
+
 /// NSScrollView with 1.5x scroll speed that preserves NSScrollView's internal state machine.
 ///
 /// Instead of bypassing super.scrollWheel and manually setting clipView position,
@@ -15,6 +22,21 @@ import AppKit
 class FastScrollView: NSScrollView {
     /// Scroll speed multiplier (1.5x faster than default)
     static let scrollMultiplier: CGFloat = 1.5
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        installClearTrackScrollers()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        installClearTrackScrollers()
+    }
+
+    private func installClearTrackScrollers() {
+        horizontalScroller = ClearTrackScroller()
+        verticalScroller = ClearTrackScroller()
+    }
 
     /// ScrollView to synchronize with (for gutter sync)
     weak var syncScrollView: NSScrollView?
