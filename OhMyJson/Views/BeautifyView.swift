@@ -22,6 +22,10 @@ struct BeautifyView: View {
     @State private var currentSearchResultLocation: SearchResultLocation?
     @State private var hasInitialized = false
     @State private var isDirty = false
+    @State private var buildTask: Task<Void, Never>?
+
+    /// Line count threshold for switching to async attributed string building
+    private static let asyncBuildThreshold = 1000
 
     /// Cached attributed strings — rebuilt only when content/search/theme changes, NOT on scroll
     @State private var cachedContentString: NSAttributedString = NSAttributedString()
@@ -98,43 +102,109 @@ struct BeautifyView: View {
 
     // MARK: - Attributed String Caching
 
-    /// Rebuilds both cached attributed strings. Call only when content, search, or theme changes.
-    private func rebuildAttributedStrings() {
-        cachedContentString = buildContentNSAttributedString()
-        cachedLineNumberString = buildLineNumbersNSAttributedString()
+    /// Snapshot of theme colors and fonts for off-main-thread attributed string building.
+    /// @unchecked Sendable because NSColor/NSFont are immutable once created.
+    private struct BuildSnapshot: @unchecked Sendable {
+        let lines: [FormattedLine]
+        let searchText: String
+        let currentSearchIndex: Int
+        let keyColor: NSColor
+        let stringColor: NSColor
+        let numberColor: NSColor
+        let booleanColor: NSColor
+        let nullColor: NSColor
+        let structureColor: NSColor
+        let lineNumberColor: NSColor
+        let searchOtherMatchBg: NSColor
+        let searchCurrentMatchBg: NSColor
+        let searchOtherMatchFg: NSColor
+        let searchCurrentMatchFg: NSColor
+        let baseFont: NSFont
+        let mediumFont: NSFont
+        let boldFont: NSFont
+
+        init(lines: [FormattedLine], searchText: String, currentSearchIndex: Int, theme: AppTheme) {
+            self.lines = lines
+            self.searchText = searchText
+            self.currentSearchIndex = currentSearchIndex
+            keyColor = NSColor(theme.key)
+            stringColor = NSColor(theme.string)
+            numberColor = NSColor(theme.number)
+            booleanColor = NSColor(theme.boolean)
+            nullColor = NSColor(theme.null)
+            structureColor = NSColor(theme.structure)
+            lineNumberColor = NSColor(theme.secondaryText).withAlphaComponent(0.5)
+            searchOtherMatchBg = NSColor(theme.searchOtherMatchBg)
+            searchCurrentMatchBg = NSColor(theme.searchCurrentMatchBg)
+            searchOtherMatchFg = NSColor(theme.searchOtherMatchFg)
+            searchCurrentMatchFg = NSColor(theme.searchCurrentMatchFg)
+            baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+            mediumFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+            boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
+        }
+
+        func colorForTokenType(_ type: JSONTokenType) -> NSColor {
+            switch type {
+            case .key: return keyColor
+            case .string: return stringColor
+            case .number: return numberColor
+            case .boolean: return booleanColor
+            case .null: return nullColor
+            case .structure: return structureColor
+            case .whitespace: return .clear
+            }
+        }
     }
 
-    // MARK: - Token Colors
+    /// Wrapper for passing NSAttributedString across actor boundaries.
+    private struct AttributedStringPair: @unchecked Sendable {
+        let content: NSAttributedString
+        let lineNumbers: NSAttributedString
+    }
 
-    private func nsColorForTokenType(_ type: JSONTokenType) -> NSColor {
-        switch type {
-        case .key:
-            return NSColor(theme.key)
-        case .string:
-            return NSColor(theme.string)
-        case .number:
-            return NSColor(theme.number)
-        case .boolean:
-            return NSColor(theme.boolean)
-        case .null:
-            return NSColor(theme.null)
-        case .structure:
-            return NSColor(theme.structure)
-        case .whitespace:
-            return NSColor.clear
+    /// Rebuilds both cached attributed strings. Uses async building for large content.
+    private func rebuildAttributedStrings() {
+        let snapshot = BuildSnapshot(
+            lines: formattedLines,
+            searchText: searchText,
+            currentSearchIndex: currentSearchIndex,
+            theme: theme
+        )
+
+        if snapshot.lines.count < Self.asyncBuildThreshold {
+            buildTask?.cancel()
+            cachedContentString = Self.buildContentString(snapshot)
+            cachedLineNumberString = Self.buildLineNumberString(snapshot)
+            return
+        }
+
+        // Large content — build off main thread to avoid UI freezing
+        buildTask?.cancel()
+        buildTask = Task {
+            let pair = await Task.detached(priority: .userInitiated) {
+                AttributedStringPair(
+                    content: Self.buildContentString(snapshot),
+                    lineNumbers: Self.buildLineNumberString(snapshot)
+                )
+            }.value
+
+            guard !Task.isCancelled else { return }
+            cachedContentString = pair.content
+            cachedLineNumberString = pair.lineNumbers
         }
     }
 
     // MARK: - NSAttributedString Building
 
     /// Builds the line numbers as a separate attributed string for the gutter
-    private func buildLineNumbersNSAttributedString() -> NSAttributedString {
+    private static func buildLineNumberString(_ snapshot: BuildSnapshot) -> NSAttributedString {
         let result = NSMutableAttributedString()
-        let baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        let lineNumberColor = NSColor(theme.secondaryText).withAlphaComponent(0.5)
+        let baseFont = snapshot.baseFont
+        let lineNumberColor = snapshot.lineNumberColor
+        let lines = snapshot.lines
 
         // Calculate line number width (number of digits in total line count)
-        let maxLineNumber = formattedLines.count
+        let maxLineNumber = lines.count
         let lineNumberDigits = String(maxLineNumber).count
         let lineNumberPadding = max(lineNumberDigits, 3) // Minimum 3 digits for alignment
 
@@ -143,13 +213,13 @@ struct BeautifyView: View {
             .font: baseFont
         ]
 
-        for lineIndex in 0..<formattedLines.count {
+        for lineIndex in 0..<lines.count {
             let lineNumber = lineIndex + 1
             let lineNumberString = String(format: "%\(lineNumberPadding)d  ", lineNumber)
             result.append(NSAttributedString(string: lineNumberString, attributes: lineNumberAttributes))
 
             // Add newline (except for last line)
-            if lineIndex < formattedLines.count - 1 {
+            if lineIndex < lines.count - 1 {
                 result.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
             }
         }
@@ -158,25 +228,21 @@ struct BeautifyView: View {
     }
 
     /// Builds the JSON content attributed string (without line numbers)
-    private func buildContentNSAttributedString() -> NSAttributedString {
+    private static func buildContentString(_ snapshot: BuildSnapshot) -> NSAttributedString {
         let result = NSMutableAttributedString()
-        let baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        let mediumFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        let boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
-        let otherMatchBgColor = NSColor(theme.searchOtherMatchBg)
-        let currentMatchBgColor = NSColor(theme.searchCurrentMatchBg)
-        let otherMatchFgColor = NSColor(theme.searchOtherMatchFg)
-        let currentMatchFgColor = NSColor(theme.searchCurrentMatchFg)
-        let lowercasedSearch = searchText.lowercased()
+        let baseFont = snapshot.baseFont
+        let mediumFont = snapshot.mediumFont
+        let boldFont = snapshot.boldFont
+        let lowercasedSearch = snapshot.searchText.lowercased()
         var globalMatchIndex = 0
 
-        for (lineIndex, line) in formattedLines.enumerated() {
+        for (lineIndex, line) in snapshot.lines.enumerated() {
             // Add JSON content (no line numbers)
             for token in line.tokens {
-                let color = nsColorForTokenType(token.type)
+                let color = snapshot.colorForTokenType(token.type)
                 let font: NSFont = token.type == .key ? mediumFont : baseFont
 
-                if !searchText.isEmpty {
+                if !snapshot.searchText.isEmpty {
                     // Apply search highlighting within token
                     appendHighlightedToken(
                         token: token,
@@ -184,12 +250,12 @@ struct BeautifyView: View {
                         baseColor: color,
                         baseFont: font,
                         boldFont: boldFont,
-                        otherMatchBgColor: otherMatchBgColor,
-                        currentMatchBgColor: currentMatchBgColor,
-                        otherMatchFgColor: otherMatchFgColor,
-                        currentMatchFgColor: currentMatchFgColor,
+                        otherMatchBgColor: snapshot.searchOtherMatchBg,
+                        currentMatchBgColor: snapshot.searchCurrentMatchBg,
+                        otherMatchFgColor: snapshot.searchOtherMatchFg,
+                        currentMatchFgColor: snapshot.searchCurrentMatchFg,
                         globalMatchIndex: &globalMatchIndex,
-                        currentSearchIndex: currentSearchIndex,
+                        currentSearchIndex: snapshot.currentSearchIndex,
                         lowercasedSearch: lowercasedSearch
                     )
                 } else {
@@ -208,7 +274,7 @@ struct BeautifyView: View {
             }
 
             // Add newline (except for last line)
-            if lineIndex < formattedLines.count - 1 {
+            if lineIndex < snapshot.lines.count - 1 {
                 result.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
             }
         }
@@ -216,7 +282,7 @@ struct BeautifyView: View {
         return result
     }
 
-    private func appendHighlightedToken(
+    private static func appendHighlightedToken(
         token: JSONToken,
         to result: NSMutableAttributedString,
         baseColor: NSColor,
@@ -482,7 +548,7 @@ struct BeautifyView: View {
 
 // MARK: - Supporting Types
 
-enum JSONTokenType {
+enum JSONTokenType: Sendable {
     case key
     case string
     case number
@@ -492,12 +558,12 @@ enum JSONTokenType {
     case whitespace
 }
 
-struct JSONToken {
+struct JSONToken: Sendable {
     let text: String
     let type: JSONTokenType
 }
 
-struct FormattedLine {
+struct FormattedLine: Sendable {
     let tokens: [JSONToken]
 }
 

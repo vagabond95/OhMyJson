@@ -44,33 +44,53 @@ class JSONParser: JSONParserProtocol {
 
     /// Sanitize common Unicode artifacts from styled/rich text sources
     /// (web browsers, Slack, Notion, IDEs, etc.) that break JSON parsing.
+    /// Single-pass O(n) scan over unicode scalars — no intermediate string copies.
     private func sanitizeForJSON(_ text: String) -> String {
-        var result = text
+        let scalars = text.unicodeScalars
 
-        // Replace smart/curly quotes with straight quotes
-        result = result.replacingOccurrences(of: "\u{201C}", with: "\"") // left double
-        result = result.replacingOccurrences(of: "\u{201D}", with: "\"") // right double
-        result = result.replacingOccurrences(of: "\u{201E}", with: "\"") // double low-9
-        result = result.replacingOccurrences(of: "\u{201F}", with: "\"") // double high-reversed-9
+        // Fast path: scan for any problematic scalar before allocating
+        for scalar in scalars {
+            switch scalar.value {
+            case 0x201C, 0x201D, 0x201E, 0x201F, // smart/curly quotes
+                 0x00A0, 0x2007, 0x202F,          // special spaces
+                 0xFEFF, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F, // zero-width / invisible
+                 0x2028, 0x2029:                   // line/paragraph separators
+                return sanitizeForJSONSlow(scalars)
+            default:
+                continue
+            }
+        }
 
-        // Replace non-breaking and special spaces with regular space
-        result = result.replacingOccurrences(of: "\u{00A0}", with: " ")  // non-breaking space
-        result = result.replacingOccurrences(of: "\u{2007}", with: " ")  // figure space
-        result = result.replacingOccurrences(of: "\u{202F}", with: " ")  // narrow no-break space
+        return text
+    }
 
-        // Remove zero-width / invisible characters
-        result = result.replacingOccurrences(of: "\u{FEFF}", with: "")   // BOM / zero-width no-break space
-        result = result.replacingOccurrences(of: "\u{200B}", with: "")   // zero-width space
-        result = result.replacingOccurrences(of: "\u{200C}", with: "")   // zero-width non-joiner
-        result = result.replacingOccurrences(of: "\u{200D}", with: "")   // zero-width joiner
-        result = result.replacingOccurrences(of: "\u{200E}", with: "")   // left-to-right mark
-        result = result.replacingOccurrences(of: "\u{200F}", with: "")   // right-to-left mark
+    /// Slow path: builds a new string replacing/removing problematic unicode scalars.
+    private func sanitizeForJSONSlow(_ scalars: String.UnicodeScalarView) -> String {
+        var result: [UnicodeScalar] = []
+        result.reserveCapacity(scalars.count)
 
-        // Replace Unicode line/paragraph separators with newline
-        result = result.replacingOccurrences(of: "\u{2028}", with: "\n") // line separator
-        result = result.replacingOccurrences(of: "\u{2029}", with: "\n") // paragraph separator
+        for scalar in scalars {
+            switch scalar.value {
+            // Smart/curly quotes → straight double quote
+            case 0x201C, 0x201D, 0x201E, 0x201F:
+                result.append("\"")
+            // Special spaces → regular space
+            case 0x00A0, 0x2007, 0x202F:
+                result.append(" ")
+            // Zero-width / invisible → remove
+            case 0xFEFF, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F:
+                break
+            // Line/paragraph separator → newline
+            case 0x2028, 0x2029:
+                result.append("\n")
+            default:
+                result.append(scalar)
+            }
+        }
 
-        return result
+        var output = ""
+        output.unicodeScalars.append(contentsOf: result)
+        return output
     }
 
     func validateJSON(_ jsonString: String) -> Bool {

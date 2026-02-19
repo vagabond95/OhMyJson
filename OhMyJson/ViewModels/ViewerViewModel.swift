@@ -516,9 +516,8 @@ class ViewerViewModel {
         if searchText.isEmpty {
             searchResultCount = 0
         } else {
-            searchResultCount = rootNode.allNodesIncludingCollapsed()
-                .filter { $0.matches(searchText: searchText) }
-                .count
+            // Count matches at JSONValue level — no JSONNode materialization needed
+            searchResultCount = rootNode.value.countMatches(key: rootNode.key, query: searchText.lowercased())
         }
     }
 

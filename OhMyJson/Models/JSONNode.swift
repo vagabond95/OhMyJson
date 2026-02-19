@@ -103,6 +103,91 @@ enum JSONValue: Equatable {
         }
     }
 
+    // MARK: - Search without JSONNode materialization
+
+    /// Count matches in the JSONValue tree without creating any JSONNode objects.
+    func countMatches(key: String?, query: String) -> Int {
+        var count = 0
+        countMatchesRecursive(key: key, query: query, count: &count)
+        return count
+    }
+
+    private func countMatchesRecursive(key: String?, query: String, count: inout Int) {
+        if Self.leafMatches(value: self, key: key, query: query) {
+            count += 1
+        }
+
+        switch self {
+        case .object(let dict):
+            for (childKey, childValue) in dict {
+                childValue.countMatchesRecursive(key: childKey, query: query, count: &count)
+            }
+        case .array(let arr):
+            for (index, childValue) in arr.enumerated() {
+                childValue.countMatchesRecursive(key: "[\(index)]", query: query, count: &count)
+            }
+        default:
+            break
+        }
+    }
+
+    /// Find paths (child indices at each depth) to all matching nodes.
+    /// Paths use sorted-key order for objects (matching JSONNode.buildChildren).
+    func searchMatchPaths(key: String?, query: String) -> [[Int]] {
+        var results: [[Int]] = []
+        searchMatchPathsRecursive(key: key, query: query, currentPath: [], results: &results)
+        return results
+    }
+
+    private func searchMatchPathsRecursive(key: String?, query: String, currentPath: [Int], results: inout [[Int]]) {
+        if Self.leafMatches(value: self, key: key, query: query) {
+            results.append(currentPath)
+        }
+
+        switch self {
+        case .object(let dict):
+            let sortedKeys = dict.keys.sorted()
+            for (index, childKey) in sortedKeys.enumerated() {
+                dict[childKey]!.searchMatchPathsRecursive(
+                    key: childKey, query: query,
+                    currentPath: currentPath + [index], results: &results
+                )
+            }
+        case .array(let arr):
+            for (index, childValue) in arr.enumerated() {
+                childValue.searchMatchPathsRecursive(
+                    key: "[\(index)]", query: query,
+                    currentPath: currentPath + [index], results: &results
+                )
+            }
+        default:
+            break
+        }
+    }
+
+    /// Check if a leaf node matches the search query (same logic as JSONNode.matches).
+    private static func leafMatches(value: JSONValue, key: String?, query: String) -> Bool {
+        if let key = key, key.lowercased().contains(query) {
+            return true
+        }
+
+        switch value {
+        case .string(let s):
+            return s.lowercased().contains(query)
+        case .number(let n):
+            let numStr = n.truncatingRemainder(dividingBy: 1) == 0
+                ? String(format: "%.0f", n)
+                : String(n)
+            return numStr.contains(query)
+        case .bool(let b):
+            return (b ? "true" : "false").contains(query)
+        case .null:
+            return "null".contains(query)
+        default:
+            return false
+        }
+    }
+
     static func == (lhs: JSONValue, rhs: JSONValue) -> Bool {
         switch (lhs, rhs) {
         case (.string(let l), .string(let r)): return l == r
@@ -334,6 +419,17 @@ class JSONNode: Identifiable {
         default:
             return false
         }
+    }
+
+    /// Navigate to a node by child-index path. Only materializes nodes along the path.
+    func nodeAt(childIndices: [Int]) -> JSONNode? {
+        var current = self
+        for index in childIndices {
+            let kids = current.children // materializes only this level if needed
+            guard index >= 0 && index < kids.count else { return nil }
+            current = kids[index]
+        }
+        return current
     }
 
     func expandPathTo(node: JSONNode) {

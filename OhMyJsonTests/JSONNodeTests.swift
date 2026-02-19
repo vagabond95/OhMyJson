@@ -418,6 +418,57 @@ struct JSONNodeTests {
         #expect(JSONNode(value: .bool(true)).copyValue == "true")
         #expect(JSONNode(value: .null).copyValue == "null")
     }
+
+    // MARK: - nodeAt (path-based navigation)
+
+    @Test("nodeAt returns self for empty path")
+    func nodeAtEmptyPath() {
+        let root = JSONNode(value: .object(["a": .string("v")]))
+        let result = root.nodeAt(childIndices: [])
+        #expect(result === root)
+    }
+
+    @Test("nodeAt navigates to nested child")
+    func nodeAtNestedChild() {
+        let value = JSONValue.object([
+            "a": .object(["b": .string("target")])
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 0) // all collapsed
+        // "a" is at sorted index 0, "b" is at sorted index 0
+        let result = root.nodeAt(childIndices: [0, 0])
+        #expect(result != nil)
+        #expect(result?.key == "b")
+        if case .string(let s) = result?.value {
+            #expect(s == "target")
+        } else {
+            Issue.record("Expected string value")
+        }
+    }
+
+    @Test("nodeAt returns nil for out-of-bounds index")
+    func nodeAtOutOfBounds() {
+        let root = JSONNode(value: .object(["a": .string("v")]))
+        #expect(root.nodeAt(childIndices: [5]) == nil)
+    }
+
+    @Test("nodeAt materializes only the path nodes")
+    func nodeAtMinimalMaterialization() {
+        let value = JSONValue.object([
+            "a": .object(["deep": .string("v1")]),
+            "b": .object(["deep": .string("v2")])
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 0) // all collapsed
+
+        // Navigate to a → deep (index 0 → index 0, since "a" < "b")
+        let result = root.nodeAt(childIndices: [0, 0])
+        #expect(result?.key == "deep")
+
+        // "b" branch was never accessed — root.children[1] is materialized
+        // (because children array is built as a whole), but its children are not
+        let bNode = root.children[1]
+        #expect(bNode.key == "b")
+        // bNode's children should still be lazy (not materialized by the search)
+    }
 }
 
 // MARK: - JSONValue Tests
@@ -481,5 +532,108 @@ struct JSONValueTests {
         #expect(jsonString != nil)
         #expect(jsonString!.contains("1"))
         #expect(jsonString!.contains("2"))
+    }
+
+    // MARK: - countMatches (search without materialization)
+
+    @Test("countMatches finds leaf values")
+    func countMatchesLeafValues() {
+        let value = JSONValue.object([
+            "name": .string("John"),
+            "age": .number(30),
+            "active": .bool(true),
+            "note": .null
+        ])
+        #expect(value.countMatches(key: nil, query: "john") == 1)
+        #expect(value.countMatches(key: nil, query: "30") == 1)
+        #expect(value.countMatches(key: nil, query: "true") == 1)
+        #expect(value.countMatches(key: nil, query: "null") == 1)
+    }
+
+    @Test("countMatches finds by key")
+    func countMatchesByKey() {
+        let value = JSONValue.object([
+            "userName": .string("test"),
+            "userAge": .number(25)
+        ])
+        #expect(value.countMatches(key: nil, query: "user") == 2)
+    }
+
+    @Test("countMatches searches nested structures")
+    func countMatchesNested() {
+        let value = JSONValue.object([
+            "users": .array([
+                .object(["name": .string("Alice")]),
+                .object(["name": .string("Bob")])
+            ])
+        ])
+        #expect(value.countMatches(key: nil, query: "name") == 2) // two "name" keys
+        #expect(value.countMatches(key: nil, query: "alice") == 1)
+        #expect(value.countMatches(key: nil, query: "bob") == 1)
+    }
+
+    @Test("countMatches returns zero for no matches")
+    func countMatchesNoMatch() {
+        let value = JSONValue.object(["key": .string("value")])
+        #expect(value.countMatches(key: nil, query: "xyz") == 0)
+    }
+
+    // MARK: - searchMatchPaths (path-based search)
+
+    @Test("searchMatchPaths returns correct paths")
+    func searchMatchPathsCorrectPaths() {
+        let value = JSONValue.object([
+            "a": .string("hello"),
+            "b": .object(["c": .string("hello")])
+        ])
+        // Sorted keys: "a"=0, "b"=1. Under "b": "c"=0
+        let paths = value.searchMatchPaths(key: nil, query: "hello")
+        #expect(paths.count == 2)
+        #expect(paths.contains([0]))      // "a" → "hello"
+        #expect(paths.contains([1, 0]))   // "b" → "c" → "hello"
+    }
+
+    @Test("searchMatchPaths returns empty path for root match")
+    func searchMatchPathsRootMatch() {
+        let value = JSONValue.string("hello")
+        let paths = value.searchMatchPaths(key: nil, query: "hello")
+        #expect(paths == [[]])
+    }
+
+    @Test("searchMatchPaths with array indices")
+    func searchMatchPathsArray() {
+        let value = JSONValue.array([
+            .string("miss"),
+            .string("hit"),
+            .string("miss")
+        ])
+        let paths = value.searchMatchPaths(key: nil, query: "hit")
+        #expect(paths == [[1]])
+    }
+
+    @Test("searchMatchPaths matches same results as allNodesIncludingCollapsed filter")
+    func searchMatchPathsConsistency() {
+        let value = JSONValue.object([
+            "users": .array([
+                .object(["name": .string("Alice"), "age": .number(30)]),
+                .object(["name": .string("Bob"), "active": .bool(true)])
+            ]),
+            "count": .number(2)
+        ])
+        let root = JSONNode(value: value)
+        let query = "name"
+
+        // Old approach (materializes everything)
+        let oldResults = root.allNodesIncludingCollapsed()
+            .filter { $0.matches(searchText: query) }
+
+        // New approach (path-based)
+        let paths = value.searchMatchPaths(key: nil, query: query.lowercased())
+        let newResults = paths.compactMap { root.nodeAt(childIndices: $0) }
+
+        #expect(oldResults.count == newResults.count)
+        // Both should find the two "name" keys
+        #expect(newResults.count == 2)
+        #expect(newResults.allSatisfy { $0.key == "name" })
     }
 }

@@ -37,8 +37,9 @@ struct TreeView: View {
     @State private var isDirty = false
 
     var body: some View {
+        GeometryReader { geometry in
         ScrollViewReader { proxy in
-            ScrollView {
+            ScrollView([.horizontal, .vertical]) {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(visibleNodes) { node in
                         TreeNodeView(
@@ -50,7 +51,8 @@ struct TreeView: View {
                             onToggleExpand: {
                                 updateVisibleNodes()
                             },
-                            ancestorIsLast: ancestorLastMap[node.id] ?? []
+                            ancestorIsLast: ancestorLastMap[node.id] ?? [],
+                            minRowWidth: geometry.size.width - 18
                         )
                         .frame(height: TreeLayout.rowHeight)
                         .id(node.id)
@@ -58,6 +60,7 @@ struct TreeView: View {
                 }
                 .padding(.leading, 10).padding(.trailing, 8)
                 .padding(.vertical, 4)
+                .frame(minWidth: geometry.size.width, alignment: .leading)
                 .background(
                     GeometryReader { geo in
                         Color.clear.preference(
@@ -136,6 +139,7 @@ struct TreeView: View {
                 isReady = false
             }
         }
+        }
     }
 
     private func performFullInit(proxy: ScrollViewProxy) {
@@ -205,7 +209,9 @@ struct TreeView: View {
             return
         }
 
-        searchResults = rootNode.allNodesIncludingCollapsed().filter { $0.matches(searchText: searchText) }
+        // Search at JSONValue level (no JSONNode materialization), then resolve only matching paths
+        let paths = rootNode.value.searchMatchPaths(key: rootNode.key, query: searchText.lowercased())
+        searchResults = paths.compactMap { rootNode.nodeAt(childIndices: $0) }
     }
 
     /// Restores search highlighting without scrolling or changing selectedNodeId.
