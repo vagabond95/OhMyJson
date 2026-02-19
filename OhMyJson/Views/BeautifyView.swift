@@ -27,7 +27,11 @@ struct BeautifyView: View {
     /// Line count threshold for switching to async attributed string building
     private static let asyncBuildThreshold = 1000
 
-    /// Cached attributed strings — rebuilt only when content/search/theme changes, NOT on scroll
+    /// Stage 1 cache: syntax-colored string WITHOUT search highlights.
+    /// Rebuilt only when content or theme changes.
+    @State private var cachedBaseContentString: NSMutableAttributedString = NSMutableAttributedString()
+
+    /// Stage 2 result: base + search highlights overlaid. Displayed by the view.
     @State private var cachedContentString: NSAttributedString = NSAttributedString()
     @State private var cachedLineNumberString: NSAttributedString = NSAttributedString()
 
@@ -52,14 +56,14 @@ struct BeautifyView: View {
             } else {
                 currentSearchResultLocation = nil
             }
-            rebuildAttributedStrings()
+            applySearchHighlights()
         }
         .onChange(of: currentSearchIndex) { _, newIndex in
             guard isActive else { return }
             if !searchResults.isEmpty {
                 updateCurrentSearchLocation(index: newIndex)
             }
-            rebuildAttributedStrings()
+            applySearchHighlights()
         }
         .onAppear {
             guard isActive else { return }
@@ -72,7 +76,7 @@ struct BeautifyView: View {
             } else if isDirty {
                 formatJSON()
                 updateSearchResults()
-                rebuildAttributedStrings()
+                rebuildBaseAndHighlights()
                 isDirty = false
             }
         }
@@ -80,12 +84,12 @@ struct BeautifyView: View {
             guard isActive else { isDirty = true; return }
             formatJSON()
             updateSearchResults()
-            rebuildAttributedStrings()
+            rebuildBaseAndHighlights()
         }
         .onChange(of: settings.isDarkMode) { _, _ in
             guard isActive else { isDirty = true; return }
             formatJSON()
-            rebuildAttributedStrings()
+            rebuildBaseAndHighlights()
         }
         .background(theme.background)
     }
@@ -95,19 +99,24 @@ struct BeautifyView: View {
     private func performFullInit() {
         formatJSON()
         restoreSearchState()
-        rebuildAttributedStrings()
+        rebuildBaseAndHighlights()
         hasInitialized = true
         isDirty = false
     }
 
-    // MARK: - Attributed String Caching
+    // MARK: - Attributed String Building (2-Stage Pipeline)
+    //
+    // Stage 1 (Base): Builds syntax-colored NSMutableAttributedString from tokens.
+    //   Rebuilt only when formattedLines or theme changes.
+    //
+    // Stage 2 (Search Highlight): Copies base string and overlays search match
+    //   attributes (background, foreground, bold). Runs on every search change.
+    //   Complexity: O(matches) via NSString.range(of:) instead of O(all_tokens).
 
-    /// Snapshot of theme colors and fonts for off-main-thread attributed string building.
+    /// Snapshot of theme colors and fonts for off-main-thread base string building.
     /// @unchecked Sendable because NSColor/NSFont are immutable once created.
     private struct BuildSnapshot: @unchecked Sendable {
         let lines: [FormattedLine]
-        let searchText: String
-        let currentSearchIndex: Int
         let keyColor: NSColor
         let stringColor: NSColor
         let numberColor: NSColor
@@ -115,18 +124,11 @@ struct BeautifyView: View {
         let nullColor: NSColor
         let structureColor: NSColor
         let lineNumberColor: NSColor
-        let searchOtherMatchBg: NSColor
-        let searchCurrentMatchBg: NSColor
-        let searchOtherMatchFg: NSColor
-        let searchCurrentMatchFg: NSColor
         let baseFont: NSFont
         let mediumFont: NSFont
-        let boldFont: NSFont
 
-        init(lines: [FormattedLine], searchText: String, currentSearchIndex: Int, theme: AppTheme) {
+        init(lines: [FormattedLine], theme: AppTheme) {
             self.lines = lines
-            self.searchText = searchText
-            self.currentSearchIndex = currentSearchIndex
             keyColor = NSColor(theme.key)
             stringColor = NSColor(theme.string)
             numberColor = NSColor(theme.number)
@@ -134,13 +136,8 @@ struct BeautifyView: View {
             nullColor = NSColor(theme.null)
             structureColor = NSColor(theme.structure)
             lineNumberColor = NSColor(theme.secondaryText).withAlphaComponent(0.5)
-            searchOtherMatchBg = NSColor(theme.searchOtherMatchBg)
-            searchCurrentMatchBg = NSColor(theme.searchCurrentMatchBg)
-            searchOtherMatchFg = NSColor(theme.searchOtherMatchFg)
-            searchCurrentMatchFg = NSColor(theme.searchCurrentMatchFg)
             baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             mediumFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-            boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
         }
 
         func colorForTokenType(_ type: JSONTokenType) -> NSColor {
@@ -156,42 +153,83 @@ struct BeautifyView: View {
         }
     }
 
-    /// Wrapper for passing NSAttributedString across actor boundaries.
-    private struct AttributedStringPair: @unchecked Sendable {
-        let content: NSAttributedString
+    /// Wrapper for passing attributed strings across actor boundaries.
+    private struct BaseStringPair: @unchecked Sendable {
+        let content: NSMutableAttributedString
         let lineNumbers: NSAttributedString
     }
 
-    /// Rebuilds both cached attributed strings. Uses async building for large content.
-    private func rebuildAttributedStrings() {
-        let snapshot = BuildSnapshot(
-            lines: formattedLines,
-            searchText: searchText,
-            currentSearchIndex: currentSearchIndex,
-            theme: theme
-        )
+    /// Stage 1 + 2: Rebuilds base content string, then applies search highlights.
+    /// Called when content or theme changes.
+    private func rebuildBaseAndHighlights() {
+        let snapshot = BuildSnapshot(lines: formattedLines, theme: theme)
 
         if snapshot.lines.count < Self.asyncBuildThreshold {
             buildTask?.cancel()
-            cachedContentString = Self.buildContentString(snapshot)
+            cachedBaseContentString = Self.buildBaseContentString(snapshot)
             cachedLineNumberString = Self.buildLineNumberString(snapshot)
+            applySearchHighlights()
             return
         }
 
-        // Large content — build off main thread to avoid UI freezing
+        // Large content — build base off main thread
         buildTask?.cancel()
         buildTask = Task {
             let pair = await Task.detached(priority: .userInitiated) {
-                AttributedStringPair(
-                    content: Self.buildContentString(snapshot),
+                BaseStringPair(
+                    content: Self.buildBaseContentString(snapshot),
                     lineNumbers: Self.buildLineNumberString(snapshot)
                 )
             }.value
 
             guard !Task.isCancelled else { return }
-            cachedContentString = pair.content
+            cachedBaseContentString = pair.content
             cachedLineNumberString = pair.lineNumbers
+            applySearchHighlights()
         }
+    }
+
+    /// Stage 2 only: Overlays search highlights onto the cached base string.
+    /// Called when searchText or currentSearchIndex changes (skips Stage 1).
+    private func applySearchHighlights() {
+        guard !searchText.isEmpty else {
+            cachedContentString = cachedBaseContentString
+            return
+        }
+
+        let highlighted = cachedBaseContentString.mutableCopy() as! NSMutableAttributedString
+        let nsString = highlighted.string as NSString
+        let totalLength = nsString.length
+
+        guard totalLength > 0 else {
+            cachedContentString = cachedBaseContentString
+            return
+        }
+
+        let otherMatchBg = NSColor(theme.searchOtherMatchBg)
+        let currentMatchBg = NSColor(theme.searchCurrentMatchBg)
+        let otherMatchFg = NSColor(theme.searchOtherMatchFg)
+        let currentMatchFg = NSColor(theme.searchCurrentMatchFg)
+        let boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
+
+        var searchRange = NSRange(location: 0, length: totalLength)
+        var matchIndex = 0
+
+        while searchRange.length > 0 {
+            let foundRange = nsString.range(of: searchText, options: .caseInsensitive, range: searchRange)
+            guard foundRange.location != NSNotFound else { break }
+
+            let isCurrent = matchIndex == currentSearchIndex
+            highlighted.addAttribute(.backgroundColor, value: isCurrent ? currentMatchBg : otherMatchBg, range: foundRange)
+            highlighted.addAttribute(.foregroundColor, value: isCurrent ? currentMatchFg : otherMatchFg, range: foundRange)
+            highlighted.addAttribute(.font, value: boldFont, range: foundRange)
+
+            matchIndex += 1
+            let nextLocation = foundRange.location + foundRange.length
+            searchRange = NSRange(location: nextLocation, length: totalLength - nextLocation)
+        }
+
+        cachedContentString = highlighted
     }
 
     // MARK: - NSAttributedString Building
@@ -227,50 +265,27 @@ struct BeautifyView: View {
         return result
     }
 
-    /// Builds the JSON content attributed string (without line numbers)
-    private static func buildContentString(_ snapshot: BuildSnapshot) -> NSAttributedString {
+    /// Stage 1: Builds syntax-colored content string WITHOUT search highlights
+    private static func buildBaseContentString(_ snapshot: BuildSnapshot) -> NSMutableAttributedString {
         let result = NSMutableAttributedString()
         let baseFont = snapshot.baseFont
         let mediumFont = snapshot.mediumFont
-        let boldFont = snapshot.boldFont
-        let lowercasedSearch = snapshot.searchText.lowercased()
-        var globalMatchIndex = 0
 
         for (lineIndex, line) in snapshot.lines.enumerated() {
-            // Add JSON content (no line numbers)
             for token in line.tokens {
                 let color = snapshot.colorForTokenType(token.type)
                 let font: NSFont = token.type == .key ? mediumFont : baseFont
 
-                if !snapshot.searchText.isEmpty {
-                    // Apply search highlighting within token
-                    appendHighlightedToken(
-                        token: token,
-                        to: result,
-                        baseColor: color,
-                        baseFont: font,
-                        boldFont: boldFont,
-                        otherMatchBgColor: snapshot.searchOtherMatchBg,
-                        currentMatchBgColor: snapshot.searchCurrentMatchBg,
-                        otherMatchFgColor: snapshot.searchOtherMatchFg,
-                        currentMatchFgColor: snapshot.searchCurrentMatchFg,
-                        globalMatchIndex: &globalMatchIndex,
-                        currentSearchIndex: snapshot.currentSearchIndex,
-                        lowercasedSearch: lowercasedSearch
-                    )
-                } else {
-                    // No search - just add styled token
-                    var attributes: [NSAttributedString.Key: Any] = [
-                        .foregroundColor: color,
-                        .font: font
-                    ]
+                var attributes: [NSAttributedString.Key: Any] = [
+                    .foregroundColor: color,
+                    .font: font
+                ]
 
-                    if token.type == .null {
-                        attributes[.obliqueness] = 0.1 // italic effect
-                    }
-
-                    result.append(NSAttributedString(string: token.text, attributes: attributes))
+                if token.type == .null {
+                    attributes[.obliqueness] = 0.1 // italic effect
                 }
+
+                result.append(NSAttributedString(string: token.text, attributes: attributes))
             }
 
             // Add newline (except for last line)
@@ -280,85 +295,6 @@ struct BeautifyView: View {
         }
 
         return result
-    }
-
-    private static func appendHighlightedToken(
-        token: JSONToken,
-        to result: NSMutableAttributedString,
-        baseColor: NSColor,
-        baseFont: NSFont,
-        boldFont: NSFont,
-        otherMatchBgColor: NSColor,
-        currentMatchBgColor: NSColor,
-        otherMatchFgColor: NSColor,
-        currentMatchFgColor: NSColor,
-        globalMatchIndex: inout Int,
-        currentSearchIndex: Int,
-        lowercasedSearch: String
-    ) {
-        let text = token.text
-        let lowercasedText = text.lowercased()
-
-        guard lowercasedText.contains(lowercasedSearch) else {
-            // No match - add with base styling
-            var attributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: baseColor,
-                .font: baseFont
-            ]
-            if token.type == .null {
-                attributes[.obliqueness] = 0.1
-            }
-            result.append(NSAttributedString(string: text, attributes: attributes))
-            return
-        }
-
-        // Has matches - highlight them with background + foreground + bold
-        var remaining = text
-        var remainingLower = lowercasedText
-        var baseAttributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: baseColor,
-            .font: baseFont
-        ]
-        if token.type == .null {
-            baseAttributes[.obliqueness] = 0.1
-        }
-
-        while let range = remainingLower.range(of: lowercasedSearch) {
-            let beforeRange = remaining.startIndex..<remaining.index(
-                remaining.startIndex,
-                offsetBy: remainingLower.distance(from: remainingLower.startIndex, to: range.lowerBound)
-            )
-            let matchRange = remaining.index(
-                remaining.startIndex,
-                offsetBy: remainingLower.distance(from: remainingLower.startIndex, to: range.lowerBound)
-            )..<remaining.index(
-                remaining.startIndex,
-                offsetBy: remainingLower.distance(from: remainingLower.startIndex, to: range.upperBound)
-            )
-
-            // Add text before match
-            if !beforeRange.isEmpty {
-                result.append(NSAttributedString(string: String(remaining[beforeRange]), attributes: baseAttributes))
-            }
-
-            // Add match with background + foreground color + bold font
-            let isCurrent = globalMatchIndex == currentSearchIndex
-            let matchAttributes: [NSAttributedString.Key: Any] = [
-                .backgroundColor: isCurrent ? currentMatchBgColor : otherMatchBgColor,
-                .foregroundColor: isCurrent ? currentMatchFgColor : otherMatchFgColor,
-                .font: boldFont
-            ]
-            result.append(NSAttributedString(string: String(remaining[matchRange]), attributes: matchAttributes))
-            globalMatchIndex += 1
-
-            remaining = String(remaining[matchRange.upperBound...])
-            remainingLower = String(remainingLower[range.upperBound...])
-        }
-
-        // Add remaining text after last match
-        if !remaining.isEmpty {
-            result.append(NSAttributedString(string: remaining, attributes: baseAttributes))
-        }
     }
 
     // MARK: - JSON Formatting

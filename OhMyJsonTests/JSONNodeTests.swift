@@ -397,6 +397,192 @@ struct JSONNodeTests {
         #expect(level2.parent === level1)
     }
 
+    // MARK: - visibleDescendantCount
+
+    @Test("visibleDescendantCount returns 0 for leaf node")
+    func visibleDescendantCountLeaf() {
+        let node = JSONNode(value: .string("hello"))
+        #expect(node.visibleDescendantCount() == 0)
+    }
+
+    @Test("visibleDescendantCount returns 0 for collapsed container")
+    func visibleDescendantCountCollapsed() {
+        let value = JSONValue.object([
+            "a": .string("1"),
+            "b": .string("2"),
+            "c": .string("3")
+        ])
+        let node = JSONNode(value: value, defaultFoldDepth: 0) // collapsed
+        #expect(node.visibleDescendantCount() == 0)
+    }
+
+    @Test("visibleDescendantCount counts direct children when expanded")
+    func visibleDescendantCountFlat() {
+        let value = JSONValue.object([
+            "a": .string("1"),
+            "b": .string("2"),
+            "c": .string("3")
+        ])
+        let node = JSONNode(value: value, defaultFoldDepth: 10) // all expanded
+        #expect(node.visibleDescendantCount() == 3)
+    }
+
+    @Test("visibleDescendantCount counts nested expanded nodes")
+    func visibleDescendantCountNested() {
+        let value = JSONValue.object([
+            "a": .object([
+                "b": .string("val"),
+                "c": .string("val")
+            ])
+        ])
+        let node = JSONNode(value: value, defaultFoldDepth: 10) // all expanded
+        // "a" (1) + "b" (1) + "c" (1) = 3
+        #expect(node.visibleDescendantCount() == 3)
+    }
+
+    @Test("visibleDescendantCount respects partial expansion")
+    func visibleDescendantCountPartialExpansion() {
+        let value = JSONValue.object([
+            "expanded": .object([
+                "child1": .string("v1"),
+                "child2": .string("v2")
+            ]),
+            "collapsed": .object([
+                "hidden1": .string("v3"),
+                "hidden2": .string("v4")
+            ])
+        ])
+        let node = JSONNode(value: value, defaultFoldDepth: 10) // all expanded
+        // Collapse one child
+        node.children[0].isExpanded = false // "collapsed" (sorted: "collapsed" < "expanded")
+
+        // "collapsed" (1, no visible descendants) + "expanded" (1) + "child1" (1) + "child2" (1) = 4
+        #expect(node.visibleDescendantCount() == 4)
+    }
+
+    @Test("visibleDescendantCount equals allNodes().count - 1")
+    func visibleDescendantCountMatchesAllNodes() {
+        let value = JSONValue.object([
+            "a": .object([
+                "b": .array([.string("x"), .string("y")]),
+                "c": .string("z")
+            ]),
+            "d": .number(42)
+        ])
+        let node = JSONNode(value: value, defaultFoldDepth: 10)
+        // allNodes includes self, visibleDescendantCount does not
+        #expect(node.visibleDescendantCount() == node.allNodes().count - 1)
+    }
+
+    // MARK: - Incremental expand/collapse correctness (P5)
+
+    @Test("Expand node: inserting descendants matches full allNodes rebuild")
+    func incrementalExpandMatchesFullRebuild() {
+        let value = JSONValue.object([
+            "a": .object([
+                "b": .string("v1"),
+                "c": .string("v2")
+            ]),
+            "d": .string("v3")
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 1) // depth 0 expanded, depth 1 collapsed
+
+        // Initial visible nodes
+        var visibleNodes = root.allNodes()
+        // root + "a" (collapsed) + "d" = 3
+        #expect(visibleNodes.count == 3)
+
+        // Simulate incremental expand of "a" (sorted index 0)
+        let nodeA = root.children[0]
+        #expect(nodeA.key == "a")
+        nodeA.isExpanded = true
+
+        // Incremental: insert descendants after nodeA
+        let nodeIndex = visibleNodes.firstIndex(where: { $0.id == nodeA.id })!
+        let newDescendants = Array(nodeA.allNodes().dropFirst())
+        visibleNodes.insert(contentsOf: newDescendants, at: nodeIndex + 1)
+
+        // Full rebuild
+        let fullRebuild = root.allNodes()
+
+        // Both should match
+        #expect(visibleNodes.count == fullRebuild.count)
+        #expect(visibleNodes.map(\.id) == fullRebuild.map(\.id))
+    }
+
+    @Test("Collapse node: removing descendants matches full allNodes rebuild")
+    func incrementalCollapseMatchesFullRebuild() {
+        let value = JSONValue.object([
+            "a": .object([
+                "b": .string("v1"),
+                "c": .string("v2")
+            ]),
+            "d": .string("v3")
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 10) // all expanded
+
+        // Initial visible nodes (all expanded)
+        var visibleNodes = root.allNodes()
+        // root + "a" + "b" + "c" + "d" = 5
+        #expect(visibleNodes.count == 5)
+
+        // Simulate incremental collapse of "a"
+        let nodeA = root.children[0]
+        let nodeIndex = visibleNodes.firstIndex(where: { $0.id == nodeA.id })!
+
+        nodeA.isExpanded = false
+
+        // Find descendant range (nodes after nodeA with depth > nodeA.depth)
+        let nodeDepth = nodeA.depth
+        var endIndex = nodeIndex + 1
+        while endIndex < visibleNodes.count && visibleNodes[endIndex].depth > nodeDepth {
+            endIndex += 1
+        }
+        visibleNodes.removeSubrange((nodeIndex + 1)..<endIndex)
+
+        // Full rebuild
+        let fullRebuild = root.allNodes()
+
+        // Both should match
+        #expect(visibleNodes.count == fullRebuild.count)
+        #expect(visibleNodes.map(\.id) == fullRebuild.map(\.id))
+    }
+
+    @Test("Incremental expand/collapse roundtrip restores original state")
+    func incrementalExpandCollapseRoundtrip() {
+        let value = JSONValue.object([
+            "x": .object([
+                "y": .array([.number(1), .number(2)])
+            ]),
+            "z": .string("end")
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 10)
+
+        let originalNodes = root.allNodes()
+        var visibleNodes = Array(originalNodes)
+
+        // Collapse "x"
+        let nodeX = root.children[0] // sorted: "x" < "z"
+        let xIndex = visibleNodes.firstIndex(where: { $0.id == nodeX.id })!
+        nodeX.isExpanded = false
+
+        let xDepth = nodeX.depth
+        var endIdx = xIndex + 1
+        while endIdx < visibleNodes.count && visibleNodes[endIdx].depth > xDepth {
+            endIdx += 1
+        }
+        visibleNodes.removeSubrange((xIndex + 1)..<endIdx)
+
+        // Now re-expand "x"
+        nodeX.isExpanded = true
+        let newDescendants = Array(nodeX.allNodes().dropFirst())
+        visibleNodes.insert(contentsOf: newDescendants, at: xIndex + 1)
+
+        // Should match original
+        #expect(visibleNodes.count == originalNodes.count)
+        #expect(visibleNodes.map(\.id) == originalNodes.map(\.id))
+    }
+
     // MARK: - Display Values
 
     @Test("displayValue for all types")
@@ -609,6 +795,54 @@ struct JSONValueTests {
         ])
         let paths = value.searchMatchPaths(key: nil, query: "hit")
         #expect(paths == [[1]])
+    }
+
+    @Test("searchMatchPaths returns empty for no matches")
+    func searchMatchPathsNoMatch() {
+        let value = JSONValue.object(["key": .string("value")])
+        let paths = value.searchMatchPaths(key: nil, query: "xyz")
+        #expect(paths.isEmpty)
+    }
+
+    @Test("searchMatchPaths matches key and value independently")
+    func searchMatchPathsKeyAndValue() {
+        // "name" appears as both a key and part of a value
+        let value = JSONValue.object([
+            "name": .string("noname")
+        ])
+        // key "name" matches, value "noname" also contains "name"
+        // But searchMatchPaths checks per-node: key OR value match counts once
+        let paths = value.searchMatchPaths(key: nil, query: "name")
+        #expect(paths.count == 1) // single node matches (key matches)
+        #expect(paths == [[0]])
+    }
+
+    @Test("searchMatchPaths with empty containers")
+    func searchMatchPathsEmptyContainers() {
+        let value = JSONValue.object([
+            "empty_obj": .object([:]),
+            "empty_arr": .array([]),
+            "target": .string("found")
+        ])
+        let paths = value.searchMatchPaths(key: nil, query: "found")
+        #expect(paths.count == 1)
+    }
+
+    @Test("searchMatchPaths deeply nested match")
+    func searchMatchPathsDeeplyNested() {
+        let value = JSONValue.object([
+            "l1": .object([
+                "l2": .object([
+                    "l3": .array([
+                        .object(["deep": .string("needle")])
+                    ])
+                ])
+            ])
+        ])
+        let paths = value.searchMatchPaths(key: nil, query: "needle")
+        #expect(paths.count == 1)
+        // l1(0) → l2(0) → l3(0) → [0](0) → deep(0)
+        #expect(paths[0] == [0, 0, 0, 0, 0])
     }
 
     @Test("searchMatchPaths matches same results as allNodesIncludingCollapsed filter")

@@ -36,6 +36,12 @@ struct TreeView: View {
     @State private var hasInitialized = false
     @State private var isDirty = false
 
+    // P4: Debounce scrollAnchorId updates to avoid per-frame @Binding propagation
+    @State private var scrollDebounceItem: DispatchWorkItem?
+
+    // P6: Cache search paths keyed by (rootNode.id, searchText) to avoid redundant tree traversals
+    @State private var searchPathCache: (rootId: UUID, query: String, paths: [[Int]])?
+
     var body: some View {
         ScrollViewReader { proxy in
             treeScrollView(proxy: proxy)
@@ -51,9 +57,15 @@ struct TreeView: View {
         .opacity(isReady ? 1 : 0)
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
             guard hasRestoredScroll, !isRestoringTabState, !visibleNodes.isEmpty else { return }
-            let adjustedOffset = -(offset - 4)
-            let topIndex = max(0, min(visibleNodes.count - 1, Int(adjustedOffset / TreeLayout.rowHeight)))
-            scrollAnchorId = visibleNodes[topIndex].id
+            // P4: Debounce scrollAnchorId updates — only commit when scrolling pauses
+            scrollDebounceItem?.cancel()
+            let item = DispatchWorkItem {
+                let adjustedOffset = -(offset - 4)
+                let topIndex = max(0, min(visibleNodes.count - 1, Int(adjustedOffset / TreeLayout.rowHeight)))
+                scrollAnchorId = visibleNodes[topIndex].id
+            }
+            scrollDebounceItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: item)
         }
         .onChange(of: rootNode.id) { _, _ in
             guard isActive else { isDirty = true; return }
@@ -112,6 +124,8 @@ struct TreeView: View {
         .onDisappear {
             hasRestoredScroll = false
             isReady = false
+            scrollDebounceItem?.cancel()
+            scrollDebounceItem = nil
         }
     }
 
@@ -126,7 +140,7 @@ struct TreeView: View {
                     isSelected: selectedNodeId == node.id,
                     onSelect: { selectedNodeId = node.id },
                     onToggleExpand: {
-                        updateVisibleNodes()
+                        handleNodeToggle(node: node)
                     },
                     ancestorIsLast: ancestorLastMap[node.id] ?? []
                 )
@@ -174,6 +188,48 @@ struct TreeView: View {
         isDirty = false
     }
 
+    // MARK: - Incremental expand/collapse
+
+    /// Incrementally insert or remove nodes for a single expand/collapse toggle.
+    /// The node's `isExpanded` has already been toggled before this method is called.
+    private func handleNodeToggle(node: JSONNode) {
+        guard let nodeIndex = visibleNodes.firstIndex(where: { $0.id == node.id }) else {
+            // Fallback to full rebuild if node not found
+            updateVisibleNodes()
+            return
+        }
+
+        if node.isExpanded {
+            // Node was just expanded — insert its visible descendants after it
+            let newDescendants = Array(node.allNodes().dropFirst())
+            if !newDescendants.isEmpty {
+                visibleNodes.insert(contentsOf: newDescendants, at: nodeIndex + 1)
+            }
+        } else {
+            // Node was just collapsed — remove all descendants (contiguous range at depth > node.depth)
+            let removeEnd = findDescendantEndIndex(afterNodeAt: nodeIndex)
+            if removeEnd > nodeIndex + 1 {
+                visibleNodes.removeSubrange((nodeIndex + 1)..<removeEnd)
+            }
+        }
+
+        updateAncestorLastMap()
+        onVisibleNodesChanged?(visibleNodes)
+    }
+
+    /// Finds the end index of contiguous descendants after a node in visibleNodes.
+    /// Descendants are identified by having a greater depth than the node at `index`.
+    private func findDescendantEndIndex(afterNodeAt index: Int) -> Int {
+        let nodeDepth = visibleNodes[index].depth
+        var endIndex = index + 1
+        while endIndex < visibleNodes.count && visibleNodes[endIndex].depth > nodeDepth {
+            endIndex += 1
+        }
+        return endIndex
+    }
+
+    // MARK: - Full rebuild
+
     private func updateVisibleNodes() {
         let newVisibleNodes = rootNode.allNodes()
 
@@ -213,8 +269,18 @@ struct TreeView: View {
             return
         }
 
-        // Search at JSONValue level (no JSONNode materialization), then resolve only matching paths
-        let paths = rootNode.value.searchMatchPaths(key: rootNode.key, query: searchText.lowercased())
+        // P6: Cache search paths to avoid redundant full-tree traversals
+        let query = searchText.lowercased()
+        let paths: [[Int]]
+
+        if let cache = searchPathCache, cache.rootId == rootNode.id, cache.query == query {
+            paths = cache.paths
+        } else {
+            paths = rootNode.value.searchMatchPaths(key: rootNode.key, query: query)
+            searchPathCache = (rootId: rootNode.id, query: query, paths: paths)
+        }
+
+        // Always re-resolve nodes — nodeAt materializes children as needed after expand/collapse
         searchResults = paths.compactMap { rootNode.nodeAt(childIndices: $0) }
     }
 

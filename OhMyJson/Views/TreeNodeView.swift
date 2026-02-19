@@ -15,10 +15,134 @@ struct TreeNodeView: View {
     let onToggleExpand: (() -> Void)?
     let ancestorIsLast: [Bool]
 
+    @Environment(AppSettings.self) var settings
+    private var theme: AppTheme { settings.currentTheme }
+    private var hoverColor: Color { theme.hoverBg }
+
+    var body: some View {
+        TreeNodeHoverWrapper(
+            node: node,
+            isSelected: isSelected,
+            onSelect: onSelect
+        ) {
+            TreeNodeContent(
+                node: node,
+                searchText: searchText,
+                isCurrentSearchResult: isCurrentSearchResult,
+                isSelected: isSelected,
+                isDarkMode: settings.isDarkMode,
+                onToggleExpand: onToggleExpand
+            )
+            .equatable()
+        }
+    }
+}
+
+// MARK: - TreeNodeHoverWrapper (isolates hover state from TreeNodeView)
+
+struct TreeNodeHoverWrapper<Content: View>: View {
+    let node: JSONNode
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let content: Content
+
     @State private var isHovered = false
     @State private var isOverlayHovered = false
     @State private var dismissWorkItem: DispatchWorkItem?
     @State private var hoverStartX: CGFloat?
+
+    init(
+        node: JSONNode,
+        isSelected: Bool,
+        onSelect: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.node = node
+        self.isSelected = isSelected
+        self.onSelect = onSelect
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .contentShape(Rectangle())
+            .onTapGesture {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+                onSelect()
+            }
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    dismissWorkItem?.cancel()
+                    dismissWorkItem = nil
+                    if !isHovered {
+                        hoverStartX = location.x
+                    }
+                    isHovered = true
+                case .ended:
+                    scheduleDismissIfNeeded()
+                }
+            }
+            .overlay(alignment: .leading) {
+                if shouldShowOverlay, let startX = hoverStartX {
+                    CopyButtonsOverlay(node: node) { hovering in
+                        if hovering {
+                            dismissWorkItem?.cancel()
+                            dismissWorkItem = nil
+                            isOverlayHovered = true
+                        } else {
+                            isOverlayHovered = false
+                            scheduleDismissIfNeeded()
+                        }
+                    }
+                    .fixedSize()
+                    .frame(width: max(startX - 4, 0), alignment: .trailing)
+                    .allowsHitTesting(true)
+                }
+            }
+            .zIndex(shouldShowOverlay ? 1 : 0)
+            .onDisappear {
+                dismissWorkItem?.cancel()
+                dismissWorkItem = nil
+                hoverStartX = nil
+            }
+    }
+
+    private var shouldShowOverlay: Bool {
+        isSelected && (isHovered || isOverlayHovered)
+    }
+
+    private func scheduleDismissIfNeeded() {
+        dismissWorkItem?.cancel()
+        let item = DispatchWorkItem {
+            if !self.isOverlayHovered {
+                self.isHovered = false
+                self.hoverStartX = nil
+            }
+        }
+        dismissWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.hoverDismissGrace, execute: item)
+    }
+}
+
+// MARK: - TreeNodeContent (Equatable — skips body re-evaluation when props unchanged)
+
+struct TreeNodeContent: View, Equatable {
+    let node: JSONNode
+    let searchText: String
+    let isCurrentSearchResult: Bool
+    let isSelected: Bool
+    let isDarkMode: Bool
+    let onToggleExpand: (() -> Void)?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.node.id == rhs.node.id &&
+        lhs.node.isExpanded == rhs.node.isExpanded &&
+        lhs.searchText == rhs.searchText &&
+        lhs.isCurrentSearchResult == rhs.isCurrentSearchResult &&
+        lhs.isSelected == rhs.isSelected &&
+        lhs.isDarkMode == rhs.isDarkMode
+    }
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -34,14 +158,9 @@ struct TreeNodeView: View {
     private var searchOtherMatchBgColor: Color { theme.searchOtherMatchBg }
     private var searchCurrentMatchFgColor: Color { theme.searchCurrentMatchFg }
     private var searchOtherMatchFgColor: Color { theme.searchOtherMatchFg }
-    private var hoverColor: Color { theme.hoverBg }
     private var selectionColor: Color { theme.selectionBg }
 
     var body: some View {
-        rowContent
-    }
-
-    private var rowContent: some View {
         HStack(spacing: 0) {
             treeLines
             expandButton
@@ -52,47 +171,6 @@ struct TreeNodeView: View {
         .padding(.vertical, 2)
         .background(backgroundColor)
         .animation(.easeInOut(duration: Animation.quick), value: isCurrentSearchResult)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            NSApp.keyWindow?.makeFirstResponder(nil)
-            onSelect()
-        }
-        .onContinuousHover { phase in
-            switch phase {
-            case .active(let location):
-                dismissWorkItem?.cancel()
-                dismissWorkItem = nil
-                if !isHovered {
-                    hoverStartX = location.x
-                }
-                isHovered = true
-            case .ended:
-                scheduleDismissIfNeeded()
-            }
-        }
-        .overlay(alignment: .leading) {
-            if shouldShowOverlay, let startX = hoverStartX {
-                CopyButtonsOverlay(node: node) { hovering in
-                    if hovering {
-                        dismissWorkItem?.cancel()
-                        dismissWorkItem = nil
-                        isOverlayHovered = true
-                    } else {
-                        isOverlayHovered = false
-                        scheduleDismissIfNeeded()
-                    }
-                }
-                .fixedSize()
-                .frame(width: max(startX - 4, 0), alignment: .trailing)
-                .allowsHitTesting(true)
-            }
-        }
-        .zIndex(shouldShowOverlay ? 1 : 0)
-        .onDisappear {
-            dismissWorkItem?.cancel()
-            dismissWorkItem = nil
-            hoverStartX = nil
-        }
     }
 
     @ViewBuilder
@@ -214,22 +292,6 @@ struct TreeNodeView: View {
         }
 
         return Text(attrStr)
-    }
-
-    private var shouldShowOverlay: Bool {
-        isSelected && (isHovered || isOverlayHovered)
-    }
-
-    private func scheduleDismissIfNeeded() {
-        dismissWorkItem?.cancel()
-        let item = DispatchWorkItem {
-            if !self.isOverlayHovered {
-                self.isHovered = false
-                self.hoverStartX = nil
-            }
-        }
-        dismissWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + Timing.hoverDismissGrace, execute: item)
     }
 
     private var backgroundColor: Color {

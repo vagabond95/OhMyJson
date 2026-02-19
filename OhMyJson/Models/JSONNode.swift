@@ -378,6 +378,16 @@ class JSONNode: Identifiable {
         children.forEach { $0.collapseAll() }
     }
 
+    /// Returns the count of visible (expanded) descendant nodes, NOT including self.
+    func visibleDescendantCount() -> Int {
+        guard isExpanded else { return 0 }
+        var count = 0
+        for child in children {
+            count += 1 + child.visibleDescendantCount()
+        }
+        return count
+    }
+
     func allNodes() -> [JSONNode] {
         var result = [self]
         if isExpanded {
