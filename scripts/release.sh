@@ -61,11 +61,23 @@ if [ ! -f "$PBXPROJ" ]; then
   die "Cannot find $PBXPROJ"
 fi
 
-# Check if tag already exists on remote (fully done — nothing to do)
+# Check if tag already exists on remote — offer to clean up and retry
 if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q "v${VERSION}"; then
-  echo "Tag v${VERSION} already exists on remote. Release already complete."
-  echo "Monitor at: https://github.com/vagabond95/OhMyJson/actions"
-  exit 0
+  echo ""
+  echo "  Tag v${VERSION} already exists on remote."
+  echo "  This usually means a previous release attempt failed after pushing."
+  echo ""
+  read -rp "  Delete remote tag & GitHub Release and retry? [y/N] " cleanup
+  echo ""
+  if [[ ! "$cleanup" =~ ^[Yy]$ ]]; then
+    echo "Aborted. Monitor existing run at: https://github.com/vagabond95/OhMyJson/actions"
+    exit 0
+  fi
+  echo "Cleaning up previous attempt..."
+  gh release delete "v${VERSION}" --yes 2>/dev/null || true
+  git push origin --delete "v${VERSION}" 2>/dev/null || true
+  git tag -d "v${VERSION}" 2>/dev/null || true
+  echo "  Cleaned up. Continuing with release..."
 fi
 
 # ── Detect current state ─────────────────────────────────────
