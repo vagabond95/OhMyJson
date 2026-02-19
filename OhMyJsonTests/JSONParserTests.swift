@@ -297,4 +297,106 @@ struct JSONParserTests {
             #expect(original.children.count == roundtripped.children.count)
         }
     }
+
+    // MARK: - Number Precision Preservation
+
+    @Test("formatJSON preserves decimal precision")
+    func formatJSONPreservesDecimalPrecision() {
+        let json = #"{"version":4.6}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("4.6"))
+        #expect(!formatted!.contains("4.5999999999999996"))
+    }
+
+    @Test("formatJSON preserves negative decimal")
+    func formatJSONPreservesNegativeDecimal() {
+        let json = #"{"value":-4.6}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("-4.6"))
+        #expect(!formatted!.contains("-4.5999999999999996"))
+    }
+
+    @Test("formatJSON preserves multiple precision numbers")
+    func formatJSONPreservesMultiplePrecisionNumbers() {
+        let json = #"{"a":4.6,"b":0.1,"c":0.3}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("4.6"))
+        #expect(formatted!.contains("0.1"))
+        #expect(formatted!.contains("0.3"))
+    }
+
+    @Test("formatJSON does not modify string numbers")
+    func formatJSONDoesNotModifyStringNumbers() {
+        let json = #"{"value":"4.6","other":"not a number 4.6"}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("\"4.6\""))
+        #expect(formatted!.contains("\"not a number 4.6\""))
+    }
+
+    @Test("formatJSON preserves integers")
+    func formatJSONPreservesIntegers() {
+        let json = #"{"a":1,"b":42,"c":0,"d":-7}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains(": 1"))
+        #expect(formatted!.contains(": 42"))
+        #expect(formatted!.contains(": 0"))
+        #expect(formatted!.contains(": -7"))
+    }
+
+    @Test("formatJSON handles duplicate values")
+    func formatJSONHandlesDuplicateValues() {
+        let json = #"{"a":4.6,"b":4.6,"c":4.6}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        // Count occurrences of "4.6" — should be exactly 3 (one per key)
+        let occurrences = formatted!.components(separatedBy: "4.6").count - 1
+        #expect(occurrences == 3)
+        #expect(!formatted!.contains("4.5999999999999996"))
+    }
+
+    @Test("formatJSON preserves array numbers")
+    func formatJSONPreservesArrayNumbers() {
+        let json = #"{"values":[4.6,0.1,0.3,100]}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("4.6"))
+        #expect(formatted!.contains("0.1"))
+        #expect(formatted!.contains("0.3"))
+        #expect(formatted!.contains("100"))
+    }
+
+    @Test("formatJSON handles escaped quotes in strings")
+    func formatJSONHandlesEscapedQuotes() {
+        let json = #"{"msg":"value is \"4.6\" here","num":4.6}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        // The number outside the string should be preserved
+        #expect(!formatted!.contains("4.5999999999999996"))
+    }
+
+    @Test("minifyJSON preserves decimal precision")
+    func minifyJSONPreservesDecimalPrecision() {
+        let json = #"{ "version" : 4.6 }"#
+        let minified = parser.minifyJSON(json)
+        #expect(minified != nil)
+        #expect(minified!.contains("4.6"))
+        #expect(!minified!.contains("4.5999999999999996"))
+    }
+
+    @Test("minifyJSON preserves precision in complex case")
+    func minifyJSONPreservesPrecisionComplex() {
+        let json = #"{"name":"Claude","version":4.6,"scores":[0.1,0.3],"nested":{"val":-4.6}}"#
+        let minified = parser.minifyJSON(json)
+        #expect(minified != nil)
+        #expect(minified!.contains("4.6"))
+        #expect(minified!.contains("0.1"))
+        #expect(minified!.contains("0.3"))
+        #expect(minified!.contains("-4.6"))
+        #expect(!minified!.contains("4.5999999999999996"))
+    }
 }

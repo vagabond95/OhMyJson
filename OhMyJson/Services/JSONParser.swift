@@ -217,12 +217,16 @@ class JSONParser: JSONParserProtocol {
     }
 
     func formatJSON(_ jsonString: String, indentSize: Int = 4) -> String? {
+        let numberMapping = extractNumberLiterals(jsonString)
+
         guard let data = jsonString.data(using: .utf8),
               let jsonObject = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
               var prettyString = String(data: prettyData, encoding: .utf8) else {
             return nil
         }
+
+        prettyString = patchNumbers(prettyString, with: numberMapping)
 
         // Collapse empty arrays to single line: [\n  ...  ] → []
         prettyString = prettyString.replacingOccurrences(
@@ -266,13 +270,176 @@ class JSONParser: JSONParserProtocol {
     }
 
     func minifyJSON(_ jsonString: String) -> String? {
+        let numberMapping = extractNumberLiterals(jsonString)
+
         guard let data = jsonString.data(using: .utf8),
               let jsonObject = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
               let minifiedData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
-              let minifiedString = String(data: minifiedData, encoding: .utf8) else {
+              var minifiedString = String(data: minifiedData, encoding: .utf8) else {
             return nil
         }
 
+        minifiedString = patchNumbers(minifiedString, with: numberMapping)
+
         return minifiedString
+    }
+
+    // MARK: - Number Precision Patch
+
+    /// Serialize a Double using JSONSerialization to get the exact string representation it would produce.
+    private func serializeNumber(_ value: Double) -> String {
+        if let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]),
+           let str = String(data: data, encoding: .utf8) {
+            return str
+        }
+        return "\(value)"
+    }
+
+    /// Scan the original JSON string and build a mapping from JSONSerialization's output form to the original literal,
+    /// for any number where the round-trip produces a different string.
+    private func extractNumberLiterals(_ jsonString: String) -> [String: String] {
+        var mapping: [String: String] = [:]
+        let chars = Array(jsonString.unicodeScalars)
+        let count = chars.count
+        var i = 0
+
+        while i < count {
+            let c = chars[i]
+
+            // Skip string literals (including escaped quotes)
+            if c == "\"" {
+                i += 1
+                while i < count {
+                    if chars[i] == "\\" {
+                        i += 2 // skip escaped character
+                        continue
+                    }
+                    if chars[i] == "\"" {
+                        i += 1
+                        break
+                    }
+                    i += 1
+                }
+                continue
+            }
+
+            // Detect start of a number literal: digit or minus followed by digit
+            let isNumberStart = (c >= "0" && c <= "9") || (c == "-" && i + 1 < count && chars[i + 1] >= "0" && chars[i + 1] <= "9")
+            guard isNumberStart else {
+                i += 1
+                continue
+            }
+
+            // Extract the full number literal
+            let start = i
+            if c == "-" { i += 1 }
+            // Integer part
+            while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
+            var hasDecimalOrExp = false
+            // Fractional part
+            if i < count && chars[i] == "." {
+                hasDecimalOrExp = true
+                i += 1
+                while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
+            }
+            // Exponent part
+            if i < count && (chars[i] == "e" || chars[i] == "E") {
+                hasDecimalOrExp = true
+                i += 1
+                if i < count && (chars[i] == "+" || chars[i] == "-") { i += 1 }
+                while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
+            }
+
+            let original = String(jsonString.unicodeScalars[jsonString.unicodeScalars.index(jsonString.unicodeScalars.startIndex, offsetBy: start)..<jsonString.unicodeScalars.index(jsonString.unicodeScalars.startIndex, offsetBy: i)])
+
+            // Optimization: skip integers in safe integer range (no precision loss possible)
+            if !hasDecimalOrExp, let intVal = Int64(original), intVal >= -9007199254740991 && intVal <= 9007199254740991 {
+                continue
+            }
+
+            guard let doubleVal = Double(original) else { continue }
+
+            let serialized = serializeNumber(doubleVal)
+            guard serialized != original else { continue }
+
+            // First occurrence wins
+            if mapping[serialized] == nil {
+                mapping[serialized] = original
+            }
+        }
+
+        return mapping
+    }
+
+    /// Replace serialized number literals in formatted JSON with their original forms using the mapping.
+    private func patchNumbers(_ formattedJSON: String, with mapping: [String: String]) -> String {
+        guard !mapping.isEmpty else { return formattedJSON }
+
+        var result: [UnicodeScalar] = []
+        result.reserveCapacity(formattedJSON.unicodeScalars.count)
+        let chars = Array(formattedJSON.unicodeScalars)
+        let count = chars.count
+        var i = 0
+
+        while i < count {
+            let c = chars[i]
+
+            // Copy string literals verbatim
+            if c == "\"" {
+                result.append(c)
+                i += 1
+                while i < count {
+                    if chars[i] == "\\" {
+                        result.append(chars[i])
+                        if i + 1 < count {
+                            result.append(chars[i + 1])
+                        }
+                        i += 2
+                        continue
+                    }
+                    result.append(chars[i])
+                    if chars[i] == "\"" {
+                        i += 1
+                        break
+                    }
+                    i += 1
+                }
+                continue
+            }
+
+            // Detect number start
+            let isNumberStart = (c >= "0" && c <= "9") || (c == "-" && i + 1 < count && chars[i + 1] >= "0" && chars[i + 1] <= "9")
+            guard isNumberStart else {
+                result.append(c)
+                i += 1
+                continue
+            }
+
+            // Extract number literal from formatted output
+            let start = i
+            if c == "-" { i += 1 }
+            while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
+            if i < count && chars[i] == "." {
+                i += 1
+                while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
+            }
+            if i < count && (chars[i] == "e" || chars[i] == "E") {
+                i += 1
+                if i < count && (chars[i] == "+" || chars[i] == "-") { i += 1 }
+                while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
+            }
+
+            let numStr = String(formattedJSON.unicodeScalars[formattedJSON.unicodeScalars.index(formattedJSON.unicodeScalars.startIndex, offsetBy: start)..<formattedJSON.unicodeScalars.index(formattedJSON.unicodeScalars.startIndex, offsetBy: i)])
+
+            if let replacement = mapping[numStr] {
+                result.append(contentsOf: replacement.unicodeScalars)
+            } else {
+                result.append(contentsOf: numStr.unicodeScalars)
+            }
+        }
+
+        var output = ""
+        output.unicodeScalars.append(contentsOf: result)
+        return output
     }
 }
