@@ -194,5 +194,14 @@ git push origin "v${VERSION}"
 
 echo ""
 echo "Done! Tag v${VERSION} pushed."
-echo "GitHub Actions will now build, sign, notarize, and release."
-echo "Monitor progress at: https://github.com/vagabond95/OhMyJson/actions"
+echo "Waiting for GitHub Actions workflow to start..."
+
+# Wait briefly for GitHub to register the workflow run
+sleep 5
+
+if command -v gh &>/dev/null; then
+  gh run watch
+else
+  echo "Install 'gh' CLI to watch progress here, or visit:"
+  echo "https://github.com/vagabond95/OhMyJson/actions"
+fi
