@@ -4,5 +4,17 @@
   <channel>
     <title>OhMyJson</title>
     <link>https://github.com/vagabond95/OhMyJson</link>
+      <item>
+      <title>Version 0.3.0</title>
+      <pubDate>Thu, 19 Feb 2026 17:49:19 +0000</pubDate>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://github.com/vagabond95/OhMyJson/releases/download/v0.3.0/OhMyJson_v0.3.0.zip"
+        sparkle:version="13"
+        sparkle:shortVersionString="0.3.0"
+        sparkle:edSignature="99EdVaRzReX/u0wGIJiy6I5aVFalPmUBbXek/7KEgqERM7JH5gFv5jqIQAOy63K3Qtl17ZwCl9NXeTRTIr3dCg=="
+        length="3959308"
+        type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
