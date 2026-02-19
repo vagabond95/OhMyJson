@@ -77,6 +77,7 @@ jobs:
             CODE_SIGN_IDENTITY="$DEVELOPER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime" \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             clean build
 
