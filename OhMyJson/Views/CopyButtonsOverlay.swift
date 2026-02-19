@@ -122,12 +122,12 @@ struct CopyButtonsOverlay: View {
     private func copyKeyValue() {
         let text: String
         if let key = node.key {
-            text = "\(key) - \(node.plainValue)"
+            text = "[\(key)] : \(node.plainValue)"
         } else {
             text = node.plainValue
         }
         ClipboardService.shared.writeText(text)
-        ToastManager.shared.show(String(localized: "toast.copied"))
+        ToastManager.shared.show(String(localized: "toast.key_value_copied"))
     }
 
     private func copyJSON() {

@@ -1143,12 +1143,11 @@
       }
     },
     "toast.key_value_copied" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Key-value copied to clipboard"
+            "value" : "Key & Value copied to clipboard"
           }
         }
       }
