@@ -125,11 +125,26 @@ class JSONNode: Identifiable {
     let indexInParent: Int?
     let isLastChild: Bool
 
-    var isExpanded: Bool
+    var isExpanded: Bool {
+        didSet {
+            // Expanding a node triggers lazy child materialization
+            if isExpanded, _children == nil {
+                materializeChildren()
+            }
+        }
+    }
 
     weak var parent: JSONNode?
 
-    private(set) var children: [JSONNode] = []
+    @ObservationIgnored private var _children: [JSONNode]?
+    @ObservationIgnored private let storedFoldDepth: Int
+
+    var children: [JSONNode] {
+        if _children == nil {
+            materializeChildren()
+        }
+        return _children!
+    }
 
     init(
         key: String? = nil,
@@ -146,6 +161,7 @@ class JSONNode: Identifiable {
         self.depth = depth
         self.indexInParent = indexInParent
         self.isLastChild = isLastChild
+        self.storedFoldDepth = defaultFoldDepth
 
         // Calculate expansion based on depth if not explicitly set
         if let explicit = isExpanded {
@@ -155,8 +171,17 @@ class JSONNode: Identifiable {
             self.isExpanded = depth < defaultFoldDepth
         }
 
-        self.children = buildChildren(defaultFoldDepth: defaultFoldDepth)
-        for child in children {
+        // Only eagerly build children if this node is expanded
+        if self.isExpanded {
+            materializeChildren()
+        }
+    }
+
+    private func materializeChildren() {
+        guard _children == nil else { return }
+        let built = buildChildren(defaultFoldDepth: storedFoldDepth)
+        _children = built
+        for child in built {
             child.parent = self
         }
     }
@@ -312,22 +337,16 @@ class JSONNode: Identifiable {
     }
 
     func expandPathTo(node: JSONNode) {
-        if children.contains(where: { $0.id == node.id }) {
-            isExpanded = true
-            return
+        // Bottom-up: walk from target to self via parent links — O(depth)
+        var ancestors: [JSONNode] = []
+        var current = node.parent
+        while let ancestor = current {
+            ancestors.append(ancestor)
+            if ancestor.id == self.id { break }
+            current = ancestor.parent
         }
-
-        for child in children {
-            if child.containsNode(node) {
-                isExpanded = true
-                child.expandPathTo(node: node)
-                return
-            }
+        for ancestor in ancestors {
+            ancestor.isExpanded = true
         }
-    }
-
-    private func containsNode(_ node: JSONNode) -> Bool {
-        if id == node.id { return true }
-        return children.contains { $0.containsNode(node) }
     }
 }

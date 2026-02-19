@@ -285,6 +285,75 @@ struct JSONNodeTests {
         #expect(root.children[0].children[0].isExpanded == true)
     }
 
+    // MARK: - Lazy Children
+
+    @Test("Collapsed node does not eagerly materialize children")
+    func lazyChildrenNotEagerlyMaterialized() {
+        // defaultFoldDepth: 1 means depth 0 is expanded, depth 1+ collapsed
+        let value = JSONValue.object([
+            "a": .object([
+                "deep1": .string("v1"),
+                "deep2": .string("v2")
+            ])
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 1)
+
+        // Root (depth 0) is expanded, so its children are materialized
+        #expect(root.children.count == 1)
+
+        // child "a" (depth 1) is collapsed — its children should not be materialized yet
+        let childA = root.children[0]
+        #expect(childA.isExpanded == false)
+
+        // Accessing children triggers lazy materialization
+        #expect(childA.children.count == 2)
+    }
+
+    @Test("Expanding collapsed node triggers lazy child materialization")
+    func expandingTriggersLazyMaterialization() {
+        let value = JSONValue.object([
+            "a": .object(["nested": .string("val")])
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 0) // all collapsed
+
+        // Expand root — should trigger materialization
+        root.isExpanded = true
+        #expect(root.children.count == 1)
+        #expect(root.children[0].key == "a")
+
+        // Child "a" is still collapsed — expand it
+        root.children[0].isExpanded = true
+        #expect(root.children[0].children.count == 1)
+        #expect(root.children[0].children[0].key == "nested")
+    }
+
+    @Test("expandPathTo sets parent links and expands ancestors via bottom-up traversal")
+    func expandPathToBottomUp() {
+        let value = JSONValue.object([
+            "x": .object([
+                "y": .object([
+                    "z": .string("leaf")
+                ])
+            ])
+        ])
+        let root = JSONNode(value: value, defaultFoldDepth: 0)
+
+        // All collapsed
+        #expect(root.isExpanded == false)
+
+        // Access target to force materialization (sets parent links)
+        let target = root.children[0].children[0].children[0]
+        #expect(target.key == "z")
+        #expect(target.parent != nil)
+
+        // expandPathTo should walk parent links bottom-up
+        root.expandPathTo(node: target)
+
+        #expect(root.isExpanded == true)
+        #expect(root.children[0].isExpanded == true) // "x"
+        #expect(root.children[0].children[0].isExpanded == true) // "y"
+    }
+
     // MARK: - Parent Reference
 
     @Test("Root node parent is nil")

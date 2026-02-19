@@ -66,6 +66,12 @@ enum FileSize {
     static let megabyte       = 1024 * 1024      // 1MB
 }
 
+// MARK: - Tree Layout
+
+enum TreeLayout {
+    static let rowHeight: CGFloat = 26
+}
+
 // MARK: - Notification Names
 
 extension Notification.Name {

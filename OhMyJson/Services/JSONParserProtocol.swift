@@ -7,6 +7,7 @@ import Foundation
 
 protocol JSONParserProtocol {
     func parse(_ jsonString: String) -> JSONParseResult
+    func validateJSON(_ jsonString: String) -> Bool
     func formatJSON(_ jsonString: String, indentSize: Int) -> String?
     func minifyJSON(_ jsonString: String) -> String?
 }

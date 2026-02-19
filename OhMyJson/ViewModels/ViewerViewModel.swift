@@ -54,6 +54,7 @@ class ViewerViewModel {
 
     var currentJSON: String? {
         didSet {
+            guard !suppressFormatOnSet else { return }
             if let json = currentJSON {
                 _formattedJSONCache = jsonParser.formatJSON(json, indentSize: AppSettings.shared.jsonIndent)
             } else {
@@ -61,7 +62,12 @@ class ViewerViewModel {
             }
         }
     }
-    var parseResult: JSONParseResult?
+    var parseResult: JSONParseResult? {
+        didSet {
+            rebuildNodeCache()
+        }
+    }
+    var isParsing: Bool = false
 
     private var _formattedJSONCache: String?
     var formattedJSON: String? { _formattedJSONCache }
@@ -70,6 +76,8 @@ class ViewerViewModel {
 
     @ObservationIgnored private var debounceTask: DispatchWorkItem?
     @ObservationIgnored private let debounceInterval: TimeInterval = Timing.parseDebounce
+    @ObservationIgnored private var parseTask: Task<Void, Never>?
+    @ObservationIgnored private var suppressFormatOnSet: Bool = false
 
     @ObservationIgnored private var restoreTask: DispatchWorkItem?
     @ObservationIgnored private var hasRestoredCurrentTab: Bool = false
@@ -79,12 +87,18 @@ class ViewerViewModel {
 
     @ObservationIgnored private var indentCancellable: AnyCancellable?
 
+    // MARK: - Node Cache (for O(1) keyboard navigation)
+
+    @ObservationIgnored private var cachedVisibleNodes: [JSONNode] = []
+    @ObservationIgnored private var nodeIndexMap: [UUID: Int] = [:]
+
     /// Callback for when ViewModel needs to show the window (set by AppDelegate)
     @ObservationIgnored var onNeedShowWindow: (() -> Void)?
 
     deinit {
         debounceTask?.cancel()
         restoreTask?.cancel()
+        parseTask?.cancel()
         indentCancellable = nil
         onNeedShowWindow = nil
     }
@@ -164,13 +178,10 @@ class ViewerViewModel {
             return
         }
 
-        // Validate JSON
-        let result = jsonParser.parse(trimmed)
-
-        switch result {
-        case .success:
+        // Lightweight validation (no JSONNode tree construction)
+        if jsonParser.validateJSON(trimmed) {
             createNewTab(with: trimmed)
-        case .failure:
+        } else {
             ToastManager.shared.show(String(localized: "toast.invalid_json"), duration: Duration.toastLong)
             if windowManager.isViewerOpen {
                 windowManager.bringToFront()
@@ -213,21 +224,8 @@ class ViewerViewModel {
             ToastManager.shared.show("Too many tabs open. Please close unused tabs", duration: Duration.toastLong)
         }
 
-        // Parse JSON if provided
-        let result: JSONParseResult?
-        if let json = jsonString {
-            result = jsonParser.parse(json)
-        } else {
-            result = nil
-        }
-
-        // Create tab
+        // Create tab immediately (no synchronous parse)
         let tabId = tabManager.createTab(with: jsonString)
-
-        // Update tab with parse result
-        if let r = result {
-            tabManager.updateTabParseResult(id: tabId, result: r)
-        }
 
         // Show / bring window to front
         if !windowManager.isViewerOpen {
@@ -236,24 +234,24 @@ class ViewerViewModel {
             windowManager.bringToFront()
         }
 
-        // Update ViewModel data state
+        // Update ViewModel data state (suppress formatJSON — background parse will provide it)
+        suppressFormatOnSet = true
         currentJSON = jsonString
-        parseResult = result
+        suppressFormatOnSet = false
+        parseResult = nil
+
+        // Start background parse if JSON provided
+        if let json = jsonString {
+            parseInBackground(json: json, tabId: tabId)
+        }
     }
 
     private func reuseEmptyTab(_ tab: JSONTab, with jsonString: String?) {
         let wasAlreadyActive = (activeTabId == tab.id)
 
-        // Parse JSON if provided
-        let result: JSONParseResult?
+        // Update tab input if JSON provided (no synchronous parse)
         if let json = jsonString {
-            result = jsonParser.parse(json)
             tabManager.updateTabInput(id: tab.id, text: json)
-        } else {
-            result = nil
-        }
-        if let r = result {
-            tabManager.updateTabParseResult(id: tab.id, result: r)
         }
 
         // Select the tab (marks as accessed, triggers tab change if needed)
@@ -266,9 +264,11 @@ class ViewerViewModel {
             windowManager.bringToFront()
         }
 
-        // Update ViewModel data state
+        // Update ViewModel data state (suppress formatJSON — background parse will provide it)
+        suppressFormatOnSet = true
         currentJSON = jsonString
-        parseResult = result
+        suppressFormatOnSet = false
+        parseResult = nil
 
         // If this tab was already active, manually restore inputText
         // (selectTab won't trigger onActiveTabChanged for same tab)
@@ -278,6 +278,11 @@ class ViewerViewModel {
             DispatchQueue.main.async { [weak self] in
                 self?.isRestoringTabState = false
             }
+        }
+
+        // Start background parse if JSON provided
+        if let json = jsonString {
+            parseInBackground(json: json, tabId: tab.id)
         }
     }
 
@@ -324,9 +329,11 @@ class ViewerViewModel {
         tabManager.updateTabInput(id: activeTabId, text: text)
 
         debounceTask?.cancel()
+        parseTask?.cancel()
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedText.isEmpty {
+            isParsing = false
             tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
             parseResult = nil
             currentJSON = nil
@@ -341,30 +348,74 @@ class ViewerViewModel {
     }
 
     private func parseAndUpdateJSON(text: String, activeTabId: UUID) {
-        let result = jsonParser.parse(text)
+        parseInBackground(json: text, tabId: activeTabId, resetScrollState: true)
+    }
 
-        tabManager.updateTabParseResult(id: activeTabId, result: result)
+    /// Shared background parsing: runs parse + formatJSON off the main thread,
+    /// then applies results on MainActor.
+    private func parseInBackground(json: String, tabId: UUID, resetScrollState: Bool = false) {
+        parseTask?.cancel()
+        isParsing = true
 
-        switch result {
-        case .success(let node):
-            parseResult = .success(node)
-            currentJSON = text
-        case .failure(let error):
-            parseResult = .failure(error)
-            currentJSON = nil
-        }
+        let parser = self.jsonParser
+        let indentSize = AppSettings.shared.jsonIndent
 
-        beautifyScrollPosition = 0
-        selectedNodeId = nil
-        treeScrollAnchorId = nil
-        tabManager.updateTabScrollPosition(id: activeTabId, position: 0)
-        tabManager.updateTabTreeSelectedNodeId(id: activeTabId, nodeId: nil)
-        tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: nil)
+        parseTask = Task.detached { [weak self] in
+            let result = parser.parse(json)
+            guard !Task.isCancelled else { return }
 
-        if viewMode == .beautify {
-            updateSearchResultCountForBeautify()
-        } else {
-            updateSearchResultCount()
+            let formatted: String?
+            if case .success = result {
+                formatted = parser.formatJSON(json, indentSize: indentSize)
+            } else {
+                formatted = nil
+            }
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                guard let self else { return }
+                guard !Task.isCancelled else {
+                    self.isParsing = false
+                    return
+                }
+                guard self.tabManager.activeTabId == tabId else {
+                    self.isParsing = false
+                    return
+                }
+
+                self.tabManager.updateTabParseResult(id: tabId, result: result)
+
+                switch result {
+                case .success(let node):
+                    self.parseResult = .success(node)
+                    self.suppressFormatOnSet = true
+                    self.currentJSON = json
+                    self._formattedJSONCache = formatted
+                    self.suppressFormatOnSet = false
+                case .failure(let error):
+                    self.parseResult = .failure(error)
+                    self.suppressFormatOnSet = true
+                    self.currentJSON = nil
+                    self.suppressFormatOnSet = false
+                }
+
+                self.isParsing = false
+
+                if resetScrollState {
+                    self.beautifyScrollPosition = 0
+                    self.selectedNodeId = nil
+                    self.treeScrollAnchorId = nil
+                    self.tabManager.updateTabScrollPosition(id: tabId, position: 0)
+                    self.tabManager.updateTabTreeSelectedNodeId(id: tabId, nodeId: nil)
+                    self.tabManager.updateTabTreeScrollAnchor(id: tabId, nodeId: nil)
+                }
+
+                if self.viewMode == .beautify {
+                    self.updateSearchResultCountForBeautify()
+                } else {
+                    self.updateSearchResultCount()
+                }
+            }
         }
     }
 
@@ -578,6 +629,10 @@ class ViewerViewModel {
     func clearAll() {
         guard let activeTabId = tabManager.activeTabId else { return }
 
+        debounceTask?.cancel()
+        parseTask?.cancel()
+        isParsing = false
+
         tabManager.updateTabInput(id: activeTabId, text: "")
         tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
         tabManager.updateTabSearchState(id: activeTabId, searchText: "", beautifySearchIndex: 0, treeSearchIndex: 0)
@@ -638,46 +693,65 @@ class ViewerViewModel {
         }
     }
 
+    // MARK: - Node Cache
+
+    /// Rebuild the node cache from the current parse result.
+    /// Called when parseResult changes (new JSON parsed).
+    func rebuildNodeCache() {
+        guard case .success(let rootNode) = parseResult else {
+            cachedVisibleNodes = []
+            nodeIndexMap = [:]
+            return
+        }
+        cachedVisibleNodes = rootNode.allNodes()
+        nodeIndexMap = Dictionary(uniqueKeysWithValues: cachedVisibleNodes.enumerated().map { ($1.id, $0) })
+    }
+
+    /// Update the node cache from externally computed visible nodes.
+    /// Called by TreeView's onVisibleNodesChanged callback.
+    func updateNodeCache(_ nodes: [JSONNode]) {
+        cachedVisibleNodes = nodes
+        nodeIndexMap = Dictionary(uniqueKeysWithValues: nodes.enumerated().map { ($1.id, $0) })
+    }
+
     // MARK: - Tree Keyboard Navigation
 
     func moveSelectionDown() {
-        guard case .success(let rootNode) = parseResult else { return }
-        let visible = rootNode.allNodes()
-        guard !visible.isEmpty else { return }
+        guard case .success = parseResult else { return }
+        guard !cachedVisibleNodes.isEmpty else { return }
 
         guard let currentId = selectedNodeId,
-              let currentIndex = visible.firstIndex(where: { $0.id == currentId }) else {
-            selectedNodeId = visible.first?.id
+              let currentIndex = nodeIndexMap[currentId] else {
+            selectedNodeId = cachedVisibleNodes.first?.id
             return
         }
 
         let nextIndex = currentIndex + 1
-        guard nextIndex < visible.count else { return }
-        selectedNodeId = visible[nextIndex].id
+        guard nextIndex < cachedVisibleNodes.count else { return }
+        selectedNodeId = cachedVisibleNodes[nextIndex].id
     }
 
     func moveSelectionUp() {
-        guard case .success(let rootNode) = parseResult else { return }
-        let visible = rootNode.allNodes()
-        guard !visible.isEmpty else { return }
+        guard case .success = parseResult else { return }
+        guard !cachedVisibleNodes.isEmpty else { return }
 
         guard let currentId = selectedNodeId,
-              let currentIndex = visible.firstIndex(where: { $0.id == currentId }) else {
-            selectedNodeId = visible.first?.id
+              let currentIndex = nodeIndexMap[currentId] else {
+            selectedNodeId = cachedVisibleNodes.first?.id
             return
         }
 
         let prevIndex = currentIndex - 1
         guard prevIndex >= 0 else { return }
-        selectedNodeId = visible[prevIndex].id
+        selectedNodeId = cachedVisibleNodes[prevIndex].id
     }
 
     func expandOrMoveRight() {
-        guard case .success(let rootNode) = parseResult else { return }
-        let visible = rootNode.allNodes()
+        guard case .success = parseResult else { return }
 
         guard let currentId = selectedNodeId,
-              let node = visible.first(where: { $0.id == currentId }) else { return }
+              let currentIndex = nodeIndexMap[currentId] else { return }
+        let node = cachedVisibleNodes[currentIndex]
 
         if node.value.isContainer && node.value.childCount > 0 {
             if !node.isExpanded {
@@ -690,11 +764,11 @@ class ViewerViewModel {
     }
 
     func collapseOrMoveLeft() {
-        guard case .success(let rootNode) = parseResult else { return }
-        let visible = rootNode.allNodes()
+        guard case .success = parseResult else { return }
 
         guard let currentId = selectedNodeId,
-              let node = visible.first(where: { $0.id == currentId }) else { return }
+              let currentIndex = nodeIndexMap[currentId] else { return }
+        let node = cachedVisibleNodes[currentIndex]
 
         if node.value.isContainer && node.isExpanded {
             node.isExpanded = false
@@ -714,6 +788,8 @@ class ViewerViewModel {
 
     /// Called by WindowManager.windowWillClose
     func onWindowWillClose() {
+        parseTask?.cancel()
+        isParsing = false
         currentJSON = nil
         parseResult = nil
         tabManager.closeAllTabs()

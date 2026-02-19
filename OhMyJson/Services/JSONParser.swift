@@ -73,6 +73,13 @@ class JSONParser: JSONParserProtocol {
         return result
     }
 
+    func validateJSON(_ jsonString: String) -> Bool {
+        let sanitized = sanitizeForJSON(jsonString)
+        let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return false }
+        return (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) != nil
+    }
+
     func parse(_ jsonString: String) -> JSONParseResult {
         let sanitized = sanitizeForJSON(jsonString)
         let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)

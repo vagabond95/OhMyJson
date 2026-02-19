@@ -7,26 +7,25 @@ import SwiftUI
 
 #if os(macOS)
 
-/// Preference key to track the topmost visible node
-struct TopVisibleNodePreferenceKey: PreferenceKey {
-    static var defaultValue: UUID? = nil
+/// Preference key to track scroll offset of the tree content
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
 
-    static func reduce(value: inout UUID?, nextValue: () -> UUID?) {
-        // Keep the first (topmost) node
-        if value == nil {
-            value = nextValue()
-        }
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
 struct TreeView: View {
     var rootNode: JSONNode
+    var isActive: Bool = true
     @Binding var searchText: String
     @Binding var selectedNodeId: UUID?
     @Binding var scrollAnchorId: UUID?
     @Binding var currentSearchIndex: Int
     var treeStructureVersion: Int = 0
     var isRestoringTabState: Bool = false
+    var onVisibleNodesChanged: (([JSONNode]) -> Void)?
 
     @State private var visibleNodes: [JSONNode] = []
     @State private var searchResults: [JSONNode] = []
@@ -34,6 +33,8 @@ struct TreeView: View {
     @State private var currentSearchResultId: UUID?
     @State private var hasRestoredScroll = false
     @State private var isReady = false
+    @State private var hasInitialized = false
+    @State private var isDirty = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -51,29 +52,33 @@ struct TreeView: View {
                             },
                             ancestorIsLast: ancestorLastMap[node.id] ?? []
                         )
+                        .frame(height: TreeLayout.rowHeight)
                         .id(node.id)
-                        .background(
-                            GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: TopVisibleNodePreferenceKey.self,
-                                    value: isNodeVisible(geo: geo) ? node.id : nil
-                                )
-                            }
-                        )
                     }
                 }
                 .padding(.leading, 10).padding(.trailing, 8)
                 .padding(.vertical, 4)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: ScrollOffsetPreferenceKey.self,
+                            value: geo.frame(in: .named("scrollView")).minY
+                        )
+                    }
+                )
             }
             .coordinateSpace(name: "scrollView")
             .opacity(isReady ? 1 : 0)
-            .onPreferenceChange(TopVisibleNodePreferenceKey.self) { topNodeId in
-                // Only update after initial scroll restoration is done, not during tab restore
-                if hasRestoredScroll, !isRestoringTabState, let nodeId = topNodeId {
-                    scrollAnchorId = nodeId
-                }
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+                // Calculate top visible node index from scroll offset
+                guard hasRestoredScroll, !isRestoringTabState, !visibleNodes.isEmpty else { return }
+                // offset is negative when scrolled down; account for vertical padding (4pt)
+                let adjustedOffset = -(offset - 4)
+                let topIndex = max(0, min(visibleNodes.count - 1, Int(adjustedOffset / TreeLayout.rowHeight)))
+                scrollAnchorId = visibleNodes[topIndex].id
             }
             .onChange(of: rootNode.id) { _, _ in
+                guard isActive else { isDirty = true; return }
                 updateVisibleNodes()
                 currentSearchResultId = nil
                 if !searchText.isEmpty {
@@ -81,9 +86,11 @@ struct TreeView: View {
                 }
             }
             .onChange(of: rootNode.isExpanded) { _, _ in
+                guard isActive else { isDirty = true; return }
                 updateVisibleNodes()
             }
             .onChange(of: searchText) { _, newValue in
+                guard isActive else { isDirty = true; return }
                 updateSearchResults()
                 if !newValue.isEmpty && !searchResults.isEmpty {
                     currentSearchIndex = 0
@@ -93,14 +100,17 @@ struct TreeView: View {
                 }
             }
             .onChange(of: currentSearchIndex) { _, newIndex in
+                guard isActive else { return }
                 if !searchResults.isEmpty {
                     navigateToSearchResult(index: newIndex, proxy: proxy)
                 }
             }
             .onChange(of: treeStructureVersion) { _, _ in
+                guard isActive else { isDirty = true; return }
                 updateVisibleNodes()
             }
             .onChange(of: selectedNodeId) { _, newId in
+                guard isActive else { return }
                 if let nodeId = newId {
                     withAnimation(.easeInOut(duration: Animation.quick)) {
                         proxy.scrollTo(nodeId, anchor: nil)
@@ -108,32 +118,17 @@ struct TreeView: View {
                 }
             }
             .onAppear {
-                hasRestoredScroll = false
-                isReady = false
-                updateVisibleNodes()
-                // Restore search highlighting (without scrolling) when returning to tab
-                restoreSearchHighlighting()
-
-                // Validate scrollAnchorId — fallback to nil if node no longer exists
-                if let nodeId = scrollAnchorId,
-                   !visibleNodes.contains(where: { $0.id == nodeId }) {
-                    let allNodes = rootNode.allNodesIncludingCollapsed()
-                    if !allNodes.contains(where: { $0.id == nodeId }) {
-                        scrollAnchorId = nil
-                    }
-                }
-
-                // Delay scroll restoration to ensure LazyVStack layout is complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    if let nodeId = scrollAnchorId,
-                       visibleNodes.contains(where: { $0.id == nodeId }) {
-                        proxy.scrollTo(nodeId, anchor: .top)
-                    }
-                    isReady = true
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + Timing.treeRestoreDelay) {
-                        hasRestoredScroll = true
-                    }
+                guard isActive else { return }
+                performFullInit(proxy: proxy)
+            }
+            .onChange(of: isActive) { _, newValue in
+                guard newValue else { return }
+                if !hasInitialized {
+                    performFullInit(proxy: proxy)
+                } else if isDirty {
+                    updateVisibleNodes()
+                    restoreSearchHighlighting()
+                    isDirty = false
                 }
             }
             .onDisappear {
@@ -143,11 +138,32 @@ struct TreeView: View {
         }
     }
 
-    /// Check if a node is visible in the scroll view (near the top)
-    private func isNodeVisible(geo: GeometryProxy) -> Bool {
-        let frame = geo.frame(in: .named("scrollView"))
-        // Consider visible if the node is within the top portion of the viewport
-        return frame.minY >= 0 && frame.minY < 100
+    private func performFullInit(proxy: ScrollViewProxy) {
+        hasRestoredScroll = false
+        isReady = false
+        updateVisibleNodes()
+        restoreSearchHighlighting()
+
+        // Validate scrollAnchorId — fallback to nil if node no longer visible
+        if let nodeId = scrollAnchorId,
+           !visibleNodes.contains(where: { $0.id == nodeId }) {
+            scrollAnchorId = nil
+        }
+
+        // Delay scroll restoration to ensure LazyVStack layout is complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if let nodeId = scrollAnchorId,
+               visibleNodes.contains(where: { $0.id == nodeId }) {
+                proxy.scrollTo(nodeId, anchor: .top)
+            }
+            isReady = true
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + Timing.treeRestoreDelay) {
+                hasRestoredScroll = true
+            }
+        }
+        hasInitialized = true
+        isDirty = false
     }
 
     private func updateVisibleNodes() {
@@ -162,6 +178,8 @@ struct TreeView: View {
         if needsMapUpdate {
             updateAncestorLastMap()
         }
+
+        onVisibleNodesChanged?(newVisibleNodes)
     }
 
     private func updateAncestorLastMap() {

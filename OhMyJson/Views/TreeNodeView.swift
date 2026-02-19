@@ -95,12 +95,11 @@ struct TreeNodeView: View {
         }
     }
 
+    @ViewBuilder
     private var treeLines: some View {
-        HStack(spacing: 0) {
-            ForEach(0..<node.depth, id: \.self) { depth in
-                Text("  ")
-                    .font(.system(.body, design: .monospaced))
-            }
+        if node.depth > 0 {
+            Text(String(repeating: "  ", count: node.depth))
+                .font(.system(.body, design: .monospaced))
         }
     }
 

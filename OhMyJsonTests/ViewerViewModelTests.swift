@@ -61,7 +61,9 @@ struct ViewerViewModelTests {
         let json = #"{"key": "value"}"#
         let (vm, tabManager, _, parser, _) = makeSUT(clipboardText: json)
 
-        // Configure parser to return success
+        // Configure lightweight validation to pass
+        parser.validateResult = true
+        // Configure parser for background parse
         let node = JSONNode(value: .object(["key": .string("value")]))
         parser.parseResult = .success(node)
 
@@ -79,7 +81,7 @@ struct ViewerViewModelTests {
     func handleHotKeyInvalidJSON() {
         let (vm, tabManager, _, parser, windowManager) = makeSUT(clipboardText: "not json")
 
-        parser.parseResult = .failure(JSONParseError(message: "Invalid"))
+        parser.validateResult = false
 
         vm.handleHotKey()
 
@@ -93,7 +95,7 @@ struct ViewerViewModelTests {
     func handleHotKeyInvalidJSONBringToFront() {
         let (vm, _, _, parser, windowManager) = makeSUT(clipboardText: "not json")
         windowManager.isViewerOpen = true
-        parser.parseResult = .failure(JSONParseError(message: "Invalid"))
+        parser.validateResult = false
 
         vm.handleHotKey()
 
@@ -102,8 +104,8 @@ struct ViewerViewModelTests {
 
     // MARK: - createNewTab
 
-    @Test("createNewTab with JSON parses and sets state")
-    func createNewTabWithJSON() {
+    @MainActor @Test("createNewTab with JSON parses and sets state")
+    func createNewTabWithJSON() async throws {
         let json = #"{"a": 1}"#
         let (vm, tabManager, _, parser, _) = makeSUT()
 
@@ -115,10 +117,17 @@ struct ViewerViewModelTests {
 
         #expect(tabManager.createTabCallCount == 1)
         #expect(vm.currentJSON == json)
+        // parseResult is now set asynchronously via background parse
+        #expect(vm.isParsing == true)
+
+        // Wait for background parse to complete
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        #expect(vm.isParsing == false)
         if case .success = vm.parseResult {
             // OK
         } else {
-            Issue.record("Expected success parse result")
+            Issue.record("Expected success parse result after background parse")
         }
     }
 
@@ -301,6 +310,7 @@ struct ViewerViewModelTests {
 
         #expect(vm.currentJSON == nil)
         #expect(vm.parseResult == nil)
+        #expect(vm.isParsing == false)
     }
 
     @Test("handleTextChange skipped during tab restoration")
@@ -676,7 +686,7 @@ struct ViewerViewModelTests {
 
     // MARK: - handleTextChange (debounced path)
 
-    @Test("handleTextChange with new JSON replaces parseResult and resets selection")
+    @MainActor @Test("handleTextChange with new JSON replaces parseResult and resets selection")
     func handleTextChangeReplacesParseResult() async throws {
         let (vm, tabManager, _, parser, _) = makeSUT()
         let id = tabManager.createTab(with: nil)
@@ -691,11 +701,11 @@ struct ViewerViewModelTests {
         let newNode = JSONNode(value: .object(["b": .string("2")]))
         parser.parseResult = .success(newNode)
 
-        // Trigger text change (debounced — fires after 0.3s)
+        // Trigger text change (debounced — fires after 0.3s, then background parse)
         vm.handleTextChange(#"{"b": "2"}"#)
 
-        // Wait for debounce to fire
-        try await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for debounce + background parse to complete
+        try await Task.sleep(nanoseconds: 800_000_000)
 
         // parseResult should have the new root node with a different id
         guard case .success(let resultNode) = vm.parseResult else {
@@ -708,6 +718,64 @@ struct ViewerViewModelTests {
         // Selection and scroll should be reset
         #expect(vm.selectedNodeId == nil)
         #expect(vm.beautifyScrollPosition == 0)
+    }
+
+    // MARK: - Background Parsing
+
+    @MainActor @Test("isParsing becomes true during background parse and false after completion")
+    func isParsingDuringBackgroundParse() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let node = JSONNode(value: .object(["a": .number(1)]))
+        parser.parseResult = .success(node)
+        parser.formatResult = #"{"a": 1}"#
+
+        vm.handleTextChange(#"{"a": 1}"#)
+
+        // Wait for debounce + background parse to complete
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        #expect(vm.isParsing == false)
+        #expect(vm.parseResult != nil)
+        #expect(vm.formattedJSON == #"{"a": 1}"#)
+    }
+
+    @Test("isParsing observation triggers view update")
+    func isParsingObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isParsing
+        } onChange: {
+            observed = true
+        }
+
+        vm.isParsing = true
+        #expect(observed == true)
+    }
+
+    @MainActor @Test("clearAll cancels in-flight background parse")
+    func clearAllCancelsParse() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let node = JSONNode(value: .object(["a": .number(1)]))
+        parser.parseResult = .success(node)
+
+        vm.handleTextChange(#"{"a": 1}"#)
+        // Immediately clear before debounce fires
+        vm.clearAll()
+
+        #expect(vm.isParsing == false)
+        #expect(vm.parseResult == nil)
+
+        // Wait to ensure cancelled parse doesn't apply results
+        try await Task.sleep(nanoseconds: 800_000_000)
+        #expect(vm.parseResult == nil)
     }
 
     // MARK: - onWindowWillClose
@@ -724,6 +792,99 @@ struct ViewerViewModelTests {
         #expect(vm.currentJSON == nil)
         #expect(vm.parseResult == nil)
         #expect(tabManager.tabs.isEmpty)
+    }
+
+    // MARK: - Node Cache
+
+    @Test("rebuildNodeCache populates cache from parseResult")
+    func rebuildNodeCacheFromParseResult() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .string("1"),
+            "b": .string("2")
+        ]), defaultFoldDepth: 10)
+
+        // Setting parseResult triggers rebuildNodeCache via didSet
+        vm.parseResult = .success(root)
+
+        // Keyboard nav should work immediately after setting parseResult
+        vm.selectedNodeId = root.id
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == root.children[0].id)
+    }
+
+    @Test("rebuildNodeCache clears cache on nil parseResult")
+    func rebuildNodeCacheClearsOnNil() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object(["a": .string("1")]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        // Clear
+        vm.parseResult = nil
+
+        // moveSelectionDown should be no-op (no crash, no change)
+        vm.selectedNodeId = nil
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == nil)
+    }
+
+    @Test("rebuildNodeCache clears cache on failure parseResult")
+    func rebuildNodeCacheClearsOnFailure() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object(["a": .string("1")]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        // Set failure
+        vm.parseResult = .failure(JSONParseError(message: "Bad JSON"))
+
+        vm.selectedNodeId = nil
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == nil)
+    }
+
+    @Test("updateNodeCache from external source enables keyboard nav")
+    func updateNodeCacheExternal() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "x": .string("1"),
+            "y": .string("2")
+        ]), defaultFoldDepth: 10)
+
+        // Set parseResult first so guard checks pass
+        vm.parseResult = .success(root)
+
+        // Simulate TreeView providing expanded visible nodes
+        let nodes = root.allNodes()
+        vm.updateNodeCache(nodes)
+
+        vm.selectedNodeId = root.id
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == root.children[0].id)
+    }
+
+    @Test("keyboard nav uses cached nodes after expand/collapse")
+    func keyboardNavAfterExpandCollapse() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        let containerNode = root.children[0] // "a"
+
+        // Collapse "a" — cache should reflect this after updateNodeCache
+        containerNode.isExpanded = false
+        let collapsed = root.allNodes()
+        vm.updateNodeCache(collapsed)
+
+        // Only root and "a" visible (nested is hidden)
+        vm.selectedNodeId = root.id
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == containerNode.id)
+
+        // Next move should stay at "a" (no more visible nodes)
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == containerNode.id)
     }
 }
 #endif

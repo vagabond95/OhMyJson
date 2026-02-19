@@ -11,6 +11,7 @@ import AppKit
 #if os(macOS)
 struct BeautifyView: View {
     let formattedJSON: String
+    var isActive: Bool = true
     @Binding var searchText: String
     @Binding var currentSearchIndex: Int
     @Binding var scrollPosition: CGFloat
@@ -19,6 +20,8 @@ struct BeautifyView: View {
     @State private var formattedLines: [FormattedLine] = []
     @State private var searchResults: [SearchResult] = []
     @State private var currentSearchResultLocation: SearchResultLocation?
+    @State private var hasInitialized = false
+    @State private var isDirty = false
 
     /// Cached attributed strings — rebuilt only when content/search/theme changes, NOT on scroll
     @State private var cachedContentString: NSAttributedString = NSAttributedString()
@@ -37,6 +40,7 @@ struct BeautifyView: View {
             isRestoringTabState: isRestoringTabState
         )
         .onChange(of: searchText) { _, newValue in
+            guard isActive else { isDirty = true; return }
             updateSearchResults()
             if !newValue.isEmpty && !searchResults.isEmpty {
                 currentSearchIndex = 0
@@ -47,26 +51,49 @@ struct BeautifyView: View {
             rebuildAttributedStrings()
         }
         .onChange(of: currentSearchIndex) { _, newIndex in
+            guard isActive else { return }
             if !searchResults.isEmpty {
                 updateCurrentSearchLocation(index: newIndex)
             }
             rebuildAttributedStrings()
         }
         .onAppear {
-            formatJSON()
-            restoreSearchState()
-            rebuildAttributedStrings()
+            guard isActive else { return }
+            performFullInit()
+        }
+        .onChange(of: isActive) { _, newValue in
+            guard newValue else { return }
+            if !hasInitialized {
+                performFullInit()
+            } else if isDirty {
+                formatJSON()
+                updateSearchResults()
+                rebuildAttributedStrings()
+                isDirty = false
+            }
         }
         .onChange(of: formattedJSON) { _, _ in
+            guard isActive else { isDirty = true; return }
             formatJSON()
             updateSearchResults()
             rebuildAttributedStrings()
         }
         .onChange(of: settings.isDarkMode) { _, _ in
+            guard isActive else { isDirty = true; return }
             formatJSON()
             rebuildAttributedStrings()
         }
         .background(theme.background)
+    }
+
+    // MARK: - Initialization
+
+    private func performFullInit() {
+        formatJSON()
+        restoreSearchState()
+        rebuildAttributedStrings()
+        hasInitialized = true
+        isDirty = false
     }
 
     // MARK: - Attributed String Caching
