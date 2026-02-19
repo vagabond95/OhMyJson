@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/github/v/release/vagabond95/OhMyJson?style=flat&label=version&color=brightgreen" alt="Version" />
   <img src="https://img.shields.io/badge/macOS-14.0%2B-000000?style=flat&logo=apple&logoColor=white" alt="macOS 14.0+" />
   <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="MIT License" />
 </p>
@@ -32,17 +33,18 @@ Formatting JSON is something developers do dozens of times a day — yet most re
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew tap vagabond95/ohmyjson
+brew install --cask ohmyjson
+```
+
 ### Download
 
 Download the latest `.dmg` from [GitHub Releases](https://github.com/vagabond95/OhMyJson/releases), open the disk image, and drag **OhMyJson.app** to `/Applications`.
 
-> **Note:** OhMyJson is not notarized (built with a free Apple Developer account), so macOS Gatekeeper will block the first launch. To open it:
->
-> 1. Open **System Settings → Privacy & Security**
-> 2. Scroll down — you'll see *"OhMyJson was blocked from use because it is not from an identified developer."*
-> 3. Click **Open Anyway** and confirm
->
-> You only need to do this once.
+OhMyJson is signed and notarized with Apple Developer ID — no Gatekeeper warnings.
 
 ### Build from Source
 
