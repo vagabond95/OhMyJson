@@ -340,29 +340,29 @@ jobs:
 
           # Write new item to temp file (heredoc expands shell variables)
           cat > /tmp/new_appcast_item.xml <<ITEM_EOF
-      <item>
-        <title>Version ${VERSION}</title>
-        <pubDate>${PUB_DATE}</pubDate>
-        <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-        <enclosure
-          url="${DOWNLOAD_URL}"
-          sparkle:version="${BUILD}"
-          sparkle:shortVersionString="${VERSION}"
-          sparkle:edSignature="${ED_SIGNATURE}"
-          length="${LENGTH}"
-          type="application/octet-stream" />
-      </item>
-ITEM_EOF
+              <item>
+                <title>Version ${VERSION}</title>
+                <pubDate>${PUB_DATE}</pubDate>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <enclosure
+                  url="${DOWNLOAD_URL}"
+                  sparkle:version="${BUILD}"
+                  sparkle:shortVersionString="${VERSION}"
+                  sparkle:edSignature="${ED_SIGNATURE}"
+                  length="${LENGTH}"
+                  type="application/octet-stream" />
+              </item>
+          ITEM_EOF
 
           # Insert before </channel> using python3 (BSD sed can't handle multi-line substitution)
           python3 -c "
-item = open('/tmp/new_appcast_item.xml').read().rstrip('\n')
-with open('appcast.xml') as f:
-    content = f.read()
-content = content.replace('</channel>', item + '\n  </channel>')
-with open('appcast.xml', 'w') as f:
-    f.write(content)
-"
+          item = open('/tmp/new_appcast_item.xml').read().rstrip('\n')
+          with open('appcast.xml') as f:
+              content = f.read()
+          content = content.replace('</channel>', item + '\n  </channel>')
+          with open('appcast.xml', 'w') as f:
+              f.write(content)
+          "
 
       - name: Commit and push appcast.xml
         run: |
