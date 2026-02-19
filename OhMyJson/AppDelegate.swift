@@ -8,6 +8,7 @@ import AppKit
 import SwiftUI
 import Combine
 import Sparkle
+import Sentry
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
@@ -23,6 +24,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var viewModel: ViewerViewModel!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        SentrySDK.start { options in
+            options.dsn = "https://c5c66ba71a0ff4f9bb96dffe4a2a3aca@o4510913120174080.ingest.us.sentry.io/4510913122467841"
+            options.enableAutoSessionTracking = false
+            #if DEBUG
+            options.debug = true
+            options.environment = "debug"
+            #else
+            options.environment = "production"
+            #endif
+        }
+
         terminateOldInstances()
 
         // Create ViewModel with real service dependencies

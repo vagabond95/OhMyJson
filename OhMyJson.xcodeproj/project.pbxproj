@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00012F345C0000000001 /* ConfettiSwiftUI */; };
 		CE0A00042F345C0000000002 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00032F345C0000000002 /* Sparkle */; };
+		CE0A00062F345C0000000003 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00052F345C0000000003 /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 			files = (
 				CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */,
 				CE0A00042F345C0000000002 /* Sparkle in Frameworks */,
+				CE0A00062F345C0000000003 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +137,7 @@
 			packageProductDependencies = (
 				CE0A00012F345C0000000001 /* ConfettiSwiftUI */,
 				CE0A00032F345C0000000002 /* Sparkle */,
+				CE0A00052F345C0000000003 /* Sentry */,
 			);
 			productName = OhMyJson;
 			productReference = CED10E552F345B5400363B5C /* OhMyJson.app */;
@@ -218,6 +221,7 @@
 			packageReferences = (
 				CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 				CE0A00022F345C0000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				CE0A00042F345C0000000003 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CED10E562F345B5400363B5C /* Products */;
@@ -637,6 +641,14 @@
 				minimumVersion = 2.6.0;
 			};
 		};
+		CE0A00042F345C0000000003 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -649,6 +661,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CE0A00022F345C0000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		CE0A00052F345C0000000003 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE0A00042F345C0000000003 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
