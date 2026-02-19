@@ -181,36 +181,7 @@ struct SettingsWindowView: View {
                 }
 
                 HStack {
-                    Button {
-                        NotificationCenter.default.post(name: .checkForUpdates, object: nil)
-                        // Refresh last checked time after a short delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            lastUpdateCheckDate = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
-                        }
-                    } label: {
-                        Text(String(localized: "settings.updates.check_now"))
-                            .font(.system(size: 13))
-                            .foregroundColor(theme.primaryText)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(theme.panelBackground)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(theme.border, lineWidth: 1)
-                            )
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { hovering in
-                        if hovering {
-                            NSCursor.pointingHand.push()
-                        } else {
-                            NSCursor.pop()
-                        }
-                    }
+                    checkForUpdatesButton
 
                     Spacer()
 
@@ -348,6 +319,62 @@ struct SettingsWindowView: View {
 
             aboutButton(title: String(localized: "settings.about.quit"), icon: "power", isDestructive: true) {
                 NSApplication.shared.terminate(nil)
+            }
+        }
+    }
+
+    // MARK: - Check for Updates Button
+
+    private var checkForUpdatesButton: some View {
+        Button {
+            NotificationCenter.default.post(name: .checkForUpdates, object: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                lastUpdateCheckDate = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 11))
+                Text(String(localized: "settings.updates.check_now"))
+                    .font(.system(size: 13))
+            }
+            .foregroundColor(theme.primaryText)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(theme.panelBackground)
+                    .shadow(
+                        color: .black.opacity(theme.colorScheme == .dark ? 0.4 : 0.1),
+                        radius: theme.colorScheme == .dark ? 2 : 1,
+                        x: 0, y: 1
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: theme.colorScheme == .dark
+                                ? [.white.opacity(0.12), .white.opacity(0.04)]
+                                : [.white.opacity(0.6), .white.opacity(0.1)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(theme.border, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
             }
         }
     }
