@@ -1,0 +1,237 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  APP_NAME: OhMyJson
+  SCHEME: OhMyJson
+  DEVELOPER_ID: "Developer ID Application: Jihoon Kim (Q69M5M837A)"
+  TEAM_ID: Q69M5M837A
+  KEYCHAIN_NAME: build.keychain
+  KEYCHAIN_PASSWORD: actions-keychain-password
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+
+      # ── Certificate Setup ────────────────────────────────────
+      - name: Install Developer ID certificate
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+          echo "$CERTIFICATE_P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_NAME" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productsign
+
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+
+          security list-keychains -d user -s "$KEYCHAIN_NAME" login.keychain-db
+
+          echo "Verifying certificate..."
+          security find-identity -v -p codesigning "$KEYCHAIN_NAME"
+
+      # ── Resolve Dependencies ─────────────────────────────────
+      - name: Resolve SPM dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$APP_NAME.xcodeproj" \
+            -scheme "$SCHEME"
+
+      # ── Build ────────────────────────────────────────────────
+      - name: Build Release
+        run: |
+          xcodebuild -project "$APP_NAME.xcodeproj" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -derivedDataPath ./build \
+            -arch arm64 -arch x86_64 \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$DEVELOPER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            clean build
+
+      # ── Verify Code Signature ────────────────────────────────
+      - name: Verify code signature
+        run: |
+          APP_PATH="./build/Build/Products/Release/$APP_NAME.app"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          echo "Code signature verified."
+
+      # ── Create DMG ───────────────────────────────────────────
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG
+        id: dmg
+        run: |
+          APP_PATH="./build/Build/Products/Release/$APP_NAME.app"
+          DMG_NAME="${APP_NAME}_v${{ steps.version.outputs.version }}.dmg"
+
+          create-dmg \
+            --volname "$APP_NAME" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "${APP_NAME}.app" 150 190 \
+            --app-drop-link 450 190 \
+            "$DMG_NAME" "$APP_PATH"
+
+          echo "dmg_name=$DMG_NAME" >> "$GITHUB_OUTPUT"
+
+      # ── Sign DMG ─────────────────────────────────────────────
+      - name: Sign DMG
+        run: |
+          codesign --force --sign "$DEVELOPER_ID" --timestamp "${{ steps.dmg.outputs.dmg_name }}"
+          codesign --verify --verbose=2 "${{ steps.dmg.outputs.dmg_name }}"
+
+      # ── Notarize ─────────────────────────────────────────────
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          DMG_NAME="${{ steps.dmg.outputs.dmg_name }}"
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Notarization attempt $attempt of $MAX_RETRIES..."
+
+            if xcrun notarytool submit "$DMG_NAME" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$TEAM_ID" \
+              --wait \
+              --timeout 600 2>&1 | tee notarytool-output.txt; then
+
+              if grep -q "status: Accepted" notarytool-output.txt; then
+                echo "Notarization succeeded."
+                break
+              fi
+            fi
+
+            if [ "$attempt" -eq "$MAX_RETRIES" ]; then
+              echo "Notarization failed after $MAX_RETRIES attempts."
+              # Print notarization log for debugging
+              SUBMISSION_ID=$(grep -oE '[0-9a-f-]{36}' notarytool-output.txt | head -1)
+              if [ -n "$SUBMISSION_ID" ]; then
+                xcrun notarytool log "$SUBMISSION_ID" \
+                  --apple-id "$APPLE_ID" \
+                  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                  --team-id "$TEAM_ID" || true
+              fi
+              exit 1
+            fi
+
+            echo "Retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+            RETRY_DELAY=$((RETRY_DELAY * 2))
+          done
+
+      - name: Staple notarization ticket
+        run: xcrun stapler staple "${{ steps.dmg.outputs.dmg_name }}"
+
+      # ── GitHub Release ───────────────────────────────────────
+      - name: Compute SHA256
+        id: sha
+        run: |
+          SHA256=$(shasum -a 256 "${{ steps.dmg.outputs.dmg_name }}" | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          DMG_NAME="${{ steps.dmg.outputs.dmg_name }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+
+          # Extract tag annotation message
+          TAG_MSG=$(git tag -l --format='%(contents)' "$TAG" | head -20)
+          if [ -z "$TAG_MSG" ]; then
+            TAG_MSG="Release $TAG"
+          fi
+
+          gh release create "$TAG" "$DMG_NAME" \
+            --title "$APP_NAME $TAG" \
+            --notes "$(cat <<EOF
+          $TAG_MSG
+
+          ## Install
+
+          ### Direct Download
+          Download \`$DMG_NAME\`, open it, and drag OhMyJson to Applications.
+
+          ### Homebrew
+          \`\`\`bash
+          brew tap vagabond95/ohmyjson
+          brew install --cask ohmyjson
+          \`\`\`
+
+          ## Verify
+
+          **SHA256:** \`$SHA256\`
+
+          \`\`\`bash
+          shasum -a 256 $DMG_NAME
+          \`\`\`
+          EOF
+          )"
+
+      # ── Homebrew Cask Update ─────────────────────────────────
+      - name: Update Homebrew cask
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+          CASK_REPO="/tmp/homebrew-ohmyjson"
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/vagabond95/homebrew-ohmyjson.git" "$CASK_REPO"
+
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" "$CASK_REPO/Casks/ohmyjson.rb"
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" "$CASK_REPO/Casks/ohmyjson.rb"
+
+          cd "$CASK_REPO"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update OhMyJson to v${VERSION}"
+          git push
+
+      # ── Cleanup ──────────────────────────────────────────────
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN_NAME" 2>/dev/null || true

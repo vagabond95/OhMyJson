@@ -93,7 +93,6 @@ iOSInjectionProject/
 .claude/
 .agents/
 CLAUDE.md
-release.sh
 *.dmg
 
 # macOS
