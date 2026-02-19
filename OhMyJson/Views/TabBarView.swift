@@ -118,15 +118,17 @@ struct TabBarView: View {
                 .clipped()
 
                 // Add Tab Button
-                Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(theme.secondaryText)
-                    .frame(width: Layout.addTabButtonWidth, height: Layout.buttonHeight)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        tabManager.createTab(with: nil)
-                    }
-                    .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
+                Button {
+                    tabManager.createTab(with: nil)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(theme.secondaryText)
+                        .frame(width: Layout.addTabButtonWidth, height: Layout.buttonHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
             }
             .padding(.horizontal, Layout.elementPadding)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)

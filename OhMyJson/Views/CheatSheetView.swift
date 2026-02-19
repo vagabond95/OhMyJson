@@ -90,6 +90,7 @@ struct CheatSheetButton: View {
                             .stroke(theme.border, lineWidth: 1)
                     )
                     .shadow(color: Color.black.opacity(theme.shadowOpacity), radius: 4, x: 0, y: 2)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

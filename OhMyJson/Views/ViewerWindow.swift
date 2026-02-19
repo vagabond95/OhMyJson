@@ -241,10 +241,10 @@ struct ViewerWindow: View {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12))
                             .foregroundColor(theme.secondaryText)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
                     .instantTooltip(String(localized: "tooltip.copy_all"), position: .bottom)
                 }
             }

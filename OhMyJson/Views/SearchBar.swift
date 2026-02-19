@@ -39,6 +39,8 @@ struct FloatingSearchBar: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(theme.secondaryText)
                             .font(.system(size: 12))
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
