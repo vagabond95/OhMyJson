@@ -256,28 +256,70 @@ jobs:
         run: |
           ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
 
-          # Find Sparkle's sign_update tool from SPM build
-          SIGN_UPDATE=$(find ./build -name "sign_update" -type f 2>/dev/null | head -1)
+          # 1. Validate secret exists
+          if [ -z "$SPARKLE_EDDSA_KEY" ]; then
+            echo "::error::SPARKLE_EDDSA_KEY secret is not set. Generate with: ./bin/generate_keys (from Sparkle release)"
+            exit 1
+          fi
+          echo "SPARKLE_EDDSA_KEY is set (${#SPARKLE_EDDSA_KEY} chars)"
 
-          if [ -z "$SIGN_UPDATE" ]; then
-            echo "sign_update not found in build — downloading Sparkle release..."
-            SPARKLE_VERSION="2.8.1"
-            curl -fSL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
-              -o /tmp/sparkle.tar.xz
-            mkdir -p /tmp/sparkle
-            tar xJf /tmp/sparkle.tar.xz -C /tmp/sparkle
-            SIGN_UPDATE="/tmp/sparkle/bin/sign_update"
+          # 2. Validate ZIP exists
+          if [ ! -f "$ZIP_NAME" ]; then
+            echo "::error::ZIP file not found: $ZIP_NAME"
+            exit 1
+          fi
+          echo "ZIP file: $ZIP_NAME ($(stat -f%z "$ZIP_NAME") bytes)"
+
+          # 3. Download official Sparkle release for sign_update
+          # SPM artifact binaries don't work reliably as standalone CLI tools
+          SPARKLE_VERSION="2.8.1"
+          echo "Downloading Sparkle ${SPARKLE_VERSION} for sign_update tool..."
+          curl -fSL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
+            -o /tmp/sparkle.tar.xz
+          mkdir -p /tmp/sparkle
+          tar xJf /tmp/sparkle.tar.xz -C /tmp/sparkle
+
+          SIGN_UPDATE="/tmp/sparkle/bin/sign_update"
+          if [ ! -f "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update not found after extracting Sparkle release"
+            ls -la /tmp/sparkle/bin/ || echo "bin/ directory does not exist"
+            ls -la /tmp/sparkle/ || true
+            exit 1
           fi
 
           chmod +x "$SIGN_UPDATE"
           echo "Using sign_update: $SIGN_UPDATE"
+          file "$SIGN_UPDATE"
 
-          SIGNATURE=$(echo "$SPARKLE_EDDSA_KEY" | "$SIGN_UPDATE" "$ZIP_NAME" -f -)
+          # 4. Run sign_update (separate stdout/stderr for clean capture)
+          printf '%s' "$SPARKLE_EDDSA_KEY" \
+            | "$SIGN_UPDATE" "$ZIP_NAME" -f - \
+            > /tmp/sign_stdout.txt 2>/tmp/sign_stderr.txt || {
+            echo "::error::sign_update exited with code $?"
+            echo "--- stderr ---"
+            cat /tmp/sign_stderr.txt
+            echo "--- stdout ---"
+            cat /tmp/sign_stdout.txt
+            exit 1
+          }
+
+          SIGNATURE=$(cat /tmp/sign_stdout.txt)
           echo "Raw signature output: $SIGNATURE"
+          if [ -s /tmp/sign_stderr.txt ]; then
+            echo "sign_update warnings:"
+            cat /tmp/sign_stderr.txt
+          fi
 
-          # Extract edSignature (sed only — macOS BSD grep has no -P flag)
+          # 5. Extract and validate edSignature
           ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
           LENGTH=$(stat -f%z "$ZIP_NAME" 2>/dev/null || stat -c%s "$ZIP_NAME")
+
+          if [ -z "$ED_SIGNATURE" ]; then
+            echo "::error::Failed to extract edSignature from sign_update output."
+            echo "Full output was: $SIGNATURE"
+            echo "Hint: SPARKLE_EDDSA_KEY must contain ONLY the base64 private key string, not the full generate_keys output."
+            exit 1
+          fi
 
           echo "EdDSA signature: ${ED_SIGNATURE:0:20}..."
           echo "ZIP length: $LENGTH"
