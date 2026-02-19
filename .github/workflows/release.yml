@@ -255,18 +255,33 @@ jobs:
           SPARKLE_EDDSA_KEY: ${{ secrets.SPARKLE_EDDSA_KEY }}
         run: |
           ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
+
           # Find Sparkle's sign_update tool from SPM build
           SIGN_UPDATE=$(find ./build -name "sign_update" -type f 2>/dev/null | head -1)
+
           if [ -z "$SIGN_UPDATE" ]; then
-            # Fallback: download Sparkle tools
-            SPARKLE_VERSION="2.6.0"
-            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" | tar xJ -C /tmp
-            SIGN_UPDATE="/tmp/bin/sign_update"
+            echo "sign_update not found in build — downloading Sparkle release..."
+            SPARKLE_VERSION="2.8.1"
+            curl -fSL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
+              -o /tmp/sparkle.tar.xz
+            mkdir -p /tmp/sparkle
+            tar xJf /tmp/sparkle.tar.xz -C /tmp/sparkle
+            SIGN_UPDATE="/tmp/sparkle/bin/sign_update"
           fi
+
+          chmod +x "$SIGN_UPDATE"
+          echo "Using sign_update: $SIGN_UPDATE"
+
           SIGNATURE=$(echo "$SPARKLE_EDDSA_KEY" | "$SIGN_UPDATE" "$ZIP_NAME" -f -)
-          # Extract edSignature and length
-          ED_SIGNATURE=$(echo "$SIGNATURE" | grep -oP 'sparkle:edSignature="\K[^"]+' || echo "$SIGNATURE" | sed 's/.*edSignature="\([^"]*\)".*/\1/')
+          echo "Raw signature output: $SIGNATURE"
+
+          # Extract edSignature (sed only — macOS BSD grep has no -P flag)
+          ED_SIGNATURE=$(echo "$SIGNATURE" | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
           LENGTH=$(stat -f%z "$ZIP_NAME" 2>/dev/null || stat -c%s "$ZIP_NAME")
+
+          echo "EdDSA signature: ${ED_SIGNATURE:0:20}..."
+          echo "ZIP length: $LENGTH"
+
           echo "signature=$ED_SIGNATURE" >> "$GITHUB_OUTPUT"
           echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
 
