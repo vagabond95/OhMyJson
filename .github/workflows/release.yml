@@ -13,6 +13,9 @@ env:
   KEYCHAIN_NAME: build.keychain
   KEYCHAIN_PASSWORD: actions-keychain-password
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: macos-15
