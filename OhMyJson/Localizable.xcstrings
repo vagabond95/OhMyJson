@@ -1232,6 +1232,16 @@
         }
       }
     },
+    "tooltip.search" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search (⌘F)"
+          }
+        }
+      }
+    },
     "tooltip.toggle_theme" : {
       "localizations" : {
         "en" : {

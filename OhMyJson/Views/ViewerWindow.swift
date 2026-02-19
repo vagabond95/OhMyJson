@@ -221,8 +221,22 @@ struct ViewerWindow: View {
 
                 Spacer()
 
-                // Copy All button - only shown when valid JSON
+                // Search & Copy All buttons - only shown when valid JSON
                 if case .success = viewModel.parseResult {
+                    Button {
+                        withAnimation(.easeInOut(duration: Animation.quick)) {
+                            viewModel.isSearchVisible.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 12))
+                            .foregroundColor(viewModel.isSearchVisible ? theme.primaryText : theme.secondaryText)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .instantTooltip(String(localized: "tooltip.search"), position: .bottom)
+
                     Button(action: viewModel.copyAllJSON) {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12))
@@ -296,48 +310,74 @@ struct ViewerWindow: View {
 
     @ViewBuilder
     private var viewerContent: some View {
-        switch viewModel.parseResult {
-        case .success(let rootNode):
-            Group {
-                if viewModel.viewMode == .beautify {
+        ZStack(alignment: .top) {
+            switch viewModel.parseResult {
+            case .success(let rootNode):
+                ZStack {
                     if let formatted = viewModel.formattedJSON {
                         BeautifyView(
                             formattedJSON: formatted,
+                            isActive: viewModel.viewMode == .beautify,
                             searchText: Bindable(viewModel).searchText,
                             currentSearchIndex: currentSearchIndex,
                             scrollPosition: Bindable(viewModel).beautifyScrollPosition,
                             isRestoringTabState: viewModel.isRestoringTabState
                         )
+                        .opacity(viewModel.viewMode == .beautify ? 1 : 0)
+                        .allowsHitTesting(viewModel.viewMode == .beautify)
                         .onChange(of: viewModel.searchText) { _, _ in
+                            guard viewModel.viewMode == .beautify else { return }
                             viewModel.updateSearchResultCountForBeautify()
                         }
-                    } else {
+                    }
+
+                    if viewModel.formattedJSON == nil && viewModel.viewMode == .beautify {
                         PlaceholderView()
                     }
-                } else {
+
                     TreeView(
                         rootNode: rootNode,
+                        isActive: viewModel.viewMode == .tree,
                         searchText: Bindable(viewModel).searchText,
                         selectedNodeId: Bindable(viewModel).selectedNodeId,
                         scrollAnchorId: Bindable(viewModel).treeScrollAnchorId,
                         currentSearchIndex: currentSearchIndex,
                         treeStructureVersion: viewModel.treeStructureVersion,
-                        isRestoringTabState: viewModel.isRestoringTabState
+                        isRestoringTabState: viewModel.isRestoringTabState,
+                        onVisibleNodesChanged: { nodes in
+                            viewModel.updateNodeCache(nodes)
+                        }
                     )
+                    .opacity(viewModel.viewMode == .tree ? 1 : 0)
+                    .allowsHitTesting(viewModel.viewMode == .tree)
                     .onChange(of: viewModel.searchText) { _, _ in
+                        guard viewModel.viewMode == .tree else { return }
                         viewModel.updateSearchResultCount()
                     }
                     .onAppear {
+                        guard viewModel.viewMode == .tree else { return }
                         viewModel.updateSearchResultCount()
                     }
                 }
+
+            case .failure(let error):
+                ErrorView(error: error)
+
+            case .none:
+                if viewModel.isParsing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    PlaceholderView()
+                }
             }
 
-        case .failure(let error):
-            ErrorView(error: error)
-
-        case .none:
-            PlaceholderView()
+            if viewModel.isParsing, viewModel.parseResult != nil {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.top, 8)
+            }
         }
     }
 
