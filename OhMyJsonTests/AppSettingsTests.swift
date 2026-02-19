@@ -222,14 +222,6 @@ struct AppSettingsDefaultsTests {
         #expect(settings.isDarkMode == true)
         #expect(settings.launchAtLogin == false)
         #expect(settings.defaultViewMode == .beautify)
-        #expect(settings.newTabHotKey == .defaultNewTab)
-        #expect(settings.closeTabHotKey == .defaultCloseTab)
-        #expect(settings.previousTabHotKey == .defaultPreviousTab)
-        #expect(settings.nextTabHotKey == .defaultNextTab)
-        #expect(settings.beautifyModeHotKey == .defaultBeautifyMode)
-        #expect(settings.treeModeHotKey == .defaultTreeMode)
-        #expect(settings.findNextHotKey == .defaultFindNext)
-        #expect(settings.findPreviousHotKey == .defaultFindPrevious)
 
         // Restore original values to not affect other tests
         settings.openHotKeyCombo = savedCombo
@@ -302,41 +294,6 @@ struct AppSettingsDefaultsTests {
         #expect(didChange == true, "Accessing currentTheme must register observation on themeMode")
 
         settings.themeMode = savedMode
-    }
-
-    // MARK: - Hotkey Conflict Detection Tests
-
-    @Test("conflictingAction detects conflict")
-    func conflictingActionDetects() {
-        let settings = AppSettings.shared
-        let savedNewTab = settings.newTabHotKey
-
-        // Set up a known hotkey
-        settings.newTabHotKey = .defaultNewTab
-
-        // Check that the same combo conflicts
-        let conflict = settings.conflictingAction(for: .defaultNewTab, excluding: "Close Tab")
-        #expect(conflict == "New Tab")
-
-        settings.newTabHotKey = savedNewTab
-    }
-
-    @Test("conflictingAction returns nil for no conflict")
-    func conflictingActionNoConflict() {
-        let settings = AppSettings.shared
-
-        let uniqueCombo = HotKeyCombo(keyCode: UInt32(kVK_F12), modifiers: UInt32(controlKey | optionKey | shiftKey | cmdKey))
-        let conflict = settings.conflictingAction(for: uniqueCombo, excluding: "Open OhMyJson")
-        #expect(conflict == nil)
-    }
-
-    @Test("conflictingAction excludes self correctly")
-    func conflictingActionExcludesSelf() {
-        let settings = AppSettings.shared
-
-        // Checking the same action's own combo should not conflict
-        let conflict = settings.conflictingAction(for: settings.openHotKeyCombo, excluding: "Open OhMyJson")
-        #expect(conflict == nil)
     }
 
     // MARK: - Default View Mode Tests

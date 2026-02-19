@@ -91,38 +91,38 @@ struct KeyboardShortcutTests {
         #expect(AppShortcut.selectAll.displayString == "⌘A")
     }
 
-    // MARK: - Dynamic AppShortcut Tests (read from AppSettings)
+    // MARK: - Static AppShortcut Tests
 
-    @Test("Dynamic shortcuts reflect default AppSettings values")
-    func dynamicShortcutsDefault() {
-        let settings = AppSettings.shared
-
-        // Ensure defaults are set
-        let savedNewTab = settings.newTabHotKey
-        let savedCloseTab = settings.closeTabHotKey
-        settings.newTabHotKey = .defaultNewTab
-        settings.closeTabHotKey = .defaultCloseTab
-
+    @Test("Static tab shortcuts have correct key equivalents")
+    func staticTabShortcuts() {
         #expect(AppShortcut.newTab.keyEquivalent == "n")
-        #expect(AppShortcut.closeTab.keyEquivalent == "w")
+        #expect(AppShortcut.newTab.modifiers == [.command])
 
-        // Restore
-        settings.newTabHotKey = savedNewTab
-        settings.closeTabHotKey = savedCloseTab
+        #expect(AppShortcut.closeTab.keyEquivalent == "w")
+        #expect(AppShortcut.closeTab.modifiers == [.command])
+
+        #expect(AppShortcut.previousTab.keyEquivalent == "[")
+        #expect(AppShortcut.previousTab.modifiers == [.command, .shift])
+
+        #expect(AppShortcut.nextTab.keyEquivalent == "]")
+        #expect(AppShortcut.nextTab.modifiers == [.command, .shift])
     }
 
-    @Test("Dynamic shortcuts update when AppSettings changes")
-    func dynamicShortcutsUpdate() {
-        let settings = AppSettings.shared
-        let savedBeautify = settings.beautifyModeHotKey
+    @Test("Static view shortcuts have correct key equivalents")
+    func staticViewShortcuts() {
+        #expect(AppShortcut.beautifyMode.keyEquivalent == "1")
+        #expect(AppShortcut.beautifyMode.modifiers == [.command])
 
-        // Change to a custom hotkey
-        let customCombo = HotKeyCombo(keyCode: UInt32(kVK_ANSI_B), modifiers: UInt32(cmdKey))
-        settings.beautifyModeHotKey = customCombo
+        #expect(AppShortcut.treeMode.keyEquivalent == "2")
+        #expect(AppShortcut.treeMode.modifiers == [.command])
+    }
 
-        #expect(AppShortcut.beautifyMode.keyEquivalent == "b")
+    @Test("Static search shortcuts have correct key equivalents")
+    func staticSearchShortcuts() {
+        #expect(AppShortcut.findNext.keyEquivalent == "g")
+        #expect(AppShortcut.findNext.modifiers == [.command])
 
-        // Restore
-        settings.beautifyModeHotKey = savedBeautify
+        #expect(AppShortcut.findPrevious.keyEquivalent == "G")
+        #expect(AppShortcut.findPrevious.modifiers == [.command, .shift])
     }
 }

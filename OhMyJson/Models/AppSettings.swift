@@ -141,7 +141,6 @@ class AppSettings {
 
     @ObservationIgnored let hotKeyChanged = PassthroughSubject<HotKeyCombo, Never>()
     @ObservationIgnored let jsonIndentChanged = PassthroughSubject<Int, Never>()
-    @ObservationIgnored let appShortcutsChanged = PassthroughSubject<Void, Never>()
 
     // MARK: - UserDefaults Keys
 
@@ -155,16 +154,6 @@ class AppSettings {
     private let lastInstalledVersionKey = "lastInstalledVersion"
     private let defaultViewModeKey = "defaultViewMode"
 
-    // Hotkey UserDefaults keys
-    private let newTabHotKeyKey = "newTabHotKey"
-    private let closeTabHotKeyKey = "closeTabHotKey"
-    private let previousTabHotKeyKey = "previousTabHotKey"
-    private let nextTabHotKeyKey = "nextTabHotKey"
-    private let beautifyModeHotKeyKey = "beautifyModeHotKey"
-    private let treeModeHotKeyKey = "treeModeHotKey"
-    private let findNextHotKeyKey = "findNextHotKey"
-    private let findPreviousHotKeyKey = "findPreviousHotKey"
-
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
 
@@ -174,7 +163,6 @@ class AppSettings {
         didSet {
             saveHotKey(openHotKeyCombo, forKey: openHotKeyKey)
             hotKeyChanged.send(openHotKeyCombo)
-            appShortcutsChanged.send()
         }
     }
 
@@ -182,64 +170,6 @@ class AppSettings {
     var hotKeyCombo: HotKeyCombo {
         get { openHotKeyCombo }
         set { openHotKeyCombo = newValue }
-    }
-
-    // MARK: - Customizable Hotkeys
-
-    var newTabHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(newTabHotKey, forKey: newTabHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var closeTabHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(closeTabHotKey, forKey: closeTabHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var previousTabHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(previousTabHotKey, forKey: previousTabHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var nextTabHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(nextTabHotKey, forKey: nextTabHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var beautifyModeHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(beautifyModeHotKey, forKey: beautifyModeHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var treeModeHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(treeModeHotKey, forKey: treeModeHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var findNextHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(findNextHotKey, forKey: findNextHotKeyKey)
-            appShortcutsChanged.send()
-        }
-    }
-
-    var findPreviousHotKey: HotKeyCombo {
-        didSet {
-            saveHotKey(findPreviousHotKey, forKey: findPreviousHotKeyKey)
-            appShortcutsChanged.send()
-        }
     }
 
     // MARK: - JSON Indent
@@ -341,16 +271,6 @@ class AppSettings {
             self.openHotKeyCombo = .defaultOpen
         }
 
-        // Load customizable hotkeys
-        self.newTabHotKey = Self.loadHotKey(forKey: newTabHotKeyKey, default: .defaultNewTab)
-        self.closeTabHotKey = Self.loadHotKey(forKey: closeTabHotKeyKey, default: .defaultCloseTab)
-        self.previousTabHotKey = Self.loadHotKey(forKey: previousTabHotKeyKey, default: .defaultPreviousTab)
-        self.nextTabHotKey = Self.loadHotKey(forKey: nextTabHotKeyKey, default: .defaultNextTab)
-        self.beautifyModeHotKey = Self.loadHotKey(forKey: beautifyModeHotKeyKey, default: .defaultBeautifyMode)
-        self.treeModeHotKey = Self.loadHotKey(forKey: treeModeHotKeyKey, default: .defaultTreeMode)
-        self.findNextHotKey = Self.loadHotKey(forKey: findNextHotKeyKey, default: .defaultFindNext)
-        self.findPreviousHotKey = Self.loadHotKey(forKey: findPreviousHotKeyKey, default: .defaultFindPrevious)
-
         // Load JSON Indent
         let savedIndent = UserDefaults.standard.integer(forKey: jsonIndentKey)
         self.jsonIndent = (savedIndent == 2) ? 2 : 4
@@ -402,41 +322,6 @@ class AppSettings {
         saveHotKey(openHotKeyCombo, forKey: openHotKeyKey)
     }
 
-    private static func loadHotKey(forKey key: String, default defaultValue: HotKeyCombo) -> HotKeyCombo {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: data) else {
-            return defaultValue
-        }
-        return combo
-    }
-
-    // MARK: - Conflict Detection
-
-    /// Returns all hotkey actions and their combos
-    var allHotKeyActions: [(name: String, combo: HotKeyCombo)] {
-        [
-            ("Open OhMyJson", openHotKeyCombo),
-            ("New Tab", newTabHotKey),
-            ("Close Tab", closeTabHotKey),
-            ("Previous Tab", previousTabHotKey),
-            ("Next Tab", nextTabHotKey),
-            ("Beautify Mode", beautifyModeHotKey),
-            ("Tree Mode", treeModeHotKey),
-            ("Find Next", findNextHotKey),
-            ("Find Previous", findPreviousHotKey),
-        ]
-    }
-
-    /// Returns the action name that conflicts with the given combo, excluding the specified action
-    func conflictingAction(for combo: HotKeyCombo, excluding action: String) -> String? {
-        for (name, existingCombo) in allHotKeyActions {
-            if name != action && existingCombo == combo {
-                return name
-            }
-        }
-        return nil
-    }
-
 
     // MARK: - Launch at Login
 
@@ -460,14 +345,6 @@ class AppSettings {
 
     func resetToDefaults() {
         openHotKeyCombo = .defaultOpen
-        newTabHotKey = .defaultNewTab
-        closeTabHotKey = .defaultCloseTab
-        previousTabHotKey = .defaultPreviousTab
-        nextTabHotKey = .defaultNextTab
-        beautifyModeHotKey = .defaultBeautifyMode
-        treeModeHotKey = .defaultTreeMode
-        findNextHotKey = .defaultFindNext
-        findPreviousHotKey = .defaultFindPrevious
         jsonIndent = 4
         launchAtLogin = false
         themeMode = .dark

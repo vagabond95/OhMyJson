@@ -32,6 +32,7 @@
 
     },
     "accessibility.description" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -42,6 +43,7 @@
       }
     },
     "accessibility.fix" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -52,6 +54,7 @@
       }
     },
     "accessibility.open_settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -62,6 +65,7 @@
       }
     },
     "accessibility.skip" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -72,6 +76,7 @@
       }
     },
     "accessibility.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -82,6 +87,7 @@
       }
     },
     "accessibility.warning" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -410,6 +416,7 @@
       }
     },
     "settings.about.copyright" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -434,7 +441,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quit OhMyJson"
+            "value" : "Quit"
           }
         }
       }
@@ -554,6 +561,7 @@
       }
     },
     "settings.hotkeys.beautify_mode" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -564,6 +572,7 @@
       }
     },
     "settings.hotkeys.close_tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -574,6 +583,7 @@
       }
     },
     "settings.hotkeys.conflict" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -584,6 +594,7 @@
       }
     },
     "settings.hotkeys.find_next" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -594,6 +605,7 @@
       }
     },
     "settings.hotkeys.find_previous" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -604,6 +616,7 @@
       }
     },
     "settings.hotkeys.group.global" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -614,6 +627,7 @@
       }
     },
     "settings.hotkeys.group.tabs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -624,6 +638,7 @@
       }
     },
     "settings.hotkeys.group.view" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -634,6 +649,7 @@
       }
     },
     "settings.hotkeys.new_tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -644,6 +660,7 @@
       }
     },
     "settings.hotkeys.next_tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -674,6 +691,7 @@
       }
     },
     "settings.hotkeys.previous_tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -694,6 +712,7 @@
       }
     },
     "settings.hotkeys.tree_mode" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -715,6 +734,7 @@
       }
     },
     "settings.tab.about" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -725,6 +745,7 @@
       }
     },
     "settings.tab.general" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -735,6 +756,7 @@
       }
     },
     "settings.tab.hotkeys" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

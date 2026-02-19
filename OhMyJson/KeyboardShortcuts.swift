@@ -42,20 +42,20 @@ enum AppShortcut {
     static let settings     = ShortcutKey(display: ",", modifiers: [.command], keyEquivalent: ",")
     static let quit         = ShortcutKey(display: "Q", modifiers: [.command], keyEquivalent: "q")
 
-    // Tabs (dynamic — read from AppSettings)
-    static var newTab: ShortcutKey { ShortcutKey(from: AppSettings.shared.newTabHotKey) }
-    static var closeTab: ShortcutKey { ShortcutKey(from: AppSettings.shared.closeTabHotKey) }
-    static var previousTab: ShortcutKey { ShortcutKey(from: AppSettings.shared.previousTabHotKey) }
-    static var nextTab: ShortcutKey { ShortcutKey(from: AppSettings.shared.nextTabHotKey) }
+    // Tabs
+    static let newTab       = ShortcutKey(display: "N", modifiers: [.command], keyEquivalent: "n")
+    static let closeTab     = ShortcutKey(display: "W", modifiers: [.command], keyEquivalent: "w")
+    static let previousTab  = ShortcutKey(display: "[", modifiers: [.command, .shift], keyEquivalent: "[")
+    static let nextTab      = ShortcutKey(display: "]", modifiers: [.command, .shift], keyEquivalent: "]")
 
-    // View (dynamic)
+    // View
     static let find         = ShortcutKey(display: "F", modifiers: [.command], keyEquivalent: "f")
-    static var beautifyMode: ShortcutKey { ShortcutKey(from: AppSettings.shared.beautifyModeHotKey) }
-    static var treeMode: ShortcutKey { ShortcutKey(from: AppSettings.shared.treeModeHotKey) }
+    static let beautifyMode = ShortcutKey(display: "1", modifiers: [.command], keyEquivalent: "1")
+    static let treeMode     = ShortcutKey(display: "2", modifiers: [.command], keyEquivalent: "2")
 
-    // Search (dynamic)
-    static var findNext: ShortcutKey { ShortcutKey(from: AppSettings.shared.findNextHotKey) }
-    static var findPrevious: ShortcutKey { ShortcutKey(from: AppSettings.shared.findPreviousHotKey) }
+    // Search
+    static let findNext     = ShortcutKey(display: "G", modifiers: [.command], keyEquivalent: "g")
+    static let findPrevious = ShortcutKey(display: "G", modifiers: [.command, .shift], keyEquivalent: "G")
 
     // Edit (fixed)
     static let undo         = ShortcutKey(display: "Z", modifiers: [.command], keyEquivalent: "z")
