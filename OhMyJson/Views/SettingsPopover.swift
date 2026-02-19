@@ -260,42 +260,84 @@ struct SettingsWindowView: View {
 
                 Spacer()
 
-                // Hotkey display button
+                // Hotkey recorder control
                 Button(action: {
                     isRecordingHotKey.toggle()
                 }) {
-                    Text(isRecordingHotKey ? String(localized: "settings.hotkeys.press_keys") : combo.wrappedValue.displayString)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(isRecordingHotKey ? .white : theme.primaryText)
+                    HStack(spacing: 0) {
+                        // Left: content
+                        Group {
+                            if isRecordingHotKey {
+                                shimmerText(String(localized: "settings.hotkeys.type_hotkey"))
+                            } else {
+                                Text(combo.wrappedValue.displayString)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(theme.primaryText)
+                            }
+                        }
                         .frame(minWidth: 80)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(isRecordingHotKey ? theme.accent : theme.secondaryBackground)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(isRecordingHotKey ? theme.accent : theme.border, lineWidth: 1)
-                        )
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+
+                        // Vertical divider
+                        Rectangle()
+                            .fill(theme.border)
+                            .frame(width: 1)
+                            .padding(.vertical, 5)
+
+                        // Right: action icon
+                        Image(systemName: isRecordingHotKey ? "arrow.counterclockwise" : "xmark")
+                            .font(.system(size: 11))
+                            .foregroundColor(theme.secondaryText)
+                            .frame(width: 30)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(theme.secondaryBackground)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(isRecordingHotKey ? theme.accent : theme.border, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
-
-                // Reset button
-                if combo.wrappedValue != .defaultOpen {
-                    Button(action: {
-                        combo.wrappedValue = .defaultOpen
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(theme.secondaryText)
-                    }
-                    .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "settings.hotkeys.reset_to_default"), position: .bottom)
-                } else {
-                    Color.clear.frame(width: 14, height: 14)
-                }
             }
+        }
+    }
+
+    private func shimmerText(_ text: String) -> some View {
+        TimelineView(.animation) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            let phase = CGFloat(time.truncatingRemainder(dividingBy: 1.5) / 1.5)
+
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundColor(theme.secondaryText.opacity(0.3))
+                .overlay {
+                    GeometryReader { geo in
+                        let bandWidth = geo.size.width * 0.5
+                        let travel = geo.size.width + bandWidth
+
+                        Text(text)
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.secondaryText)
+                            .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+                            .mask {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .clear, location: 0),
+                                        .init(color: .black, location: 0.3),
+                                        .init(color: .black, location: 0.7),
+                                        .init(color: .clear, location: 1),
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                .frame(width: bandWidth)
+                                .offset(x: -bandWidth + travel * phase)
+                            }
+                    }
+                }
         }
     }
 

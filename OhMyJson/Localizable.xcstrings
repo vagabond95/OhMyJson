@@ -694,6 +694,7 @@
       }
     },
     "settings.hotkeys.press_keys" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -715,6 +716,7 @@
       }
     },
     "settings.hotkeys.reset_to_default" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -731,6 +733,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tree Mode"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.type_hotkey" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type Hotkey"
           }
         }
       }
