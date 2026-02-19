@@ -87,12 +87,84 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             clean build
 
-      # ── Verify Code Signature ────────────────────────────────
+      # ── Re-sign Sparkle & Verify ─────────────────────────────
+      - name: Re-sign Sparkle framework binaries
+        run: |
+          APP_PATH="./build/Build/Products/Release/$APP_NAME.app"
+          SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+          CODESIGN_ARGS=(--force --sign "$DEVELOPER_ID" --timestamp --options runtime)
+
+          if [ ! -d "$SPARKLE_FW" ]; then
+            echo "Sparkle.framework not found — skipping re-sign."
+          else
+            echo "=== Re-signing Sparkle internals (inside-out) ==="
+
+            # 1. Standalone Mach-O binaries in Versions/B
+            echo "-- Standalone executables --"
+            find "$SPARKLE_FW/Versions/B" -maxdepth 1 -type f -perm +111 ! -name "Sparkle" | while read -r bin; do
+              echo "  Signing: $bin"
+              codesign "${CODESIGN_ARGS[@]}" "$bin"
+            done
+
+            # 2. XPC services
+            echo "-- XPC services --"
+            find "$SPARKLE_FW/Versions/B" -name "*.xpc" -type d | while read -r xpc; do
+              echo "  Signing: $xpc"
+              codesign "${CODESIGN_ARGS[@]}" "$xpc"
+            done
+
+            # 3. Nested apps (Updater.app)
+            echo "-- Nested apps --"
+            find "$SPARKLE_FW/Versions/B" -name "*.app" -type d | while read -r app; do
+              echo "  Signing: $app"
+              codesign "${CODESIGN_ARGS[@]}" "$app"
+            done
+
+            # 4. Sparkle.framework itself
+            echo "-- Sparkle.framework --"
+            codesign "${CODESIGN_ARGS[@]}" "$SPARKLE_FW"
+          fi
+
+          # 5. Re-sign main app (must include entitlements for Sparkle XPC mach-lookup)
+          echo "=== Re-signing main app ==="
+          codesign "${CODESIGN_ARGS[@]}" --entitlements "$APP_NAME/$APP_NAME.entitlements" "$APP_PATH"
+
       - name: Verify code signature
         run: |
           APP_PATH="./build/Build/Products/Release/$APP_NAME.app"
+          SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+
+          # Deep verification
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          echo "Code signature verified."
+          echo "Deep code signature verified."
+
+          # Verify no ad-hoc signatures remain in Sparkle internals
+          if [ -d "$SPARKLE_FW" ]; then
+            echo "=== Checking Sparkle binaries for ad-hoc signatures ==="
+            ADHOC_FOUND=0
+
+            while IFS= read -r bin; do
+              SIG_INFO=$(codesign -dvv "$bin" 2>&1 || true)
+              if echo "$SIG_INFO" | grep -q "Signature=adhoc"; then
+                echo "ERROR: ad-hoc signature found: $bin"
+                ADHOC_FOUND=1
+              fi
+            done < <(find "$SPARKLE_FW/Versions/B" -type f -perm +111)
+
+            while IFS= read -r bundle; do
+              SIG_INFO=$(codesign -dvv "$bundle" 2>&1 || true)
+              if echo "$SIG_INFO" | grep -q "Signature=adhoc"; then
+                echo "ERROR: ad-hoc signature found: $bundle"
+                ADHOC_FOUND=1
+              fi
+            done < <(find "$SPARKLE_FW/Versions/B" \( -name "*.xpc" -o -name "*.app" \) -type d)
+
+            if [ "$ADHOC_FOUND" -eq 1 ]; then
+              echo "Ad-hoc signed binaries detected — notarization will fail."
+              exit 1
+            fi
+            echo "All Sparkle binaries are properly signed."
+          fi
 
       # ── Create DMG ───────────────────────────────────────────
       - name: Install create-dmg
