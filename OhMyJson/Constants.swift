@@ -65,3 +65,9 @@ enum FileSize {
     static let largeThreshold = 5 * 1024 * 1024 // 5MB
     static let megabyte       = 1024 * 1024      // 1MB
 }
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let checkForUpdates = Notification.Name("checkForUpdates")
+}

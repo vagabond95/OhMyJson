@@ -75,6 +75,7 @@ class HotKeyRecorderNSView: NSView {
 struct SettingsWindowView: View {
     @Environment(AppSettings.self) var settings
     @State private var isRecordingHotKey = false
+    @State private var lastUpdateCheckDate: Date? = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
 
     private var theme: AppTheme { settings.currentTheme }
 
@@ -165,12 +166,72 @@ struct SettingsWindowView: View {
 
             divider
 
+            // Updates section
+            VStack(alignment: .leading, spacing: 10) {
+                settingsCard {
+                    HStack {
+                        Text(String(localized: "settings.updates.auto_check"))
+                            .font(.system(size: 13))
+                            .foregroundColor(theme.primaryText)
+                        Spacer()
+                        Toggle("", isOn: $settings.autoCheckForUpdates)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                }
+
+                HStack {
+                    Button {
+                        NotificationCenter.default.post(name: .checkForUpdates, object: nil)
+                        // Refresh last checked time after a short delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                            lastUpdateCheckDate = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
+                        }
+                    } label: {
+                        Text(String(localized: "settings.updates.check_now"))
+                            .font(.system(size: 13))
+                            .foregroundColor(theme.primaryText)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(theme.panelBackground)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.pointingHand.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+
+                    Spacer()
+
+                    if let date = lastUpdateCheckDate {
+                        Text("Last checked: \(date.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.system(size: 11))
+                            .foregroundColor(theme.secondaryText)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+
+            divider
+
             // Footer
             footerSection
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 380)
+        .frame(width: 500)
         .fixedSize(horizontal: true, vertical: true)
         .background(theme.secondaryBackground)
         .preferredColorScheme(theme.colorScheme)

@@ -153,6 +153,7 @@ class AppSettings {
     private let dividerRatioKey = "dividerRatio"
     private let lastInstalledVersionKey = "lastInstalledVersion"
     private let defaultViewModeKey = "defaultViewMode"
+    private let autoCheckForUpdatesKey = "autoCheckForUpdates"
 
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
@@ -244,6 +245,12 @@ class AppSettings {
         }
     }
 
+    var autoCheckForUpdates: Bool {
+        didSet {
+            UserDefaults.standard.set(autoCheckForUpdates, forKey: autoCheckForUpdatesKey)
+        }
+    }
+
     // MARK: - Init
 
     private init() {
@@ -307,6 +314,9 @@ class AppSettings {
         let savedRatio = UserDefaults.standard.double(forKey: dividerRatioKey)
         self.dividerRatio = (savedRatio > 0 && savedRatio < 1) ? CGFloat(savedRatio) : 0.35
 
+        // Load Auto Check for Updates (default: false)
+        self.autoCheckForUpdates = UserDefaults.standard.bool(forKey: autoCheckForUpdatesKey)
+
     }
 
     // MARK: - Hotkey Persistence
@@ -349,6 +359,7 @@ class AppSettings {
         launchAtLogin = false
         themeMode = .dark
         defaultViewMode = .beautify
+        autoCheckForUpdates = false
     }
 }
 

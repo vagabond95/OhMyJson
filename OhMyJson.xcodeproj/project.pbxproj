@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00012F345C0000000001 /* ConfettiSwiftUI */; };
+		CE0A00042F345C0000000002 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00032F345C0000000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,6 +42,9 @@
 		};
 		CED10E572F345B5400363B5C /* OhMyJson */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CED10E582F345B5400363B5C /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 			path = OhMyJson;
 			sourceTree = "<group>";
 		};
@@ -51,12 +55,23 @@
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CED10E582F345B5400363B5C /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CED10E542F345B5400363B5C /* OhMyJson */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		CED10E522F345B5400363B5C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */,
+				CE0A00042F345C0000000002 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +134,7 @@
 			name = OhMyJson;
 			packageProductDependencies = (
 				CE0A00012F345C0000000001 /* ConfettiSwiftUI */,
+				CE0A00032F345C0000000002 /* Sparkle */,
 			);
 			productName = OhMyJson;
 			productReference = CED10E552F345B5400363B5C /* OhMyJson.app */;
@@ -201,6 +217,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
+				CE0A00022F345C0000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CED10E562F345B5400363B5C /* Products */;
@@ -404,6 +421,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OhMyJson/Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -443,6 +461,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OhMyJson/Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -610,6 +629,14 @@
 				minimumVersion = 1.1.0;
 			};
 		};
+		CE0A00022F345C0000000002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -617,6 +644,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
 			productName = ConfettiSwiftUI;
+		};
+		CE0A00032F345C0000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE0A00022F345C0000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

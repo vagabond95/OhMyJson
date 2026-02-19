@@ -229,6 +229,9 @@
         }
       }
     },
+    "Last checked: %@" : {
+
+    },
     "menu.about" : {
       "localizations" : {
         "en" : {
@@ -245,6 +248,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Beautify View"
+          }
+        }
+      }
+    },
+    "menu.check_for_updates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates..."
           }
         }
       }
@@ -772,6 +785,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "OhMyJson Settings"
+          }
+        }
+      }
+    },
+    "settings.updates.auto_check" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatically check for updates"
+          }
+        }
+      }
+    },
+    "settings.updates.check_now" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates..."
           }
         }
       }

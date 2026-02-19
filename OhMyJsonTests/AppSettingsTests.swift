@@ -296,6 +296,52 @@ struct AppSettingsDefaultsTests {
         settings.themeMode = savedMode
     }
 
+    // MARK: - Auto Check for Updates Tests
+
+    @Test("autoCheckForUpdates defaults to false")
+    func autoCheckForUpdatesDefault() {
+        let settings = AppSettings.shared
+        // After init or resetToDefaults, autoCheckForUpdates should be false
+        let saved = settings.autoCheckForUpdates
+        settings.resetToDefaults()
+        #expect(settings.autoCheckForUpdates == false)
+        settings.autoCheckForUpdates = saved
+    }
+
+    @Test("autoCheckForUpdates is included in resetToDefaults")
+    func autoCheckForUpdatesReset() {
+        let settings = AppSettings.shared
+        let saved = settings.autoCheckForUpdates
+
+        settings.autoCheckForUpdates = true
+        #expect(settings.autoCheckForUpdates == true)
+
+        settings.resetToDefaults()
+        #expect(settings.autoCheckForUpdates == false)
+
+        settings.autoCheckForUpdates = saved
+    }
+
+    @Test("autoCheckForUpdates observation triggers on change")
+    func autoCheckForUpdatesObservation() {
+        let settings = AppSettings.shared
+        let saved = settings.autoCheckForUpdates
+
+        settings.autoCheckForUpdates = false
+
+        var didChange = false
+        withObservationTracking {
+            _ = settings.autoCheckForUpdates
+        } onChange: {
+            didChange = true
+        }
+
+        settings.autoCheckForUpdates = true
+        #expect(didChange == true, "Changing autoCheckForUpdates must trigger observation")
+
+        settings.autoCheckForUpdates = saved
+    }
+
     // MARK: - Default View Mode Tests
 
     @Test("defaultViewMode can be set to tree")

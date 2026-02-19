@@ -4,5 +4,15 @@
 <dict>
     <key>LSUIElement</key>
     <true/>
+    <key>SUFeedURL</key>
+    <string>https://raw.githubusercontent.com/vagabond95/OhMyJson/main/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>pnjf4jzQxCZ7EcHlwYhqmHWA8xlzRF7NYQj3xTehwrw=</string>
+    <key>SUEnableInstallerLauncherService</key>
+    <true/>
+    <key>SUEnableAutomaticChecks</key>
+    <false/>
+    <key>SUEnableSystemProfiling</key>
+    <false/>
 </dict>
 </plist>

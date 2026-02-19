@@ -168,6 +168,78 @@ jobs:
       - name: Staple notarization ticket
         run: xcrun stapler staple "${{ steps.dmg.outputs.dmg_name }}"
 
+      # ── Create Sparkle ZIP ────────────────────────────────────
+      - name: Create Sparkle update ZIP
+        id: zip
+        run: |
+          APP_PATH="./build/Build/Products/Release/$APP_NAME.app"
+          ZIP_NAME="${APP_NAME}_v${{ steps.version.outputs.version }}.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_NAME"
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Sign update with EdDSA for Sparkle
+        id: sparkle_sign
+        env:
+          SPARKLE_EDDSA_KEY: ${{ secrets.SPARKLE_EDDSA_KEY }}
+        run: |
+          ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
+          # Find Sparkle's sign_update tool from SPM build
+          SIGN_UPDATE=$(find ./build -name "sign_update" -type f 2>/dev/null | head -1)
+          if [ -z "$SIGN_UPDATE" ]; then
+            # Fallback: download Sparkle tools
+            SPARKLE_VERSION="2.6.0"
+            curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" | tar xJ -C /tmp
+            SIGN_UPDATE="/tmp/bin/sign_update"
+          fi
+          SIGNATURE=$(echo "$SPARKLE_EDDSA_KEY" | "$SIGN_UPDATE" "$ZIP_NAME" -f -)
+          # Extract edSignature and length
+          ED_SIGNATURE=$(echo "$SIGNATURE" | grep -oP 'sparkle:edSignature="\K[^"]+' || echo "$SIGNATURE" | sed 's/.*edSignature="\([^"]*\)".*/\1/')
+          LENGTH=$(stat -f%z "$ZIP_NAME" 2>/dev/null || stat -c%s "$ZIP_NAME")
+          echo "signature=$ED_SIGNATURE" >> "$GITHUB_OUTPUT"
+          echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
+
+      # ── Update Appcast ─────────────────────────────────────────
+      - name: Update appcast.xml
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD="${{ github.run_number }}"
+          ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
+          ED_SIGNATURE="${{ steps.sparkle_sign.outputs.signature }}"
+          LENGTH="${{ steps.sparkle_sign.outputs.length }}"
+          DOWNLOAD_URL="https://github.com/vagabond95/OhMyJson/releases/download/v${VERSION}/${ZIP_NAME}"
+          PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S %z")
+
+          NEW_ITEM=$(cat <<ITEM_EOF
+            <item>
+              <title>Version ${VERSION}</title>
+              <pubDate>${PUB_DATE}</pubDate>
+              <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+              <enclosure
+                url="${DOWNLOAD_URL}"
+                sparkle:version="${BUILD}"
+                sparkle:shortVersionString="${VERSION}"
+                sparkle:edSignature="${ED_SIGNATURE}"
+                length="${LENGTH}"
+                type="application/octet-stream" />
+            </item>
+          ITEM_EOF
+          )
+
+          # Insert new item before </channel>
+          sed -i '' "s|</channel>|${NEW_ITEM}\n  </channel>|" appcast.xml
+
+      - name: Commit and push appcast.xml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          if git diff --cached --quiet; then
+            echo "No appcast changes to commit."
+          else
+            git commit -m "Update appcast.xml for v${{ steps.version.outputs.version }}"
+            git push origin HEAD:main
+          fi
+
       # ── GitHub Release ───────────────────────────────────────
       - name: Compute SHA256
         id: sha
@@ -182,6 +254,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.tag }}"
           DMG_NAME="${{ steps.dmg.outputs.dmg_name }}"
+          ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
           SHA256="${{ steps.sha.outputs.sha256 }}"
 
           # Extract tag annotation message
@@ -190,7 +263,7 @@ jobs:
             TAG_MSG="Release $TAG"
           fi
 
-          gh release create "$TAG" "$DMG_NAME" \
+          gh release create "$TAG" "$DMG_NAME" "$ZIP_NAME" \
             --title "$APP_NAME $TAG" \
             --notes "$(cat <<EOF
           $TAG_MSG

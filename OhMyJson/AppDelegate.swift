@@ -7,12 +7,17 @@
 import AppKit
 import SwiftUI
 import Combine
+import Sparkle
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var onboardingController: OnboardingWindowController?
     private var hotKeyCancellable: AnyCancellable?
+    private var updateCheckCancellable: AnyCancellable?
+
+    /// Sparkle updater controller
+    private var updaterController: SPUStandardUpdaterController!
 
     /// ViewModel — created and owned here, shared with Views via .environmentObject()
     private var viewModel: ViewerViewModel!
@@ -36,6 +41,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.ensureWindowShown()
         }
 
+        // Initialize Sparkle updater (startingUpdater: false so we can configure before starting)
+        updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController.updater.automaticallyChecksForUpdates = AppSettings.shared.autoCheckForUpdates
+        do {
+            try updaterController.updater.start()
+        } catch {
+            print("Failed to start Sparkle updater: \(error)")
+        }
+
         setupMenuBar()
         setupMainMenu()
 
@@ -46,6 +60,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.setupHotKey()
+            }
+
+        // Listen for "Check for Updates" requests from SettingsPopover
+        updateCheckCancellable = NotificationCenter.default.publisher(for: .checkForUpdates)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updaterController.checkForUpdates(nil)
+                NSApp.activate()
             }
 
         // Show onboarding on first launch, otherwise open window immediately
@@ -66,6 +89,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let aboutItem = NSMenuItem(title: String(localized: "menu.about"), action: #selector(showSettings), keyEquivalent: "")
         aboutItem.target = self
         appMenu.addItem(aboutItem)
+        appMenu.addItem(NSMenuItem.separator())
+        let checkForUpdatesItem = NSMenuItem(title: String(localized: "menu.check_for_updates"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        checkForUpdatesItem.target = updaterController
+        appMenu.addItem(checkForUpdatesItem)
         appMenu.addItem(NSMenuItem.separator())
         let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: AppShortcut.settings.keyEquivalent)
         settingsItem.target = self
@@ -209,6 +236,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
+        // Check for Updates
+        let checkForUpdatesItem = NSMenuItem(title: String(localized: "menu.check_for_updates"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        checkForUpdatesItem.target = updaterController
+        menu.addItem(checkForUpdatesItem)
+
         // Settings
         let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: ",")
         menu.addItem(settingsItem)
@@ -345,6 +377,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         HotKeyManager.shared.stop()
         hotKeyCancellable = nil
+        updateCheckCancellable = nil
         WindowManager.shared.closeViewer()
     }
 }
