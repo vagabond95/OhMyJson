@@ -262,6 +262,16 @@
         }
       }
     },
+    "menu.collapse_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse All"
+          }
+        }
+      }
+    },
     "menu.close_tab" : {
       "localizations" : {
         "en" : {
@@ -278,6 +288,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy"
+          }
+        }
+      }
+    },
+    "menu.expand_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All"
           }
         }
       }
@@ -831,6 +851,16 @@
         }
       }
     },
+    "shortcuts.collapse_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse All"
+          }
+        }
+      }
+    },
     "shortcuts.close_search" : {
       "localizations" : {
         "en" : {
@@ -867,6 +897,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy / Paste / Cut"
+          }
+        }
+      }
+    },
+    "shortcuts.expand_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All"
           }
         }
       }
@@ -1162,12 +1202,32 @@
         }
       }
     },
+    "tooltip.collapse_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse All (⌘⇧-)"
+          }
+        }
+      }
+    },
     "tooltip.clear" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear"
+          }
+        }
+      }
+    },
+    "tooltip.expand_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All (⌘⇧+)"
           }
         }
       }

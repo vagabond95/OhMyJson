@@ -226,6 +226,31 @@ struct ViewerWindow: View {
 
                 // Search & Copy All buttons - only shown when valid JSON
                 if case .success = viewModel.parseResult {
+                    // Expand All / Collapse All (Tree mode only)
+                    Button { viewModel.expandAllNodes() } label: {
+                        Image(systemName: "chevron.down.2")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.secondaryText)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .instantTooltip(String(localized: "tooltip.expand_all"), position: .bottom)
+                    .opacity(viewModel.viewMode == .tree ? 1 : 0)
+                    .disabled(viewModel.viewMode != .tree)
+
+                    Button { viewModel.collapseAllNodes() } label: {
+                        Image(systemName: "chevron.up.2")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.secondaryText)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .instantTooltip(String(localized: "tooltip.collapse_all"), position: .bottom)
+                    .opacity(viewModel.viewMode == .tree ? 1 : 0)
+                    .disabled(viewModel.viewMode != .tree)
+
                     Button {
                         withAnimation(.easeInOut(duration: Animation.quick)) {
                             viewModel.isSearchVisible.toggle()

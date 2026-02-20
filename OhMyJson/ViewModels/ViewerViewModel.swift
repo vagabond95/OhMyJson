@@ -792,6 +792,24 @@ class ViewerViewModel {
         }
     }
 
+    // MARK: - Expand / Collapse All
+
+    func expandAllNodes() {
+        guard case .success(let rootNode) = parseResult else { return }
+        rootNode.expandAll()
+        selectedNodeId = nil
+        treeScrollAnchorId = nil
+        treeStructureVersion += 1
+    }
+
+    func collapseAllNodes() {
+        guard case .success(let rootNode) = parseResult else { return }
+        rootNode.collapseAll()
+        selectedNodeId = nil
+        treeScrollAnchorId = nil
+        treeStructureVersion += 1
+    }
+
     // MARK: - Confetti
 
     func triggerConfetti() {

@@ -164,6 +164,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         treeItem.target = self
         viewMenu.addItem(treeItem)
 
+        viewMenu.addItem(NSMenuItem.separator())
+
+        let expandAllItem = NSMenuItem(title: String(localized: "menu.expand_all"), action: #selector(expandAll), keyEquivalent: AppShortcut.expandAll.keyEquivalent)
+        expandAllItem.keyEquivalentModifierMask = AppShortcut.expandAll.modifiers
+        expandAllItem.target = self
+        viewMenu.addItem(expandAllItem)
+
+        let collapseAllItem = NSMenuItem(title: String(localized: "menu.collapse_all"), action: #selector(collapseAll), keyEquivalent: AppShortcut.collapseAll.keyEquivalent)
+        collapseAllItem.keyEquivalentModifierMask = AppShortcut.collapseAll.modifiers
+        collapseAllItem.target = self
+        viewMenu.addItem(collapseAllItem)
+
         mainMenu.addItem(viewMenuItem)
 
         // Edit Menu - Standard system actions (responder chain handles these)
@@ -217,6 +229,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func switchToTree(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
         viewModel.switchViewMode(to: .tree)
+    }
+
+    @objc private func expandAll(_ sender: Any?) {
+        if onboardingController?.isShowing == true { return }
+        viewModel.expandAllNodes()
+    }
+
+    @objc private func collapseAll(_ sender: Any?) {
+        if onboardingController?.isShowing == true { return }
+        viewModel.collapseAllNodes()
     }
 
     @objc private func showPreviousTab(_ sender: Any?) {

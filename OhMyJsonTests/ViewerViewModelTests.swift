@@ -684,6 +684,99 @@ struct ViewerViewModelTests {
         #expect(vm.selectedNodeId == root.id)
     }
 
+    // MARK: - Expand / Collapse All
+
+    @Test("expandAllNodes expands all nodes and resets selection")
+    func expandAllNodes() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")]),
+            "b": .array([.number(1), .number(2)])
+        ]), defaultFoldDepth: 1)
+        vm.parseResult = .success(root)
+
+        // Collapse some nodes first
+        root.children[0].isExpanded = false
+        root.children[1].isExpanded = false
+        vm.selectedNodeId = root.id
+        let initialVersion = vm.treeStructureVersion
+
+        vm.expandAllNodes()
+
+        #expect(root.isExpanded == true)
+        #expect(root.children[0].isExpanded == true)
+        #expect(root.children[1].isExpanded == true)
+        #expect(vm.selectedNodeId == nil)
+        #expect(vm.treeScrollAnchorId == nil)
+        #expect(vm.treeStructureVersion == initialVersion + 1)
+    }
+
+    @Test("collapseAllNodes collapses all nodes including root and resets selection")
+    func collapseAllNodes() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")]),
+            "b": .array([.number(1), .number(2)])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        vm.selectedNodeId = root.children[0].id
+        let initialVersion = vm.treeStructureVersion
+
+        vm.collapseAllNodes()
+
+        #expect(root.isExpanded == false)
+        #expect(root.children[0].isExpanded == false)
+        #expect(root.children[1].isExpanded == false)
+        #expect(vm.selectedNodeId == nil)
+        #expect(vm.treeScrollAnchorId == nil)
+        #expect(vm.treeStructureVersion == initialVersion + 1)
+    }
+
+    @Test("expandAllNodes is no-op when no parse result")
+    func expandAllNodesNoParseResult() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.parseResult = nil
+        let initialVersion = vm.treeStructureVersion
+
+        vm.expandAllNodes()
+
+        #expect(vm.treeStructureVersion == initialVersion)
+    }
+
+    @Test("collapseAllNodes is no-op when no parse result")
+    func collapseAllNodesNoParseResult() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.parseResult = nil
+        let initialVersion = vm.treeStructureVersion
+
+        vm.collapseAllNodes()
+
+        #expect(vm.treeStructureVersion == initialVersion)
+    }
+
+    @Test("expandAllNodes is no-op on parse failure")
+    func expandAllNodesParseFailure() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.parseResult = .failure(JSONParseError(message: "Bad JSON"))
+        let initialVersion = vm.treeStructureVersion
+
+        vm.expandAllNodes()
+
+        #expect(vm.treeStructureVersion == initialVersion)
+    }
+
+    @Test("collapseAllNodes is no-op on parse failure")
+    func collapseAllNodesParseFailure() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.parseResult = .failure(JSONParseError(message: "Bad JSON"))
+        let initialVersion = vm.treeStructureVersion
+
+        vm.collapseAllNodes()
+
+        #expect(vm.treeStructureVersion == initialVersion)
+    }
+
     // MARK: - handleTextChange (debounced path)
 
     @MainActor @Test("handleTextChange with new JSON replaces parseResult and resets selection")
