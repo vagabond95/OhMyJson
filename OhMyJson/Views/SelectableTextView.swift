@@ -21,6 +21,11 @@ class DeselectOnResignTextView: NSTextView {
             return super.performKeyEquivalent(with: event)
         }
 
+        // Only handle editing shortcuts when this view is the first responder.
+        // Multiple NSTextViews coexist (InputView, BeautifyView); without this guard,
+        // the wrong text view may consume the event via performKeyEquivalent DFS traversal.
+        guard self.window?.firstResponder === self else { return false }
+
         let characters = event.charactersIgnoringModifiers ?? ""
 
         switch characters {

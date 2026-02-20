@@ -32,11 +32,24 @@ struct SelectableTextViewTests {
         )!
     }
 
+    /// Places the text view in a window and makes it the first responder.
+    @discardableResult
+    private func makeFirstResponder(_ textView: NSTextView) -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 200),
+            styleMask: [.titled], backing: .buffered, defer: false
+        )
+        window.contentView = textView
+        window.makeFirstResponder(textView)
+        return window
+    }
+
     // MARK: - Handled cases (must return true — read-only view handles copy/selectAll)
 
     @Test("⌘C returns true — copy handled by read-only text view")
     func commandC_returnsTrue() {
         let textView = DeselectOnResignTextView()
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_C, characters: "c")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -47,11 +60,25 @@ struct SelectableTextViewTests {
     @Test("⌘A returns true — selectAll handled by read-only text view")
     func commandA_returnsTrue() {
         let textView = DeselectOnResignTextView()
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_A, characters: "a")
 
         let result = textView.performKeyEquivalent(with: event)
 
         #expect(result == true)
+    }
+
+    // MARK: - First responder guard (non-focused text view must not consume events)
+
+    @Test("⌘C returns false when not first responder — allows other text views to handle it")
+    func commandC_notFirstResponder_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        // No window/first responder setup — simulates unfocused state
+        let event = makeEvent(keyCode: kVK_ANSI_C, characters: "c")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
     }
 
     // MARK: - Bypass cases (must return false so menu items can handle them)

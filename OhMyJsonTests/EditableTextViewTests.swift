@@ -32,11 +32,24 @@ struct EditableTextViewTests {
         )!
     }
 
+    /// Places the text view in a window and makes it the first responder.
+    @discardableResult
+    private func makeFirstResponder(_ textView: NSTextView) -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 200),
+            styleMask: [.titled], backing: .buffered, defer: false
+        )
+        window.contentView = textView
+        window.makeFirstResponder(textView)
+        return window
+    }
+
     // MARK: - Handled cases (must return true — text view handles them directly)
 
     @Test("⌘V returns true — handled by text view")
     func commandV_returnsTrue() {
         let textView = EditableTextView()
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_V, characters: "v")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -47,6 +60,7 @@ struct EditableTextViewTests {
     @Test("⌘C returns true — handled by text view")
     func commandC_returnsTrue() {
         let textView = EditableTextView()
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_C, characters: "c")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -57,6 +71,7 @@ struct EditableTextViewTests {
     @Test("⌘X returns true — handled by text view")
     func commandX_returnsTrue() {
         let textView = EditableTextView()
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_X, characters: "x")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -67,6 +82,7 @@ struct EditableTextViewTests {
     @Test("⌘A returns true — handled by text view")
     func commandA_returnsTrue() {
         let textView = EditableTextView()
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_A, characters: "a")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -78,6 +94,7 @@ struct EditableTextViewTests {
     func commandZ_returnsTrue() {
         let textView = EditableTextView()
         textView.allowsUndo = true
+        makeFirstResponder(textView)
         let event = makeEvent(keyCode: kVK_ANSI_Z, characters: "z")
 
         let result = textView.performKeyEquivalent(with: event)
@@ -89,6 +106,7 @@ struct EditableTextViewTests {
     func shiftCommandZ_returnsTrue() {
         let textView = EditableTextView()
         textView.allowsUndo = true
+        makeFirstResponder(textView)
         let event = makeEvent(
             keyCode: kVK_ANSI_Z,
             characters: "z",
@@ -98,6 +116,19 @@ struct EditableTextViewTests {
         let result = textView.performKeyEquivalent(with: event)
 
         #expect(result == true)
+    }
+
+    // MARK: - First responder guard (non-focused text view must not consume events)
+
+    @Test("⌘C returns false when not first responder — allows other text views to handle it")
+    func commandC_notFirstResponder_returnsFalse() {
+        let textView = EditableTextView()
+        // No window/first responder setup — simulates unfocused state
+        let event = makeEvent(keyCode: kVK_ANSI_C, characters: "c")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
     }
 
     // MARK: - Bypass cases (must return false so menu items can handle them)
