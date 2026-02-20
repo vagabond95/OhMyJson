@@ -15,6 +15,7 @@ struct TreeView: View {
     @Binding var scrollAnchorId: UUID?
     @Binding var currentSearchIndex: Int
     @Binding var horizontalScrollOffset: CGFloat
+    var searchNavigationVersion: Int = 0
     var treeStructureVersion: Int = 0
     var isRestoringTabState: Bool = false
     var onVisibleNodesChanged: (([JSONNode]) -> Void)?
@@ -54,7 +55,6 @@ struct TreeView: View {
                 viewportWidth: viewportWidth,
                 estimatedContentWidth: estimatedContentWidth,
                 scrollCommand: scrollCommand,
-                backgroundColor: settings.currentTheme.nsBackground,
                 isActive: isActive,
                 isRestoringTabState: isRestoringTabState,
                 scrollAnchorId: $scrollAnchorId,
@@ -89,16 +89,18 @@ struct TreeView: View {
             guard isActive else { isDirty = true; return }
             updateSearchResults()
             if !newValue.isEmpty && !searchResults.isEmpty {
+                selectedNodeId = nil
                 currentSearchIndex = 0
                 navigateToSearchResult(index: 0)
             } else {
                 currentSearchResultId = nil
             }
         }
-        .onChange(of: currentSearchIndex) { _, newIndex in
+        .onChange(of: searchNavigationVersion) { _, _ in
             guard isActive else { return }
             if !searchResults.isEmpty {
-                navigateToSearchResult(index: newIndex)
+                selectedNodeId = nil
+                navigateToSearchResult(index: currentSearchIndex)
             }
         }
         .onChange(of: treeStructureVersion) { _, _ in
@@ -108,6 +110,9 @@ struct TreeView: View {
         .onChange(of: selectedNodeId) { _, newId in
             guard isActive else { return }
             if let nodeId = newId {
+                if !searchText.isEmpty && !searchResults.isEmpty {
+                    currentSearchResultId = nil
+                }
                 emitScrollCommand(nodeId: nodeId, anchor: .visible)
             }
         }

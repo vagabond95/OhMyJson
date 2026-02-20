@@ -25,19 +25,28 @@ enum TreeScrollAnchor: Equatable {
     case visible
 }
 
+// MARK: - ArrowCursorHostingView
+
+/// NSHostingView subclass that forces the arrow cursor, preventing I-beam from SwiftUI Text views
+class ArrowCursorHostingView<Content: View>: NSHostingView<Content> {
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .arrow)
+    }
+}
+
 // MARK: - FlippedDocumentView
 
 /// Flipped NSView container that hosts an NSHostingView for top-to-bottom layout
 class FlippedDocumentView: NSView {
     override var isFlipped: Bool { true }
 
-    private var hostingView: NSHostingView<AnyView>?
+    private var hostingView: ArrowCursorHostingView<AnyView>?
 
     func setContent(_ content: AnyView) {
         if let existing = hostingView {
             existing.rootView = content
         } else {
-            let hv = NSHostingView(rootView: content)
+            let hv = ArrowCursorHostingView(rootView: content)
             hv.translatesAutoresizingMaskIntoConstraints = false
             addSubview(hv)
             NSLayoutConstraint.activate([
@@ -62,15 +71,12 @@ struct TreeNSScrollView: NSViewRepresentable {
     let viewportWidth: CGFloat
     let estimatedContentWidth: CGFloat
     let scrollCommand: TreeScrollCommand?
-    let backgroundColor: NSColor
     let isActive: Bool
     let isRestoringTabState: Bool
 
     @Binding var scrollAnchorId: UUID?
     @Binding var horizontalScrollOffset: CGFloat
     @Binding var topVisibleIndex: Int
-
-    @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -83,8 +89,7 @@ struct TreeNSScrollView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.usesPredominantAxisScrolling = true
-        scrollView.drawsBackground = true
-        scrollView.backgroundColor = backgroundColor
+        scrollView.drawsBackground = false
 
         let documentView = FlippedDocumentView()
         documentView.setContent(treeContent)
@@ -132,12 +137,6 @@ struct TreeNSScrollView: NSViewRepresentable {
         // Update SwiftUI content
         documentView.setContent(treeContent)
 
-        // Update background color on colorScheme change
-        if context.coordinator.lastAppliedColorScheme != colorScheme {
-            context.coordinator.lastAppliedColorScheme = colorScheme
-            scrollView.backgroundColor = backgroundColor
-        }
-
         // Update document size when nodeCount or viewportWidth changes
         let nodeCountChanged = context.coordinator.lastNodeCount != nodeCount
         let viewportChanged = context.coordinator.lastViewportWidth != viewportWidth
@@ -179,7 +178,6 @@ struct TreeNSScrollView: NSViewRepresentable {
         weak var scrollView: FastScrollView?
         weak var documentView: FlippedDocumentView?
 
-        var lastAppliedColorScheme: ColorScheme?
         var lastNodeCount: Int = 0
         var lastViewportWidth: CGFloat = 0
         var lastEstimatedContentWidth: CGFloat = 0

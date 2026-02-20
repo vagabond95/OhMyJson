@@ -371,6 +371,7 @@ struct ViewerWindow: View {
                         scrollAnchorId: Bindable(viewModel).treeScrollAnchorId,
                         currentSearchIndex: currentSearchIndex,
                         horizontalScrollOffset: Bindable(viewModel).treeHorizontalScrollOffset,
+                        searchNavigationVersion: viewModel.searchNavigationVersion,
                         treeStructureVersion: viewModel.treeStructureVersion,
                         isRestoringTabState: viewModel.isRestoringTabState,
                         onVisibleNodesChanged: { nodes in

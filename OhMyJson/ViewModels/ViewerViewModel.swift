@@ -30,6 +30,7 @@ class ViewerViewModel {
     var beautifySearchIndex: Int = 0
     var treeSearchIndex: Int = 0
     var searchResultCount: Int = 0
+    var searchNavigationVersion: Int = 0
     var isSearchVisible: Bool = false
     var viewMode: ViewMode = .beautify
 
@@ -555,11 +556,13 @@ class ViewerViewModel {
     func nextSearchResult() {
         guard searchResultCount > 0 else { return }
         currentSearchIndex = (currentSearchIndex + 1) % searchResultCount
+        searchNavigationVersion += 1
     }
 
     func previousSearchResult() {
         guard searchResultCount > 0 else { return }
         currentSearchIndex = (currentSearchIndex - 1 + searchResultCount) % searchResultCount
+        searchNavigationVersion += 1
     }
 
     func closeSearch() {

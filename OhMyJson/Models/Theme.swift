@@ -130,7 +130,7 @@ struct DarkTheme: AppTheme {
     let null = Color(hex: "808080")
     let structure = Color(hex: "99A3B2")
 
-    let searchHighlight = Color(hex: "FFB86C")
+    let searchHighlight = Color(hex: "FFFA5C")
     let selectedTextColor = Color(hex: "FFC663")
     let selectionBg = Color(hex: "4D4D4D")
     let hoverBg = Color(hex: "2A2D2E")
@@ -170,16 +170,16 @@ struct LightTheme: AppTheme {
     let primaryText = Color(hex: "1E1E1E")
     let secondaryText = Color(hex: "6B6B6B")
 
-    let key = Color(hex: "6E0075")
-    let string = Color(hex: "00A069")
-    let number = Color(hex: "FF8900")
-    let boolean = Color(hex: "0075BF")
+    let key = Color(hex: "AC3EA4")
+    let string = Color(hex: "D12F1A")
+    let number = Color(hex: "494ADE")
+    let boolean = Color(hex: "3E8087")
     let null = Color(hex: "808080")
-    let structure = Color(hex: "797E87")
+    let structure = Color(hex: "272627")
 
     let searchHighlight = Color(hex: "F9A825")
-    let selectedTextColor = Color(hex: "FAFAFF")
-    let selectionBg = Color(hex: "AD95E9")
+    let selectedTextColor = Color(hex: "000000")
+    let selectionBg = Color(hex: "B2D7FF")
     let hoverBg = Color(hex: "E8E8E8")
     let searchCurrentMatchBg = Color(hex: "FF8C00")
     let searchOtherMatchBg = Color(hex: "FFE135")
@@ -199,8 +199,8 @@ struct LightTheme: AppTheme {
     let nsBackground = NSColor(sRGBHex: "FFFFFF")
     let nsPrimaryText = NSColor(sRGBHex: "1E1E1E")
     let nsInsertionPoint = NSColor(sRGBHex: "1E1E1E")
-    let nsSelectedTextColor = NSColor(sRGBHex: "FAFAFF")
-    let nsSelectedTextBackground = NSColor(sRGBHex: "AD95E9")
+    let nsSelectedTextColor = NSColor(sRGBHex: "000000")
+    let nsSelectedTextBackground = NSColor(sRGBHex: "B2D7FF")
 
     let shadowOpacity: Double = 0.1
 
