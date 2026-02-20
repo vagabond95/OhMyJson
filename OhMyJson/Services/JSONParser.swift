@@ -293,6 +293,9 @@ class JSONParser: JSONParserProtocol {
             prettyString = reindented.joined(separator: "\n")
         }
 
+        // Unescape forward slashes: \/ → / (JSONSerialization escapes them unnecessarily)
+        prettyString = prettyString.replacingOccurrences(of: "\\/", with: "/")
+
         return prettyString
     }
 
@@ -307,6 +310,9 @@ class JSONParser: JSONParserProtocol {
         }
 
         minifiedString = patchNumbers(minifiedString, with: numberMapping)
+
+        // Unescape forward slashes: \/ → / (JSONSerialization escapes them unnecessarily)
+        minifiedString = minifiedString.replacingOccurrences(of: "\\/", with: "/")
 
         return minifiedString
     }

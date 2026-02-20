@@ -399,4 +399,24 @@ struct JSONParserTests {
         #expect(minified!.contains("-4.6"))
         #expect(!minified!.contains("4.5999999999999996"))
     }
+
+    // MARK: - Forward Slash Unescape
+
+    @Test("formatJSON unescapes forward slashes")
+    func formatJSONUnescapesForwardSlashes() {
+        let json = #"{"url":"https://example.com/path"}"#
+        let formatted = parser.formatJSON(json)
+        #expect(formatted != nil)
+        #expect(formatted!.contains("https://example.com/path"))
+        #expect(!formatted!.contains("\\/"))
+    }
+
+    @Test("minifyJSON unescapes forward slashes")
+    func minifyJSONUnescapesForwardSlashes() {
+        let json = #"{ "url" : "https://example.com/path" }"#
+        let minified = parser.minifyJSON(json)
+        #expect(minified != nil)
+        #expect(minified!.contains("https://example.com/path"))
+        #expect(!minified!.contains("\\/"))
+    }
 }
