@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 #if os(macOS)
 
@@ -134,7 +135,7 @@ private struct CheatSheetPanel: View {
             }
 
             // Groups
-            ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(groups.indices, id: \.self) { index in
                         if index > 0 {
@@ -145,6 +146,8 @@ private struct CheatSheetPanel: View {
                         shortcutGroupView(groups[index])
                     }
                 }
+                .padding(.trailing, 10)
+                .background(AlwaysVisibleScrollBar())
             }
             .frame(maxHeight: 340)
         }
@@ -192,6 +195,27 @@ private struct CheatSheetPanel: View {
         }
         .padding(.vertical, 1)
     }
+}
+
+// MARK: - Always Visible Scroll Bar
+
+/// NSViewRepresentable that finds the enclosing NSScrollView and sets legacy scroller style
+/// so the scrollbar is always visible, making it clear that content is scrollable.
+private struct AlwaysVisibleScrollBar: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let scrollView = view.enclosingScrollView {
+                scrollView.scrollerStyle = .legacy
+                scrollView.hasVerticalScroller = true
+                scrollView.autohidesScrollers = false
+                scrollView.verticalScroller = ClearTrackScroller()
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 #endif
