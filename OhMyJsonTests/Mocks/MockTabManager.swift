@@ -123,4 +123,9 @@ final class MockTabManager: TabManagerProtocol {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].treeScrollAnchorId = nodeId
     }
+
+    func updateTabTreeHorizontalScroll(id: UUID, offset: CGFloat) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].treeHorizontalScrollOffset = offset
+    }
 }

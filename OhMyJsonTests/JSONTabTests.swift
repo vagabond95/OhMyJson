@@ -26,6 +26,7 @@ struct JSONTabTests {
         #expect(tab.inputScrollPosition == 0)
         #expect(tab.beautifyScrollPosition == 0)
         #expect(tab.treeSelectedNodeId == nil)
+        #expect(tab.treeHorizontalScrollOffset == 0)
     }
 
     @Test("Custom initialization")

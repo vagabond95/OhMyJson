@@ -862,6 +862,93 @@ struct ViewerViewModelTests {
         #expect(vm.selectedNodeId == root.children[0].id)
     }
 
+    // MARK: - Tree Horizontal Scroll Offset
+
+    @Test("treeHorizontalScrollOffset default is 0")
+    func treeHorizontalScrollOffsetDefault() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.treeHorizontalScrollOffset == 0)
+    }
+
+    @Test("saveTabState saves treeHorizontalScrollOffset")
+    func saveTabStateSavesHorizontalScroll() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        vm.treeHorizontalScrollOffset = 42.5
+        vm.saveTabState(for: id)
+
+        let tab = tabManager.tabs.first(where: { $0.id == id })
+        #expect(tab?.treeHorizontalScrollOffset == 42.5)
+    }
+
+    @Test("restoreTabState restores treeHorizontalScrollOffset")
+    func restoreTabStateRestoresHorizontalScroll() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        tabManager.updateTabTreeHorizontalScroll(id: id, offset: 99.0)
+
+        vm.restoreTabState()
+
+        #expect(vm.treeHorizontalScrollOffset == 99.0)
+    }
+
+    @Test("restoreTabState resets treeHorizontalScrollOffset when no active tab")
+    func restoreTabStateResetsHorizontalScrollNoTab() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.treeHorizontalScrollOffset = 50.0
+
+        vm.restoreTabState()
+
+        #expect(vm.treeHorizontalScrollOffset == 0)
+    }
+
+    @Test("syncTreeHorizontalScroll saves to tab manager")
+    func syncTreeHorizontalScroll() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.viewMode = .tree
+        vm.treeHorizontalScrollOffset = 75.0
+
+        vm.syncTreeHorizontalScroll()
+
+        let tab = tabManager.tabs.first(where: { $0.id == id })
+        #expect(tab?.treeHorizontalScrollOffset == 75.0)
+    }
+
+    @Test("syncTreeHorizontalScroll skips during tab state restoration")
+    func syncTreeHorizontalScrollSkipsDuringRestore() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.viewMode = .tree
+        vm.isRestoringTabState = true
+        vm.treeHorizontalScrollOffset = 75.0
+
+        vm.syncTreeHorizontalScroll()
+
+        let tab = tabManager.tabs.first(where: { $0.id == id })
+        #expect(tab?.treeHorizontalScrollOffset == 0)
+    }
+
+    @Test("treeHorizontalScrollOffset observation triggers view update")
+    func treeHorizontalScrollOffsetObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.treeHorizontalScrollOffset
+        } onChange: {
+            observed = true
+        }
+
+        vm.treeHorizontalScrollOffset = 100.0
+        #expect(observed == true)
+    }
+
     @Test("keyboard nav uses cached nodes after expand/collapse")
     func keyboardNavAfterExpandCollapse() {
         let (vm, _, _, _, _) = makeSUT()

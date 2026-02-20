@@ -35,6 +35,7 @@ class ViewerViewModel {
 
     var inputScrollPosition: CGFloat = 0
     var beautifyScrollPosition: CGFloat = 0
+    var treeHorizontalScrollOffset: CGFloat = 0
 
     // MARK: - Transient UI State (moved from ViewerWindow @State)
 
@@ -403,11 +404,13 @@ class ViewerViewModel {
 
                 if resetScrollState {
                     self.beautifyScrollPosition = 0
+                    self.treeHorizontalScrollOffset = 0
                     self.selectedNodeId = nil
                     self.treeScrollAnchorId = nil
                     self.tabManager.updateTabScrollPosition(id: tabId, position: 0)
                     self.tabManager.updateTabTreeSelectedNodeId(id: tabId, nodeId: nil)
                     self.tabManager.updateTabTreeScrollAnchor(id: tabId, nodeId: nil)
+                    self.tabManager.updateTabTreeHorizontalScroll(id: tabId, offset: 0)
                 }
 
                 if self.viewMode == .beautify {
@@ -455,6 +458,7 @@ class ViewerViewModel {
         tabManager.updateTabScrollPosition(id: tabId, position: beautifyScrollPosition)
         tabManager.updateTabTreeSelectedNodeId(id: tabId, nodeId: selectedNodeId)
         tabManager.updateTabTreeScrollAnchor(id: tabId, nodeId: treeScrollAnchorId)
+        tabManager.updateTabTreeHorizontalScroll(id: tabId, offset: treeHorizontalScrollOffset)
     }
 
     func restoreTabState() {
@@ -472,6 +476,7 @@ class ViewerViewModel {
             viewMode = .beautify
             inputScrollPosition = 0
             beautifyScrollPosition = 0
+            treeHorizontalScrollOffset = 0
             selectedNodeId = nil
             treeScrollAnchorId = nil
             isRestoringTabState = false
@@ -491,6 +496,7 @@ class ViewerViewModel {
 
         inputScrollPosition = activeTab.inputScrollPosition
         beautifyScrollPosition = activeTab.beautifyScrollPosition
+        treeHorizontalScrollOffset = activeTab.treeHorizontalScrollOffset
         selectedNodeId = activeTab.treeSelectedNodeId
         treeScrollAnchorId = activeTab.treeScrollAnchorId
 
@@ -594,6 +600,7 @@ class ViewerViewModel {
             } else {
                 tabManager.updateTabTreeSelectedNodeId(id: activeTabId, nodeId: selectedNodeId)
                 tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: treeScrollAnchorId)
+                tabManager.updateTabTreeHorizontalScroll(id: activeTabId, offset: treeHorizontalScrollOffset)
             }
         }
 
@@ -610,6 +617,7 @@ class ViewerViewModel {
             } else {
                 selectedNodeId = activeTab.treeSelectedNodeId
                 treeScrollAnchorId = activeTab.treeScrollAnchorId
+                treeHorizontalScrollOffset = activeTab.treeHorizontalScrollOffset
             }
             DispatchQueue.main.async { [weak self] in
                 self?.isRestoringTabState = false
@@ -682,6 +690,13 @@ class ViewerViewModel {
         guard !isRestoringTabState else { return }
         if let activeTabId = tabManager.activeTabId, viewMode == .tree {
             tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: treeScrollAnchorId)
+        }
+    }
+
+    func syncTreeHorizontalScroll() {
+        guard !isRestoringTabState else { return }
+        if let activeTabId = tabManager.activeTabId, viewMode == .tree {
+            tabManager.updateTabTreeHorizontalScroll(id: activeTabId, offset: treeHorizontalScrollOffset)
         }
     }
 

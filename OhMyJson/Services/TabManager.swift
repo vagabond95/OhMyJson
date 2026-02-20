@@ -198,6 +198,12 @@ class TabManager: TabManagerProtocol {
         tabs[index].treeScrollAnchorId = nodeId
     }
 
+    /// Update the horizontal scroll offset for tree view
+    func updateTabTreeHorizontalScroll(id: UUID, offset: CGFloat) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].treeHorizontalScrollOffset = offset
+    }
+
     /// Close all tabs
     func closeAllTabs() {
         tabs.removeAll()

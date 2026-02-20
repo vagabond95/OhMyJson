@@ -7,15 +7,6 @@ import SwiftUI
 
 #if os(macOS)
 
-/// Preference key to track scroll offset of the tree content
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 struct TreeView: View {
     var rootNode: JSONNode
     var isActive: Bool = true
@@ -23,6 +14,7 @@ struct TreeView: View {
     @Binding var selectedNodeId: UUID?
     @Binding var scrollAnchorId: UUID?
     @Binding var currentSearchIndex: Int
+    @Binding var horizontalScrollOffset: CGFloat
     var treeStructureVersion: Int = 0
     var isRestoringTabState: Bool = false
     var onVisibleNodesChanged: (([JSONNode]) -> Void)?
@@ -36,33 +28,47 @@ struct TreeView: View {
     @State private var hasInitialized = false
     @State private var isDirty = false
 
-    // P4: Debounce scrollAnchorId updates to avoid per-frame @Binding propagation
+    // Scroll command system (replaces ScrollViewReader proxy)
+    @State private var scrollCommand: TreeScrollCommand?
+    @State private var scrollCommandVersion: Int = 0
+    @State private var topVisibleIndex: Int = 0
+    @State private var estimatedContentWidth: CGFloat = 0
+
+    // P4: Debounce scrollAnchorId updates
     @State private var scrollDebounceItem: DispatchWorkItem?
 
-    // P6: Cache search paths keyed by (rootNode.id, searchText) to avoid redundant tree traversals
+    // P6: Cache search paths keyed by (rootNode.id, searchText)
     @State private var searchPathCache: (rootId: UUID, query: String, paths: [[Int]])?
 
-    var body: some View {
-        ScrollViewReader { proxy in
-            treeScrollView(proxy: proxy)
-        }
-    }
+    @Environment(AppSettings.self) private var settings
 
-    @ViewBuilder
-    private func treeScrollView(proxy: ScrollViewProxy) -> some View {
-        ScrollView {
-            treeContent()
+    var body: some View {
+        GeometryReader { geometry in
+            let viewportWidth = geometry.size.width
+            TreeNSScrollView(
+                treeContent: AnyView(
+                    treeContent(viewportWidth: viewportWidth)
+                        .environment(settings)
+                ),
+                nodeCount: visibleNodes.count,
+                viewportWidth: viewportWidth,
+                estimatedContentWidth: estimatedContentWidth,
+                scrollCommand: scrollCommand,
+                backgroundColor: settings.currentTheme.nsBackground,
+                isActive: isActive,
+                isRestoringTabState: isRestoringTabState,
+                scrollAnchorId: $scrollAnchorId,
+                horizontalScrollOffset: $horizontalScrollOffset,
+                topVisibleIndex: $topVisibleIndex
+            )
         }
-        .coordinateSpace(name: "scrollView")
         .opacity(isReady ? 1 : 0)
-        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
+        .onChange(of: topVisibleIndex) { _, newIndex in
             guard hasRestoredScroll, !isRestoringTabState, !visibleNodes.isEmpty else { return }
-            // P4: Debounce scrollAnchorId updates — only commit when scrolling pauses
             scrollDebounceItem?.cancel()
             let item = DispatchWorkItem {
-                let adjustedOffset = -(offset - 4)
-                let topIndex = max(0, min(visibleNodes.count - 1, Int(adjustedOffset / TreeLayout.rowHeight)))
-                scrollAnchorId = visibleNodes[topIndex].id
+                let clampedIndex = max(0, min(visibleNodes.count - 1, newIndex))
+                scrollAnchorId = visibleNodes[clampedIndex].id
             }
             scrollDebounceItem = item
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: item)
@@ -84,7 +90,7 @@ struct TreeView: View {
             updateSearchResults()
             if !newValue.isEmpty && !searchResults.isEmpty {
                 currentSearchIndex = 0
-                navigateToSearchResult(index: 0, proxy: proxy)
+                navigateToSearchResult(index: 0)
             } else {
                 currentSearchResultId = nil
             }
@@ -92,7 +98,7 @@ struct TreeView: View {
         .onChange(of: currentSearchIndex) { _, newIndex in
             guard isActive else { return }
             if !searchResults.isEmpty {
-                navigateToSearchResult(index: newIndex, proxy: proxy)
+                navigateToSearchResult(index: newIndex)
             }
         }
         .onChange(of: treeStructureVersion) { _, _ in
@@ -102,19 +108,17 @@ struct TreeView: View {
         .onChange(of: selectedNodeId) { _, newId in
             guard isActive else { return }
             if let nodeId = newId {
-                withAnimation(.easeInOut(duration: Animation.quick)) {
-                    proxy.scrollTo(nodeId, anchor: nil)
-                }
+                emitScrollCommand(nodeId: nodeId, anchor: .visible)
             }
         }
         .onAppear {
             guard isActive else { return }
-            performFullInit(proxy: proxy)
+            performFullInit()
         }
         .onChange(of: isActive) { _, newValue in
             guard newValue else { return }
             if !hasInitialized {
-                performFullInit(proxy: proxy)
+                performFullInit()
             } else if isDirty {
                 updateVisibleNodes()
                 restoreSearchHighlighting()
@@ -130,8 +134,8 @@ struct TreeView: View {
     }
 
     @ViewBuilder
-    private func treeContent() -> some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
+    private func treeContent(viewportWidth: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(visibleNodes) { node in
                 TreeNodeView(
                     node: node,
@@ -145,39 +149,73 @@ struct TreeView: View {
                     ancestorIsLast: ancestorLastMap[node.id] ?? []
                 )
                 .frame(height: TreeLayout.rowHeight)
-                .id(node.id)
             }
         }
         .padding(.leading, 10).padding(.trailing, 8)
         .padding(.vertical, 4)
-        .background(
-            GeometryReader { geo in
-                Color.clear.preference(
-                    key: ScrollOffsetPreferenceKey.self,
-                    value: geo.frame(in: .named("scrollView")).minY
-                )
-            }
+        .frame(minWidth: viewportWidth, alignment: .leading)
+    }
+
+    private func emitScrollCommand(nodeId: UUID, anchor: TreeScrollAnchor) {
+        guard let index = visibleNodes.firstIndex(where: { $0.id == nodeId }) else { return }
+        scrollCommandVersion += 1
+        scrollCommand = TreeScrollCommand(
+            targetNodeId: nodeId,
+            targetIndex: index,
+            anchor: anchor,
+            version: scrollCommandVersion
         )
     }
 
-    private func performFullInit(proxy: ScrollViewProxy) {
+    private func updateEstimatedContentWidth() {
+        var maxWidth: CGFloat = 0
+        for node in visibleNodes {
+            // Estimate: depth indentation + expand button + key + ": " + value
+            let indentWidth = CGFloat(node.depth) * 2 * TreeLayout.charWidth
+            let expandWidth: CGFloat = 16
+            let keyWidth = CGFloat(node.key?.count ?? 0) * TreeLayout.charWidth
+            let separatorWidth: CGFloat = node.key != nil ? 2 * TreeLayout.charWidth : 0
+
+            let valueLen: Int
+            switch node.value {
+            case .string(let s): valueLen = s.count + 2 // quotes
+            case .number(let n):
+                valueLen = n.truncatingRemainder(dividingBy: 1) == 0
+                    ? String(format: "%.0f", n).count
+                    : String(n).count
+            case .bool(let b): valueLen = b ? 4 : 5
+            case .null: valueLen = 4
+            case .object(let d): valueLen = String(d.count).count + 4
+            case .array(let a): valueLen = String(a.count).count + 4
+            }
+            let valueWidth = CGFloat(valueLen) * TreeLayout.charWidth
+
+            let totalWidth = indentWidth + expandWidth + keyWidth + separatorWidth + valueWidth + 18 // padding
+            maxWidth = max(maxWidth, totalWidth)
+        }
+        estimatedContentWidth = maxWidth
+    }
+
+    private func performFullInit() {
         hasRestoredScroll = false
         isReady = false
         updateVisibleNodes()
         restoreSearchHighlighting()
 
-        // Validate scrollAnchorId — fallback to nil if node no longer visible
+        // Validate scrollAnchorId
         if let nodeId = scrollAnchorId,
            !visibleNodes.contains(where: { $0.id == nodeId }) {
             scrollAnchorId = nil
         }
 
-        // Delay scroll restoration to ensure LazyVStack layout is complete
+        // Emit scroll command for restoration
+        if let nodeId = scrollAnchorId,
+           visibleNodes.contains(where: { $0.id == nodeId }) {
+            emitScrollCommand(nodeId: nodeId, anchor: .top)
+        }
+
+        // Delay to ensure layout is complete
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            if let nodeId = scrollAnchorId,
-               visibleNodes.contains(where: { $0.id == nodeId }) {
-                proxy.scrollTo(nodeId, anchor: .top)
-            }
             isReady = true
 
             DispatchQueue.main.asyncAfter(deadline: .now() + Timing.treeRestoreDelay) {
@@ -190,23 +228,18 @@ struct TreeView: View {
 
     // MARK: - Incremental expand/collapse
 
-    /// Incrementally insert or remove nodes for a single expand/collapse toggle.
-    /// The node's `isExpanded` has already been toggled before this method is called.
     private func handleNodeToggle(node: JSONNode) {
         guard let nodeIndex = visibleNodes.firstIndex(where: { $0.id == node.id }) else {
-            // Fallback to full rebuild if node not found
             updateVisibleNodes()
             return
         }
 
         if node.isExpanded {
-            // Node was just expanded — insert its visible descendants after it
             let newDescendants = Array(node.allNodes().dropFirst())
             if !newDescendants.isEmpty {
                 visibleNodes.insert(contentsOf: newDescendants, at: nodeIndex + 1)
             }
         } else {
-            // Node was just collapsed — remove all descendants (contiguous range at depth > node.depth)
             let removeEnd = findDescendantEndIndex(afterNodeAt: nodeIndex)
             if removeEnd > nodeIndex + 1 {
                 visibleNodes.removeSubrange((nodeIndex + 1)..<removeEnd)
@@ -214,11 +247,10 @@ struct TreeView: View {
         }
 
         updateAncestorLastMap()
+        updateEstimatedContentWidth()
         onVisibleNodesChanged?(visibleNodes)
     }
 
-    /// Finds the end index of contiguous descendants after a node in visibleNodes.
-    /// Descendants are identified by having a greater depth than the node at `index`.
     private func findDescendantEndIndex(afterNodeAt index: Int) -> Int {
         let nodeDepth = visibleNodes[index].depth
         var endIndex = index + 1
@@ -233,7 +265,6 @@ struct TreeView: View {
     private func updateVisibleNodes() {
         let newVisibleNodes = rootNode.allNodes()
 
-        // Only rebuild ancestor map if tree structure changed
         let needsMapUpdate = visibleNodes.count != newVisibleNodes.count ||
                              visibleNodes.map(\.id) != newVisibleNodes.map(\.id)
 
@@ -243,6 +274,7 @@ struct TreeView: View {
             updateAncestorLastMap()
         }
 
+        updateEstimatedContentWidth()
         onVisibleNodesChanged?(newVisibleNodes)
     }
 
@@ -269,7 +301,6 @@ struct TreeView: View {
             return
         }
 
-        // P6: Cache search paths to avoid redundant full-tree traversals
         let query = searchText.lowercased()
         let paths: [[Int]]
 
@@ -280,45 +311,33 @@ struct TreeView: View {
             searchPathCache = (rootId: rootNode.id, query: query, paths: paths)
         }
 
-        // Always re-resolve nodes — nodeAt materializes children as needed after expand/collapse
         searchResults = paths.compactMap { rootNode.nodeAt(childIndices: $0) }
     }
 
-    /// Restores search highlighting without scrolling or changing selectedNodeId.
-    /// This ensures the saved scroll position (via selectedNodeId) takes priority over search result position.
     private func restoreSearchHighlighting() {
         guard !searchText.isEmpty else { return }
 
-        // Rebuild search results
         updateSearchResults()
 
         guard !searchResults.isEmpty else { return }
 
-        // Clamp index to valid range and set highlight — but do NOT scroll or modify selectedNodeId
         let validIndex = min(currentSearchIndex, searchResults.count - 1)
         currentSearchResultId = searchResults[validIndex].id
     }
 
-    private func navigateToSearchResult(index: Int, proxy: ScrollViewProxy) {
+    private func navigateToSearchResult(index: Int) {
         guard index >= 0 && index < searchResults.count else { return }
 
         let targetNode = searchResults[index]
 
-        // Expand path to make node visible
         rootNode.expandPathTo(node: targetNode)
-
-        // Update visible nodes in case tree structure changed
         updateVisibleNodes()
 
-        // Update highlight immediately
         currentSearchResultId = targetNode.id
         scrollAnchorId = targetNode.id
 
-        // Scroll with animation (use DispatchQueue to ensure layout is updated)
         DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: Animation.quick)) {
-                proxy.scrollTo(targetNode.id, anchor: .center)
-            }
+            emitScrollCommand(nodeId: targetNode.id, anchor: .center)
         }
     }
 

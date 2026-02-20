@@ -367,4 +367,23 @@ struct TabManagerTests {
 
         #expect(sut.tabs.isEmpty)
     }
+
+    // MARK: - Horizontal Scroll
+
+    @Test("updateTabTreeHorizontalScroll sets offset")
+    func updateTabTreeHorizontalScroll() {
+        let sut = makeSUT()
+        let id = sut.createTab(with: nil)
+        sut.updateTabTreeHorizontalScroll(id: id, offset: 150.5)
+
+        let tab = sut.tabs.first(where: { $0.id == id })
+        #expect(tab?.treeHorizontalScrollOffset == 150.5)
+    }
+
+    @Test("updateTabTreeHorizontalScroll is no-op for unknown tab id")
+    func updateTreeHorizontalScrollUnknownTab() {
+        let sut = makeSUT()
+        sut.updateTabTreeHorizontalScroll(id: UUID(), offset: 100)
+        #expect(sut.tabs.isEmpty)
+    }
 }

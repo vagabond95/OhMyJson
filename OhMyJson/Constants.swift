@@ -5,6 +5,9 @@
 
 import Foundation
 import CoreGraphics
+#if os(macOS)
+import AppKit
+#endif
 
 // MARK: - Key Codes
 
@@ -70,6 +73,12 @@ enum FileSize {
 
 enum TreeLayout {
     static let rowHeight: CGFloat = 26
+    #if os(macOS)
+    static let charWidth: CGFloat = {
+        let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        return ceil(("W" as NSString).size(withAttributes: [.font: font]).width)
+    }()
+    #endif
 }
 
 // MARK: - Notification Names

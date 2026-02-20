@@ -205,6 +205,9 @@ struct ViewerWindow: View {
         .onChange(of: viewModel.treeScrollAnchorId) { _, _ in
             viewModel.syncTreeScrollAnchor()
         }
+        .onChange(of: viewModel.treeHorizontalScrollOffset) { _, _ in
+            viewModel.syncTreeHorizontalScroll()
+        }
         .onChange(of: viewModel.isSearchVisible) { _, _ in
             viewModel.syncSearchVisibility()
         }
@@ -342,6 +345,7 @@ struct ViewerWindow: View {
                         selectedNodeId: Bindable(viewModel).selectedNodeId,
                         scrollAnchorId: Bindable(viewModel).treeScrollAnchorId,
                         currentSearchIndex: currentSearchIndex,
+                        horizontalScrollOffset: Bindable(viewModel).treeHorizontalScrollOffset,
                         treeStructureVersion: viewModel.treeStructureVersion,
                         isRestoringTabState: viewModel.isRestoringTabState,
                         onVisibleNodesChanged: { nodes in
