@@ -215,7 +215,12 @@ struct TreeNodeContent: View, Equatable {
         Group {
             switch node.value {
             case .string(let s):
-                highlightedText("\"\(s)\"", color: stringColor)
+                let escaped = s
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "\n", with: "\\n")
+                    .replacingOccurrences(of: "\r", with: "\\r")
+                    .replacingOccurrences(of: "\t", with: "\\t")
+                highlightedText("\"\(escaped)\"", color: stringColor)
 
             case .number(let n):
                 let numStr = n.truncatingRemainder(dividingBy: 1) == 0

@@ -178,7 +178,15 @@ struct TreeView: View {
 
             let valueLen: Int
             switch node.value {
-            case .string(let s): valueLen = s.count + 2 // quotes
+            case .string(let s):
+                var escapedLen = 2 // quotes
+                for c in s.unicodeScalars {
+                    switch c {
+                    case "\n", "\r", "\t", "\\": escapedLen += 2
+                    default: escapedLen += 1
+                    }
+                }
+                valueLen = escapedLen
             case .number(let n):
                 valueLen = n.truncatingRemainder(dividingBy: 1) == 0
                     ? String(format: "%.0f", n).count
