@@ -412,13 +412,6 @@ struct SettingsWindowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
-        }
     }
 
     // MARK: - Helpers
@@ -519,13 +512,6 @@ struct SettingsWindowView: View {
                 )
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
-        }
     }
 }
 

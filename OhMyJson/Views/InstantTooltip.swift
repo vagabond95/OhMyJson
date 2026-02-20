@@ -38,7 +38,7 @@ struct InstantTooltip: ViewModifier {
                             .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
                             .fixedSize()
                             .position(
-                                x: geometry.size.width / 2,
+                                x: geometry.size.width / 2 - 10,
                                 y: position == .top ? -14 : geometry.size.height + 14
                             )
                             .allowsHitTesting(false)
