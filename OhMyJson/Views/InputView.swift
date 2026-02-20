@@ -132,6 +132,10 @@ struct UndoableTextView: NSViewRepresentable {
         textView.textColor = currentTheme.nsPrimaryText
         textView.backgroundColor = currentTheme.nsBackground
         textView.insertionPointColor = currentTheme.nsInsertionPoint
+        textView.selectedTextAttributes = [
+            .backgroundColor: currentTheme.nsSelectedTextBackground,
+            .foregroundColor: currentTheme.nsSelectedTextColor
+        ]
 
         // Set initial text
         textView.string = text
@@ -175,7 +179,8 @@ struct UndoableTextView: NSViewRepresentable {
             textView.textColor = currentTheme.nsPrimaryText
             textView.insertionPointColor = currentTheme.nsInsertionPoint
             textView.selectedTextAttributes = [
-                .backgroundColor: currentTheme.nsSelectedTextBackground
+                .backgroundColor: currentTheme.nsSelectedTextBackground,
+                .foregroundColor: currentTheme.nsSelectedTextColor
             ]
         }
 

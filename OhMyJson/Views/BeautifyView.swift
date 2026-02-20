@@ -43,6 +43,8 @@ struct BeautifyView: View {
             attributedString: cachedContentString,
             lineNumberString: cachedLineNumberString,
             backgroundColor: NSColor(theme.background),
+            selectedTextForegroundColor: theme.nsSelectedTextColor,
+            selectedTextBackgroundColor: theme.nsSelectedTextBackground,
             scrollPosition: $scrollPosition,
             scrollToRange: isRestoringTabState ? nil : currentSearchResultLocation?.characterRange,
             isRestoringTabState: isRestoringTabState

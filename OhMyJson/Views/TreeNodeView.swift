@@ -148,12 +148,12 @@ struct TreeNodeContent: View, Equatable {
     private var theme: AppTheme { settings.currentTheme }
 
     // MARK: - Theme Colors
-    private var keyColor: Color { theme.key }
-    private var stringColor: Color { theme.string }
-    private var numberColor: Color { theme.number }
-    private var booleanColor: Color { theme.boolean }
-    private var nullColor: Color { theme.null }
-    private var structureColor: Color { theme.structure }
+    private var keyColor: Color { isSelected ? theme.selectedTextColor : theme.key }
+    private var stringColor: Color { isSelected ? theme.selectedTextColor : theme.string }
+    private var numberColor: Color { isSelected ? theme.selectedTextColor : theme.number }
+    private var booleanColor: Color { isSelected ? theme.selectedTextColor : theme.boolean }
+    private var nullColor: Color { isSelected ? theme.selectedTextColor : theme.null }
+    private var structureColor: Color { isSelected ? theme.selectedTextColor : theme.structure }
     private var searchCurrentMatchBgColor: Color { theme.searchCurrentMatchBg }
     private var searchOtherMatchBgColor: Color { theme.searchOtherMatchBg }
     private var searchCurrentMatchFgColor: Color { theme.searchCurrentMatchFg }

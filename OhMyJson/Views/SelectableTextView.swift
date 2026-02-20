@@ -49,6 +49,8 @@ struct SelectableTextView: NSViewRepresentable {
     let attributedString: NSAttributedString
     let lineNumberString: NSAttributedString?
     let backgroundColor: NSColor
+    let selectedTextForegroundColor: NSColor?
+    let selectedTextBackgroundColor: NSColor?
     @Binding var scrollPosition: CGFloat
     var scrollToRange: NSRange?
     var isRestoringTabState: Bool
@@ -59,6 +61,8 @@ struct SelectableTextView: NSViewRepresentable {
         attributedString: NSAttributedString,
         lineNumberString: NSAttributedString? = nil,
         backgroundColor: NSColor = AppSettings.shared.currentTheme.nsBackground,
+        selectedTextForegroundColor: NSColor? = nil,
+        selectedTextBackgroundColor: NSColor? = nil,
         scrollPosition: Binding<CGFloat>,
         scrollToRange: NSRange? = nil,
         isRestoringTabState: Bool = false
@@ -66,6 +70,8 @@ struct SelectableTextView: NSViewRepresentable {
         self.attributedString = attributedString
         self.lineNumberString = lineNumberString
         self.backgroundColor = backgroundColor
+        self.selectedTextForegroundColor = selectedTextForegroundColor
+        self.selectedTextBackgroundColor = selectedTextBackgroundColor
         self._scrollPosition = scrollPosition
         self.scrollToRange = scrollToRange
         self.isRestoringTabState = isRestoringTabState
@@ -105,6 +111,18 @@ struct SelectableTextView: NSViewRepresentable {
         contentTextView.isSelectable = true
         contentTextView.backgroundColor = backgroundColor
         contentTextView.drawsBackground = true
+
+        // Apply custom selection colors
+        var selectionAttrs: [NSAttributedString.Key: Any] = [:]
+        if let fg = selectedTextForegroundColor {
+            selectionAttrs[.foregroundColor] = fg
+        }
+        if let bg = selectedTextBackgroundColor {
+            selectionAttrs[.backgroundColor] = bg
+        }
+        if !selectionAttrs.isEmpty {
+            contentTextView.selectedTextAttributes = selectionAttrs
+        }
 
         // Disable unwanted features
         contentTextView.isAutomaticQuoteSubstitutionEnabled = false
@@ -312,6 +330,18 @@ struct SelectableTextView: NSViewRepresentable {
 
             containerView.layer?.backgroundColor = backgroundColor.cgColor
             contentTextView.backgroundColor = backgroundColor
+
+            // Update selection colors
+            var selectionAttrs: [NSAttributedString.Key: Any] = [:]
+            if let fg = selectedTextForegroundColor {
+                selectionAttrs[.foregroundColor] = fg
+            }
+            if let bg = selectedTextBackgroundColor {
+                selectionAttrs[.backgroundColor] = bg
+            }
+            if !selectionAttrs.isEmpty {
+                contentTextView.selectedTextAttributes = selectionAttrs
+            }
         }
 
         // During tab restoration: restore saved scroll position, skip search-to-range
