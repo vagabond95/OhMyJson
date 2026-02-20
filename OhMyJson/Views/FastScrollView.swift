@@ -2,7 +2,7 @@
 //  FastScrollView.swift
 //  OhMyJson
 //
-//  NSScrollView subclass with 1.5x scroll speed via CGEvent delta modification
+//  NSScrollView subclass with 1.5x vertical scroll speed via CGEvent delta modification
 //
 
 import AppKit
@@ -14,7 +14,7 @@ class ClearTrackScroller: NSScroller {
     }
 }
 
-/// NSScrollView with 1.5x scroll speed that preserves NSScrollView's internal state machine.
+/// NSScrollView with 1.5x vertical scroll speed that preserves NSScrollView's internal state machine.
 ///
 /// Instead of bypassing super.scrollWheel and manually setting clipView position,
 /// this modifies the CGEvent's delta values before passing to super, keeping
@@ -78,27 +78,21 @@ class FastScrollView: NSScrollView {
     private static func amplifiedEvent(from event: NSEvent, multiplier: CGFloat) -> NSEvent? {
         guard let cgEvent = event.cgEvent?.copy() else { return nil }
 
-        // .scrollWheelEventDeltaAxis1 = vertical (Int field, line-based delta)
-        // .scrollWheelEventPointDeltaAxis1 = vertical (pixel-based delta for precise scrolling)
-        // Axis2 = horizontal
+        // Amplify only vertical (Axis1) deltas. Horizontal (Axis2) is left unmodified
+        // to avoid interfering with NSScrollView's axis-locking (usesPredominantAxisScrolling)
+        // which causes initial horizontal swipes to be swallowed and then over-accelerated.
 
-        // Amplify pixel-based deltas (used by trackpad precise scrolling)
+        // Amplify vertical pixel-based deltas (used by trackpad precise scrolling)
         let pixelDeltaY = cgEvent.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-        let pixelDeltaX = cgEvent.getDoubleValueField(.scrollWheelEventPointDeltaAxis2)
         cgEvent.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: pixelDeltaY * Double(multiplier))
-        cgEvent.setDoubleValueField(.scrollWheelEventPointDeltaAxis2, value: pixelDeltaX * Double(multiplier))
 
-        // Amplify line-based deltas (used by discrete mouse wheel)
+        // Amplify vertical line-based deltas (used by discrete mouse wheel)
         let lineDeltaY = cgEvent.getIntegerValueField(.scrollWheelEventDeltaAxis1)
-        let lineDeltaX = cgEvent.getIntegerValueField(.scrollWheelEventDeltaAxis2)
         cgEvent.setIntegerValueField(.scrollWheelEventDeltaAxis1, value: Int64(Double(lineDeltaY) * Double(multiplier)))
-        cgEvent.setIntegerValueField(.scrollWheelEventDeltaAxis2, value: Int64(Double(lineDeltaX) * Double(multiplier)))
 
-        // Also amplify the fixedPt deltas which some scroll paths use
+        // Amplify vertical fixedPt deltas which some scroll paths use
         let fixedPtY = cgEvent.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1)
-        let fixedPtX = cgEvent.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2)
         cgEvent.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: fixedPtY * Double(multiplier))
-        cgEvent.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: fixedPtX * Double(multiplier))
 
         return NSEvent(cgEvent: cgEvent)
     }
