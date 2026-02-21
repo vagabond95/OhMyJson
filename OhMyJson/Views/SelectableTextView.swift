@@ -11,6 +11,13 @@ import AppKit
 #if os(macOS)
 // MARK: - NSTextView that clears selection on focus loss
 class DeselectOnResignTextView: NSTextView {
+    var onMouseDown: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        onMouseDown?()
+        super.mouseDown(with: event)
+    }
+
     override func resignFirstResponder() -> Bool {
         setSelectedRange(NSRange(location: selectedRange().location, length: 0))
         return super.resignFirstResponder()
@@ -54,6 +61,7 @@ struct SelectableTextView: NSViewRepresentable {
     @Binding var scrollPosition: CGFloat
     var scrollToRange: NSRange?
     var isRestoringTabState: Bool
+    var onMouseDown: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -65,7 +73,8 @@ struct SelectableTextView: NSViewRepresentable {
         selectedTextBackgroundColor: NSColor? = nil,
         scrollPosition: Binding<CGFloat>,
         scrollToRange: NSRange? = nil,
-        isRestoringTabState: Bool = false
+        isRestoringTabState: Bool = false,
+        onMouseDown: (() -> Void)? = nil
     ) {
         self.attributedString = attributedString
         self.lineNumberString = lineNumberString
@@ -75,6 +84,7 @@ struct SelectableTextView: NSViewRepresentable {
         self._scrollPosition = scrollPosition
         self.scrollToRange = scrollToRange
         self.isRestoringTabState = isRestoringTabState
+        self.onMouseDown = onMouseDown
     }
 
     func makeCoordinator() -> Coordinator {
@@ -140,6 +150,13 @@ struct SelectableTextView: NSViewRepresentable {
 
         // Force layout computation so scroll restoration works on newly created views
         contentTextView.layoutManager?.ensureLayout(for: contentTextView.textContainer!)
+
+        // Wire mouseDown callback via coordinator
+        let coordinator = context.coordinator
+        coordinator.onMouseDown = onMouseDown
+        contentTextView.onMouseDown = { [weak coordinator] in
+            coordinator?.onMouseDown?()
+        }
 
         // Store references
         context.coordinator.contentScrollView = contentScrollView
@@ -273,6 +290,7 @@ struct SelectableTextView: NSViewRepresentable {
     func updateNSView(_ containerView: NSView, context: Context) {
         // Sync coordinator's parent reference so it sees latest isRestoringTabState
         context.coordinator.parent = self
+        context.coordinator.onMouseDown = onMouseDown
 
         guard let contentTextView = context.coordinator.contentTextView,
               let contentScrollView = context.coordinator.contentScrollView else { return }
@@ -381,6 +399,8 @@ struct SelectableTextView: NSViewRepresentable {
         var lastScrolledRange: NSRange?
         /// Flag to prevent scroll binding updates during programmatic scrolls (search navigation)
         private var isScrollingToRange = false
+        /// Callback for mouseDown events (updated by parent on each updateNSView)
+        var onMouseDown: (() -> Void)?
 
         init(_ parent: SelectableTextView) {
             self.parent = parent

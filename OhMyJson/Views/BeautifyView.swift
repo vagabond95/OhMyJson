@@ -16,6 +16,8 @@ struct BeautifyView: View {
     @Binding var currentSearchIndex: Int
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
+    var isSearchDismissed: Bool = false
+    var onMouseDown: (() -> Void)?
 
     @State private var formattedLines: [FormattedLine] = []
     @State private var searchResults: [SearchResult] = []
@@ -46,8 +48,9 @@ struct BeautifyView: View {
             selectedTextForegroundColor: theme.nsSelectedTextColor,
             selectedTextBackgroundColor: theme.nsSelectedTextBackground,
             scrollPosition: $scrollPosition,
-            scrollToRange: isRestoringTabState ? nil : currentSearchResultLocation?.characterRange,
-            isRestoringTabState: isRestoringTabState
+            scrollToRange: isRestoringTabState ? nil : (isSearchDismissed ? nil : currentSearchResultLocation?.characterRange),
+            isRestoringTabState: isRestoringTabState,
+            onMouseDown: onMouseDown
         )
         .onChange(of: searchText) { _, newValue in
             guard isActive else { isDirty = true; return }
@@ -87,6 +90,10 @@ struct BeautifyView: View {
             formatJSON()
             updateSearchResults()
             rebuildBaseAndHighlights()
+        }
+        .onChange(of: isSearchDismissed) { _, _ in
+            guard isActive else { return }
+            applySearchHighlights()
         }
         .onChange(of: settings.isDarkMode) { _, _ in
             guard isActive else { isDirty = true; return }
@@ -194,7 +201,7 @@ struct BeautifyView: View {
     /// Stage 2 only: Overlays search highlights onto the cached base string.
     /// Called when searchText or currentSearchIndex changes (skips Stage 1).
     private func applySearchHighlights() {
-        guard !searchText.isEmpty else {
+        guard !searchText.isEmpty, !isSearchDismissed else {
             cachedContentString = cachedBaseContentString
             return
         }

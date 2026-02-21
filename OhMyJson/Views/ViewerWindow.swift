@@ -188,6 +188,8 @@ struct ViewerWindow: View {
         }
         .onChange(of: viewModel.searchText) { _, _ in
             viewModel.syncSearchState()
+            viewModel.beautifySearchDismissed = false
+            viewModel.treeSearchDismissed = false
         }
         .onChange(of: viewModel.beautifySearchIndex) { _, _ in
             viewModel.syncSearchState()
@@ -200,6 +202,7 @@ struct ViewerWindow: View {
             // Resign input view focus when a tree node is selected
             if newId != nil, !viewModel.isRestoringTabState {
                 NSApp.keyWindow?.makeFirstResponder(nil)
+                viewModel.dismissTreeSearchHighlights()
             }
         }
         .onChange(of: viewModel.treeScrollAnchorId) { _, _ in
@@ -349,7 +352,9 @@ struct ViewerWindow: View {
                             searchText: Bindable(viewModel).searchText,
                             currentSearchIndex: currentSearchIndex,
                             scrollPosition: Bindable(viewModel).beautifyScrollPosition,
-                            isRestoringTabState: viewModel.isRestoringTabState
+                            isRestoringTabState: viewModel.isRestoringTabState,
+                            isSearchDismissed: viewModel.beautifySearchDismissed,
+                            onMouseDown: { viewModel.dismissBeautifySearchHighlights() }
                         )
                         .opacity(viewModel.viewMode == .beautify ? 1 : 0)
                         .allowsHitTesting(viewModel.viewMode == .beautify)
@@ -374,6 +379,7 @@ struct ViewerWindow: View {
                         searchNavigationVersion: viewModel.searchNavigationVersion,
                         treeStructureVersion: viewModel.treeStructureVersion,
                         isRestoringTabState: viewModel.isRestoringTabState,
+                        isSearchDismissed: viewModel.treeSearchDismissed,
                         onVisibleNodesChanged: { nodes in
                             viewModel.updateNodeCache(nodes)
                         }

@@ -1042,6 +1042,214 @@ struct ViewerViewModelTests {
         #expect(observed == true)
     }
 
+    // MARK: - Search Highlight Dismiss
+
+    @Test("dismissBeautifySearchHighlights sets beautifySearchDismissed and leaves treeSearchDismissed independent")
+    func dismissBeautifySearchHighlights() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchText = "test"
+        vm.searchResultCount = 3
+
+        vm.dismissBeautifySearchHighlights()
+
+        #expect(vm.beautifySearchDismissed == true)
+        #expect(vm.treeSearchDismissed == false)
+    }
+
+    @Test("dismissTreeSearchHighlights sets treeSearchDismissed and leaves beautifySearchDismissed independent")
+    func dismissTreeSearchHighlights() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchText = "test"
+        vm.searchResultCount = 3
+
+        vm.dismissTreeSearchHighlights()
+
+        #expect(vm.treeSearchDismissed == true)
+        #expect(vm.beautifySearchDismissed == false)
+    }
+
+    @Test("dismiss is no-op when searchText is empty")
+    func dismissNoOpWhenSearchEmpty() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchText = ""
+
+        vm.dismissBeautifySearchHighlights()
+        vm.dismissTreeSearchHighlights()
+
+        #expect(vm.beautifySearchDismissed == false)
+        #expect(vm.treeSearchDismissed == false)
+    }
+
+    @Test("dismiss is no-op when already dismissed")
+    func dismissNoOpWhenAlreadyDismissed() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchText = "test"
+        vm.beautifySearchDismissed = true
+        vm.treeSearchDismissed = true
+
+        // Should not crash or change state
+        vm.dismissBeautifySearchHighlights()
+        vm.dismissTreeSearchHighlights()
+
+        #expect(vm.beautifySearchDismissed == true)
+        #expect(vm.treeSearchDismissed == true)
+    }
+
+    @Test("nextSearchResult restores dismiss flag for current view mode (beautify)")
+    func nextSearchResultRestoresDismissBeautify() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchResultCount = 3
+        vm.viewMode = .beautify
+        vm.beautifySearchDismissed = true
+
+        vm.nextSearchResult()
+
+        #expect(vm.beautifySearchDismissed == false)
+        #expect(vm.treeSearchDismissed == false) // independent
+    }
+
+    @Test("nextSearchResult restores dismiss flag for current view mode (tree)")
+    func nextSearchResultRestoresDismissTree() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchResultCount = 3
+        vm.viewMode = .tree
+        vm.treeSearchDismissed = true
+
+        vm.nextSearchResult()
+
+        #expect(vm.treeSearchDismissed == false)
+        #expect(vm.beautifySearchDismissed == false) // independent
+    }
+
+    @Test("previousSearchResult restores dismiss flag for current view mode")
+    func previousSearchResultRestoresDismiss() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchResultCount = 3
+        vm.viewMode = .beautify
+        vm.beautifySearchDismissed = true
+        vm.beautifySearchIndex = 1
+
+        vm.previousSearchResult()
+
+        #expect(vm.beautifySearchDismissed == false)
+    }
+
+    @Test("closeSearch resets both dismiss flags")
+    func closeSearchResetsDismiss() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.beautifySearchDismissed = true
+        vm.treeSearchDismissed = true
+
+        vm.closeSearch()
+
+        #expect(vm.beautifySearchDismissed == false)
+        #expect(vm.treeSearchDismissed == false)
+    }
+
+    @Test("clearAll resets both dismiss flags")
+    func clearAllResetsDismiss() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+        vm.createNewTab(with: #"{"key":"value"}"#)
+        vm.beautifySearchDismissed = true
+        vm.treeSearchDismissed = true
+
+        vm.clearAll()
+
+        #expect(vm.beautifySearchDismissed == false)
+        #expect(vm.treeSearchDismissed == false)
+    }
+
+    @Test("saveTabState saves dismiss state to tab")
+    func saveTabStateSavesDismiss() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        vm.beautifySearchDismissed = true
+        vm.treeSearchDismissed = false
+
+        vm.saveTabState(for: id)
+
+        let tab = tabManager.tabs.first(where: { $0.id == id })
+        #expect(tab?.beautifySearchDismissed == true)
+        #expect(tab?.treeSearchDismissed == false)
+    }
+
+    @Test("restoreTabState restores dismiss state from tab")
+    func restoreTabStateRestoresDismiss() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        tabManager.updateTabSearchDismissState(id: id, beautifyDismissed: true, treeDismissed: true)
+
+        vm.restoreTabState()
+
+        #expect(vm.beautifySearchDismissed == true)
+        #expect(vm.treeSearchDismissed == true)
+    }
+
+    @Test("restoreTabState resets dismiss state when no active tab")
+    func restoreTabStateResetsDismissNoTab() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.beautifySearchDismissed = true
+        vm.treeSearchDismissed = true
+
+        vm.restoreTabState()
+
+        #expect(vm.beautifySearchDismissed == false)
+        #expect(vm.treeSearchDismissed == false)
+    }
+
+    @Test("dismissed state preserves navigation position — nextSearchResult continues from last index")
+    func dismissedNavigationContinuesFromLastIndex() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.searchText = "test"
+        vm.searchResultCount = 5
+        vm.viewMode = .beautify
+        vm.beautifySearchIndex = 2
+
+        vm.dismissBeautifySearchHighlights()
+        #expect(vm.beautifySearchDismissed == true)
+
+        vm.nextSearchResult()
+        #expect(vm.beautifySearchDismissed == false)
+        #expect(vm.beautifySearchIndex == 3) // continues from 2 → 3
+    }
+
+    @Test("beautifySearchDismissed observation triggers view update")
+    func beautifySearchDismissedObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.beautifySearchDismissed
+        } onChange: {
+            observed = true
+        }
+
+        vm.beautifySearchDismissed = true
+        #expect(observed == true)
+    }
+
+    @Test("treeSearchDismissed observation triggers view update")
+    func treeSearchDismissedObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.treeSearchDismissed
+        } onChange: {
+            observed = true
+        }
+
+        vm.treeSearchDismissed = true
+        #expect(observed == true)
+    }
+
     @Test("keyboard nav uses cached nodes after expand/collapse")
     func keyboardNavAfterExpandCollapse() {
         let (vm, _, _, _, _) = makeSUT()

@@ -18,6 +18,7 @@ struct TreeView: View {
     var searchNavigationVersion: Int = 0
     var treeStructureVersion: Int = 0
     var isRestoringTabState: Bool = false
+    var isSearchDismissed: Bool = false
     var onVisibleNodesChanged: (([JSONNode]) -> Void)?
 
     @State private var visibleNodes: [JSONNode] = []
@@ -144,8 +145,8 @@ struct TreeView: View {
             ForEach(visibleNodes) { node in
                 TreeNodeView(
                     node: node,
-                    searchText: searchText,
-                    isCurrentSearchResult: currentSearchResultId == node.id,
+                    searchText: isSearchDismissed ? "" : searchText,
+                    isCurrentSearchResult: isSearchDismissed ? false : (currentSearchResultId == node.id),
                     isSelected: selectedNodeId == node.id,
                     onSelect: { selectedNodeId = node.id },
                     onToggleExpand: {

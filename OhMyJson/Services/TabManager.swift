@@ -204,6 +204,13 @@ class TabManager: TabManagerProtocol {
         tabs[index].treeHorizontalScrollOffset = offset
     }
 
+    /// Update the search dismiss state of a specific tab
+    func updateTabSearchDismissState(id: UUID, beautifyDismissed: Bool, treeDismissed: Bool) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].beautifySearchDismissed = beautifyDismissed
+        tabs[index].treeSearchDismissed = treeDismissed
+    }
+
     /// Close all tabs
     func closeAllTabs() {
         tabs.removeAll()

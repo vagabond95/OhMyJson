@@ -54,6 +54,12 @@ struct JSONTab: Identifiable, Equatable {
     /// Horizontal scroll offset for tree view
     var treeHorizontalScrollOffset: CGFloat
 
+    /// Whether search highlights are dismissed in Beautify view
+    var beautifySearchDismissed: Bool
+
+    /// Whether search highlights are dismissed in Tree view
+    var treeSearchDismissed: Bool
+
     init(
         id: UUID = UUID(),
         inputText: String = "",
@@ -70,7 +76,9 @@ struct JSONTab: Identifiable, Equatable {
         beautifyScrollPosition: CGFloat = 0,
         treeSelectedNodeId: UUID? = nil,
         treeScrollAnchorId: UUID? = nil,
-        treeHorizontalScrollOffset: CGFloat = 0
+        treeHorizontalScrollOffset: CGFloat = 0,
+        beautifySearchDismissed: Bool = false,
+        treeSearchDismissed: Bool = false
     ) {
         self.id = id
         self.inputText = inputText
@@ -88,6 +96,8 @@ struct JSONTab: Identifiable, Equatable {
         self.treeSelectedNodeId = treeSelectedNodeId
         self.treeScrollAnchorId = treeScrollAnchorId
         self.treeHorizontalScrollOffset = treeHorizontalScrollOffset
+        self.beautifySearchDismissed = beautifySearchDismissed
+        self.treeSearchDismissed = treeSearchDismissed
     }
 
     /// Update last accessed time to current

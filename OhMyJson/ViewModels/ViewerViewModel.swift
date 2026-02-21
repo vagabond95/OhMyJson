@@ -33,6 +33,8 @@ class ViewerViewModel {
     var searchNavigationVersion: Int = 0
     var isSearchVisible: Bool = false
     var viewMode: ViewMode = .beautify
+    var beautifySearchDismissed: Bool = false
+    var treeSearchDismissed: Bool = false
 
     var inputScrollPosition: CGFloat = 0
     var beautifyScrollPosition: CGFloat = 0
@@ -460,6 +462,7 @@ class ViewerViewModel {
         tabManager.updateTabTreeSelectedNodeId(id: tabId, nodeId: selectedNodeId)
         tabManager.updateTabTreeScrollAnchor(id: tabId, nodeId: treeScrollAnchorId)
         tabManager.updateTabTreeHorizontalScroll(id: tabId, offset: treeHorizontalScrollOffset)
+        tabManager.updateTabSearchDismissState(id: tabId, beautifyDismissed: beautifySearchDismissed, treeDismissed: treeSearchDismissed)
     }
 
     func restoreTabState() {
@@ -480,6 +483,8 @@ class ViewerViewModel {
             treeHorizontalScrollOffset = 0
             selectedNodeId = nil
             treeScrollAnchorId = nil
+            beautifySearchDismissed = false
+            treeSearchDismissed = false
             isRestoringTabState = false
             return
         }
@@ -500,6 +505,8 @@ class ViewerViewModel {
         treeHorizontalScrollOffset = activeTab.treeHorizontalScrollOffset
         selectedNodeId = activeTab.treeSelectedNodeId
         treeScrollAnchorId = activeTab.treeScrollAnchorId
+        beautifySearchDismissed = activeTab.beautifySearchDismissed
+        treeSearchDismissed = activeTab.treeSearchDismissed
 
         if viewMode == .beautify {
             updateSearchResultCountForBeautify()
@@ -555,12 +562,16 @@ class ViewerViewModel {
 
     func nextSearchResult() {
         guard searchResultCount > 0 else { return }
+        if viewMode == .beautify { beautifySearchDismissed = false }
+        else { treeSearchDismissed = false }
         currentSearchIndex = (currentSearchIndex + 1) % searchResultCount
         searchNavigationVersion += 1
     }
 
     func previousSearchResult() {
         guard searchResultCount > 0 else { return }
+        if viewMode == .beautify { beautifySearchDismissed = false }
+        else { treeSearchDismissed = false }
         currentSearchIndex = (currentSearchIndex - 1 + searchResultCount) % searchResultCount
         searchNavigationVersion += 1
     }
@@ -571,6 +582,8 @@ class ViewerViewModel {
         treeSearchIndex = 0
         searchResultCount = 0
         isSearchVisible = false
+        beautifySearchDismissed = false
+        treeSearchDismissed = false
 
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabSearchState(
@@ -581,6 +594,18 @@ class ViewerViewModel {
             )
             tabManager.updateTabSearchVisibility(id: activeTabId, isVisible: false)
         }
+    }
+
+    // MARK: - Search Highlight Dismiss
+
+    func dismissBeautifySearchHighlights() {
+        guard !searchText.isEmpty, !beautifySearchDismissed else { return }
+        beautifySearchDismissed = true
+    }
+
+    func dismissTreeSearchHighlights() {
+        guard !searchText.isEmpty, !treeSearchDismissed else { return }
+        treeSearchDismissed = true
     }
 
     // MARK: - View Mode (moved from ViewerWindow)
@@ -654,6 +679,8 @@ class ViewerViewModel {
         searchResultCount = 0
         beautifySearchIndex = 0
         treeSearchIndex = 0
+        beautifySearchDismissed = false
+        treeSearchDismissed = false
     }
 
     func copyAllJSON() {

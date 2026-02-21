@@ -70,6 +70,13 @@ struct TreeNodeHoverWrapper<Content: View>: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
                 onSelect()
             }
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.arrow.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
