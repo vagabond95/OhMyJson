@@ -127,6 +127,33 @@ struct TreeNodeHoverWrapper<Content: View>: View {
     }
 }
 
+// MARK: - ExpandToggleButton (isolates hover state from TreeNodeContent)
+
+struct ExpandToggleButton: View {
+    let isExpanded: Bool
+    let structureColor: Color
+    let hoverBgColor: Color
+    let onToggle: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Text(isExpanded ? "▼" : "▶")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundColor(structureColor.opacity(0.7))
+            .frame(width: 16, height: 16)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isHovered ? hoverBgColor : Color.clear)
+            )
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                isHovered = hovering
+            }
+            .onTapGesture { onToggle() }
+    }
+}
+
 // MARK: - TreeNodeContent (Equatable — skips body re-evaluation when props unchanged)
 
 struct TreeNodeContent: View, Equatable {
@@ -186,15 +213,15 @@ struct TreeNodeContent: View, Equatable {
     private var expandButton: some View {
         Group {
             if node.value.isContainer && node.value.childCount > 0 {
-                Text(node.isExpanded ? "▼" : "▶")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(structureColor.opacity(0.7))
-                    .frame(width: 16, height: 16)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                ExpandToggleButton(
+                    isExpanded: node.isExpanded,
+                    structureColor: structureColor,
+                    hoverBgColor: theme.toggleHoverBg,
+                    onToggle: {
                         node.toggleExpanded()
                         onToggleExpand?()
                     }
+                )
             } else {
                 Spacer().frame(width: 16)
             }

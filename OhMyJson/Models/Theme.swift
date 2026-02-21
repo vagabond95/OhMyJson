@@ -87,6 +87,9 @@ protocol AppTheme {
     var searchCurrentMatchFg: Color { get }
     var searchOtherMatchFg: Color { get }
 
+    // Toggle
+    var toggleHoverBg: Color { get }
+
     // UI
     var border: Color { get }
     var accent: Color { get }
@@ -139,6 +142,8 @@ struct DarkTheme: AppTheme {
     let searchCurrentMatchFg = Color(hex: "000000")
     let searchOtherMatchFg = Color(hex: "FFE0A0")
 
+    let toggleHoverBg = Color.white.opacity(0.12)
+
     let border = Color(hex: "282827")
     let accent = Color(hex: "FF6B6B")
 
@@ -185,6 +190,8 @@ struct LightTheme: AppTheme {
     let searchOtherMatchBg = Color(hex: "FFE135")
     let searchCurrentMatchFg = Color(hex: "000000")
     let searchOtherMatchFg = Color(hex: "1A1A00")
+
+    let toggleHoverBg = Color.black.opacity(0.08)
 
     let border = Color(hex: "D4D4D4")
     let accent = Color(hex: "D32F2F")
