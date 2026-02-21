@@ -7,6 +7,11 @@ import SwiftUI
 
 #if os(macOS)
 
+private struct TreeSearchOccurrence {
+    let node: JSONNode
+    let localIndex: Int  // 노드 내 occurrence 인덱스 (0-based)
+}
+
 struct TreeView: View {
     var rootNode: JSONNode
     var isActive: Bool = true
@@ -22,9 +27,10 @@ struct TreeView: View {
     var onVisibleNodesChanged: (([JSONNode]) -> Void)?
 
     @State private var visibleNodes: [JSONNode] = []
-    @State private var searchResults: [JSONNode] = []
+    @State private var searchResults: [TreeSearchOccurrence] = []
     @State private var ancestorLastMap: [UUID: [Bool]] = [:]
     @State private var currentSearchResultId: UUID?
+    @State private var currentSearchOccurrenceLocalIndex: Int = 0
     @State private var hasRestoredScroll = false
     @State private var isReady = false
     @State private var hasInitialized = false
@@ -78,6 +84,7 @@ struct TreeView: View {
             guard isActive else { isDirty = true; return }
             updateVisibleNodes()
             currentSearchResultId = nil
+            currentSearchOccurrenceLocalIndex = 0
             if !searchText.isEmpty {
                 updateSearchResults()
             }
@@ -92,9 +99,11 @@ struct TreeView: View {
             if !newValue.isEmpty && !searchResults.isEmpty {
                 selectedNodeId = nil
                 currentSearchIndex = 0
+                currentSearchOccurrenceLocalIndex = 0
                 navigateToSearchResult(index: 0)
             } else {
                 currentSearchResultId = nil
+                currentSearchOccurrenceLocalIndex = 0
             }
         }
         .onChange(of: searchNavigationVersion) { _, _ in
@@ -113,6 +122,7 @@ struct TreeView: View {
             if let nodeId = newId {
                 if !searchText.isEmpty && !searchResults.isEmpty {
                     currentSearchResultId = nil
+                    currentSearchOccurrenceLocalIndex = 0
                 }
                 emitScrollCommand(nodeId: nodeId, anchor: .visible)
             }
@@ -146,7 +156,7 @@ struct TreeView: View {
                 TreeNodeView(
                     node: node,
                     searchText: isSearchDismissed ? "" : searchText,
-                    isCurrentSearchResult: isSearchDismissed ? false : (currentSearchResultId == node.id),
+                    currentOccurrenceLocalIndex: isSearchDismissed ? nil : (currentSearchResultId == node.id ? currentSearchOccurrenceLocalIndex : nil),
                     isSelected: selectedNodeId == node.id,
                     onSelect: { selectedNodeId = node.id },
                     onToggleExpand: {
@@ -325,7 +335,17 @@ struct TreeView: View {
             searchPathCache = (rootId: rootNode.id, query: query, paths: paths)
         }
 
-        searchResults = paths.compactMap { rootNode.nodeAt(childIndices: $0) }
+        let nodes = paths.compactMap { rootNode.nodeAt(childIndices: $0) }
+
+        var occurrences: [TreeSearchOccurrence] = []
+        for node in nodes {
+            let count = JSONValue.leafOccurrenceCount(value: node.value, key: node.key, query: query)
+            guard count > 0 else { continue }
+            for i in 0..<count {
+                occurrences.append(TreeSearchOccurrence(node: node, localIndex: i))
+            }
+        }
+        searchResults = occurrences
     }
 
     private func restoreSearchHighlighting() {
@@ -336,18 +356,22 @@ struct TreeView: View {
         guard !searchResults.isEmpty else { return }
 
         let validIndex = min(currentSearchIndex, searchResults.count - 1)
-        currentSearchResultId = searchResults[validIndex].id
+        let occurrence = searchResults[validIndex]
+        currentSearchResultId = occurrence.node.id
+        currentSearchOccurrenceLocalIndex = occurrence.localIndex
     }
 
     private func navigateToSearchResult(index: Int) {
         guard index >= 0 && index < searchResults.count else { return }
 
-        let targetNode = searchResults[index]
+        let occurrence = searchResults[index]
+        let targetNode = occurrence.node
 
         rootNode.expandPathTo(node: targetNode)
         updateVisibleNodes()
 
         currentSearchResultId = targetNode.id
+        currentSearchOccurrenceLocalIndex = occurrence.localIndex
         scrollAnchorId = targetNode.id
 
         DispatchQueue.main.async {

@@ -9,7 +9,7 @@ import SwiftUI
 struct TreeNodeView: View {
     var node: JSONNode
     let searchText: String
-    let isCurrentSearchResult: Bool
+    let currentOccurrenceLocalIndex: Int?
     let isSelected: Bool
     let onSelect: () -> Void
     let onToggleExpand: (() -> Void)?
@@ -28,7 +28,7 @@ struct TreeNodeView: View {
             TreeNodeContent(
                 node: node,
                 searchText: searchText,
-                isCurrentSearchResult: isCurrentSearchResult,
+                currentOccurrenceLocalIndex: currentOccurrenceLocalIndex,
                 isSelected: isSelected,
                 isDarkMode: settings.isDarkMode,
                 onToggleExpand: onToggleExpand
@@ -132,7 +132,7 @@ struct TreeNodeHoverWrapper<Content: View>: View {
 struct TreeNodeContent: View, Equatable {
     let node: JSONNode
     let searchText: String
-    let isCurrentSearchResult: Bool
+    let currentOccurrenceLocalIndex: Int?
     let isSelected: Bool
     let isDarkMode: Bool
     let onToggleExpand: (() -> Void)?
@@ -141,7 +141,7 @@ struct TreeNodeContent: View, Equatable {
         lhs.node.id == rhs.node.id &&
         lhs.node.isExpanded == rhs.node.isExpanded &&
         lhs.searchText == rhs.searchText &&
-        lhs.isCurrentSearchResult == rhs.isCurrentSearchResult &&
+        lhs.currentOccurrenceLocalIndex == rhs.currentOccurrenceLocalIndex &&
         lhs.isSelected == rhs.isSelected &&
         lhs.isDarkMode == rhs.isDarkMode
     }
@@ -172,7 +172,7 @@ struct TreeNodeContent: View, Equatable {
         }
         .padding(.vertical, 2)
         .background(backgroundColor)
-        .animation(.easeInOut(duration: Animation.quick), value: isCurrentSearchResult)
+        .animation(.easeInOut(duration: Animation.quick), value: currentOccurrenceLocalIndex)
     }
 
     @ViewBuilder
@@ -201,10 +201,26 @@ struct TreeNodeContent: View, Equatable {
         }
     }
 
+    /// Number of search occurrences in the key text (used as offset for value occurrences).
+    private var keyOccurrenceCount: Int {
+        guard !searchText.isEmpty, let key = node.key else { return 0 }
+        let lowerKey = key.lowercased()
+        let lowerSearch = searchText.lowercased()
+        guard !lowerSearch.isEmpty else { return 0 }
+        var count = 0
+        var start = lowerKey.startIndex
+        while start < lowerKey.endIndex,
+              let range = lowerKey.range(of: lowerSearch, range: start..<lowerKey.endIndex) {
+            count += 1
+            start = range.upperBound
+        }
+        return count
+    }
+
     private var keyView: some View {
         Group {
             if let key = node.key {
-                highlightedText(key, color: keyColor)
+                highlightedText(key, color: keyColor, occurrenceOffset: 0)
                     .fontWeight(.medium)
                 Text(": ")
                     .foregroundColor(structureColor)
@@ -222,21 +238,19 @@ struct TreeNodeContent: View, Equatable {
                     .replacingOccurrences(of: "\n", with: "\\n")
                     .replacingOccurrences(of: "\r", with: "\\r")
                     .replacingOccurrences(of: "\t", with: "\\t")
-                highlightedText("\"\(escaped)\"", color: stringColor)
+                highlightedText("\"\(escaped)\"", color: stringColor, occurrenceOffset: keyOccurrenceCount)
 
             case .number(let n):
                 let numStr = n.truncatingRemainder(dividingBy: 1) == 0
                     ? String(format: "%.0f", n)
                     : String(n)
-                highlightedText(numStr, color: numberColor)
+                highlightedText(numStr, color: numberColor, occurrenceOffset: keyOccurrenceCount)
 
             case .bool(let b):
-                highlightedText(b ? "true" : "false", color: booleanColor)
+                highlightedText(b ? "true" : "false", color: booleanColor, occurrenceOffset: keyOccurrenceCount)
 
             case .null:
-                Text("null")
-                    .foregroundColor(nullColor)
-                    .italic()
+                highlightedText("null", color: nullColor, occurrenceOffset: keyOccurrenceCount).italic()
 
             case .object(let dict):
                 HStack(spacing: 4) {
@@ -264,7 +278,7 @@ struct TreeNodeContent: View, Equatable {
         .font(.system(.body, design: .monospaced))
     }
 
-    private func highlightedText(_ text: String, color: Color) -> Text {
+    private func highlightedText(_ text: String, color: Color, occurrenceOffset: Int = 0) -> Text {
         if searchText.isEmpty {
             return Text(text).foregroundColor(color)
         }
@@ -282,12 +296,13 @@ struct TreeNodeContent: View, Equatable {
         // Find all matches and apply background + foreground color + bold
         let matchFont = Font.system(.body, design: .monospaced).bold()
         var searchStart = attrStr.startIndex
+        var matchCounter = 0
         while searchStart < attrStr.endIndex {
             let remainingRange = searchStart..<attrStr.endIndex
             guard let matchRange = attrStr[remainingRange].range(of: lowercasedSearch, options: .caseInsensitive) else {
                 break
             }
-            if isCurrentSearchResult {
+            if currentOccurrenceLocalIndex == occurrenceOffset + matchCounter {
                 attrStr[matchRange].backgroundColor = searchCurrentMatchBgColor
                 attrStr[matchRange].foregroundColor = searchCurrentMatchFgColor
             } else {
@@ -295,6 +310,7 @@ struct TreeNodeContent: View, Equatable {
                 attrStr[matchRange].foregroundColor = searchOtherMatchFgColor
             }
             attrStr[matchRange].font = matchFont
+            matchCounter += 1
             searchStart = matchRange.upperBound
         }
 
@@ -318,7 +334,7 @@ struct TreeNodeView_Previews: PreviewProvider {
         TreeNodeView(
             node: sampleNode,
             searchText: "",
-            isCurrentSearchResult: false,
+            currentOccurrenceLocalIndex: nil,
             isSelected: false,
             onSelect: {},
             onToggleExpand: nil,

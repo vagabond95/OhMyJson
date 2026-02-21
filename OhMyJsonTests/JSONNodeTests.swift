@@ -870,4 +870,156 @@ struct JSONValueTests {
         #expect(newResults.count == 2)
         #expect(newResults.allSatisfy { $0.key == "name" })
     }
+
+    // MARK: - countMatches multi-occurrence
+
+    @Test("countMatches counts multiple occurrences in single value")
+    func countMatchesMultiOccurrenceValue() {
+        let value = JSONValue.object([
+            "data": .string("hello hello")
+        ])
+        // "hello" appears twice in value display text: "\"hello hello\""
+        #expect(value.countMatches(key: nil, query: "hello") == 2)
+    }
+
+    @Test("countMatches counts occurrences in both key and value")
+    func countMatchesKeyAndValue() {
+        let value = JSONValue.object([
+            "name": .string("noname")
+        ])
+        // key "name" has 1 occurrence, value "\"noname\"" has 1 occurrence of "name"
+        #expect(value.countMatches(key: nil, query: "name") == 2)
+    }
+
+    @Test("countMatches counts overlapping-free occurrences")
+    func countMatchesNonOverlapping() {
+        let value = JSONValue.object([
+            "key": .string("aaa")
+        ])
+        // "\"aaa\"" contains "a" 3 times
+        #expect(value.countMatches(key: nil, query: "a") == 3)
+    }
+
+    // MARK: - leafOccurrenceCount
+
+    @Test("leafOccurrenceCount for string value")
+    func leafOccurrenceCountString() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .string("hello hello hello"),
+            key: "data",
+            query: "hello"
+        )
+        // value display: "\"hello hello hello\"" → 3 occurrences
+        // key "data" → 0 occurrences
+        #expect(count == 3)
+    }
+
+    @Test("leafOccurrenceCount for number value")
+    func leafOccurrenceCountNumber() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .number(111),
+            key: "id",
+            query: "1"
+        )
+        // value display: "111" → 3 occurrences of "1"
+        // key "id" → 0 occurrences
+        #expect(count == 3)
+    }
+
+    @Test("leafOccurrenceCount for bool value")
+    func leafOccurrenceCountBool() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .bool(true),
+            key: "isTrue",
+            query: "true"
+        )
+        // value display: "true" → 1 occurrence
+        // key "isTrue" → 1 occurrence (contains "true" at end, case-insensitive)
+        #expect(count == 2)
+    }
+
+    @Test("leafOccurrenceCount for null value")
+    func leafOccurrenceCountNull() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .null,
+            key: "nothing",
+            query: "null"
+        )
+        // value display: "null" → 1
+        // key "nothing" → 0
+        #expect(count == 1)
+    }
+
+    @Test("leafOccurrenceCount for container with matching key")
+    func leafOccurrenceCountContainer() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .object(["inner": .string("val")]),
+            key: "data",
+            query: "data"
+        )
+        // container value → nil (no value text)
+        // key "data" → 1
+        #expect(count == 1)
+    }
+
+    @Test("leafOccurrenceCount for container with no matching key")
+    func leafOccurrenceCountContainerNoMatch() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .array([.string("val")]),
+            key: "[0]",
+            query: "xyz"
+        )
+        #expect(count == 0)
+    }
+
+    @Test("leafOccurrenceCount handles escaped string correctly")
+    func leafOccurrenceCountEscapedString() {
+        // String with newline: raw value is "hello\nworld"
+        // Display text will be: "\"hello\\nworld\"" (escaped)
+        let count = JSONValue.leafOccurrenceCount(
+            value: .string("hello\nworld"),
+            key: nil,
+            query: "hello"
+        )
+        #expect(count == 1)
+    }
+
+    @Test("leafOccurrenceCount with key and value both matching")
+    func leafOccurrenceCountKeyValueBothMatch() {
+        let count = JSONValue.leafOccurrenceCount(
+            value: .string("test test"),
+            key: "test",
+            query: "test"
+        )
+        // key "test" → 1
+        // value "\"test test\"" → 2
+        #expect(count == 3)
+    }
+
+    // MARK: - searchDisplayTexts
+
+    @Test("searchDisplayTexts returns correct key and value texts")
+    func searchDisplayTextsBasic() {
+        let result = JSONValue.searchDisplayTexts(value: .string("hello"), key: "name")
+        #expect(result.keyText == "name")
+        #expect(result.valueText == "\"hello\"")
+    }
+
+    @Test("searchDisplayTexts escapes special characters in strings")
+    func searchDisplayTextsEscaping() {
+        let result = JSONValue.searchDisplayTexts(value: .string("line1\nline2\ttab"), key: nil)
+        #expect(result.keyText == nil)
+        #expect(result.valueText == "\"line1\\nline2\\ttab\"")
+    }
+
+    @Test("searchDisplayTexts returns nil valueText for containers")
+    func searchDisplayTextsContainer() {
+        let objResult = JSONValue.searchDisplayTexts(value: .object(["a": .null]), key: "obj")
+        #expect(objResult.keyText == "obj")
+        #expect(objResult.valueText == nil)
+
+        let arrResult = JSONValue.searchDisplayTexts(value: .array([.null]), key: "[0]")
+        #expect(arrResult.keyText == "[0]")
+        #expect(arrResult.valueText == nil)
+    }
 }

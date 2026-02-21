@@ -113,9 +113,7 @@ enum JSONValue: Equatable {
     }
 
     private func countMatchesRecursive(key: String?, query: String, count: inout Int) {
-        if Self.leafMatches(value: self, key: key, query: query) {
-            count += 1
-        }
+        count += Self.leafOccurrenceCount(value: self, key: key, query: query)
 
         switch self {
         case .object(let dict):
@@ -163,6 +161,63 @@ enum JSONValue: Equatable {
         default:
             break
         }
+    }
+
+    /// Count non-overlapping occurrences of `query` in `text` (case-insensitive).
+    private static func substringCount(in text: String, of query: String) -> Int {
+        let lower = text.lowercased()
+        let lowerQuery = query.lowercased()
+        guard !lowerQuery.isEmpty else { return 0 }
+        var count = 0
+        var searchStart = lower.startIndex
+        while searchStart < lower.endIndex,
+              let range = lower.range(of: lowerQuery, range: searchStart..<lower.endIndex) {
+            count += 1
+            searchStart = range.upperBound
+        }
+        return count
+    }
+
+    /// Return the display texts that TreeNodeView renders for search matching.
+    /// Matches the exact escape/formatting logic used in TreeNodeView.highlightedText.
+    static func searchDisplayTexts(value: JSONValue, key: String?) -> (keyText: String?, valueText: String?) {
+        let keyText = key
+
+        let valueText: String?
+        switch value {
+        case .string(let s):
+            let escaped = s
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+                .replacingOccurrences(of: "\t", with: "\\t")
+            valueText = "\"\(escaped)\""
+        case .number(let n):
+            valueText = n.truncatingRemainder(dividingBy: 1) == 0
+                ? String(format: "%.0f", n)
+                : String(n)
+        case .bool(let b):
+            valueText = b ? "true" : "false"
+        case .null:
+            valueText = "null"
+        case .object, .array:
+            valueText = nil
+        }
+
+        return (keyText: keyText, valueText: valueText)
+    }
+
+    /// Count all text-level occurrences of `query` in the display texts of a leaf node.
+    static func leafOccurrenceCount(value: JSONValue, key: String?, query: String) -> Int {
+        let texts = searchDisplayTexts(value: value, key: key)
+        var count = 0
+        if let keyText = texts.keyText {
+            count += substringCount(in: keyText, of: query)
+        }
+        if let valueText = texts.valueText {
+            count += substringCount(in: valueText, of: query)
+        }
+        return count
     }
 
     /// Check if a leaf node matches the search query (same logic as JSONNode.matches).
