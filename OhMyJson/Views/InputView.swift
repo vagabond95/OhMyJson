@@ -33,7 +33,7 @@ class EditableTextView: NSTextView {
         // Space: 49, Return: 36, Enter(numpad): 76
         if keyCode == KeyCode.space || keyCode == KeyCode.returnKey || keyCode == KeyCode.numpadEnter {
             let isEmpty = self.string.isEmpty
-            let isAtEnd = self.selectedRange().location >= self.string.count
+            let isAtEnd = self.selectedRange().location >= (self.string as NSString).length
             if isEmpty || isAtEnd {
                 return
             }
