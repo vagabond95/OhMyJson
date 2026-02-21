@@ -99,7 +99,7 @@ struct TreeNodeHoverWrapper<Content: View>: View {
                         }
                     }
                     .fixedSize()
-                    .frame(width: max(startX - 14, 0), alignment: .trailing)
+                    .offset(x: startX + 22)
                     .allowsHitTesting(true)
                 }
             }
