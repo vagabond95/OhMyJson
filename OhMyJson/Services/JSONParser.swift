@@ -93,6 +93,89 @@ class JSONParser: JSONParserProtocol {
         return output
     }
 
+    // MARK: - Escape Sequence Stripping
+
+    /// Strip decoded control characters (\n, \t, \r, \f, \b) from a Swift String.
+    /// Used by TreeView where Foundation has already decoded escape sequences into actual characters.
+    /// Each control character is replaced with a space; consecutive spaces are collapsed to one.
+    static func stripControlCharacters(_ s: String) -> String {
+        var result: [Character] = []
+        result.reserveCapacity(s.count)
+        var lastWasSpace = false
+
+        for char in s {
+            switch char {
+            case "\n", "\t", "\r", "\u{0C}", "\u{08}":
+                if !lastWasSpace {
+                    result.append(" ")
+                    lastWasSpace = true
+                }
+            case " ":
+                if !lastWasSpace {
+                    result.append(" ")
+                    lastWasSpace = true
+                }
+            default:
+                result.append(char)
+                lastWasSpace = false
+            }
+        }
+
+        return String(result)
+    }
+
+    /// Strip literal escape sequences (backslash+char) from a JSON-encoded string.
+    /// Used by BeautifyView where text contains literal `\n`, `\t`, etc. (two-character sequences).
+    /// Preserves `\\` (escaped backslash) and `\"` (escaped quote). Collapses consecutive spaces.
+    static func stripEscapeSequencesInJSONString(_ s: String) -> String {
+        var result: [Character] = []
+        result.reserveCapacity(s.count)
+        var lastWasSpace = false
+        var i = s.startIndex
+
+        while i < s.endIndex {
+            let char = s[i]
+
+            if char == "\\" {
+                let next = s.index(after: i)
+                if next < s.endIndex {
+                    let nextChar = s[next]
+                    switch nextChar {
+                    case "n", "t", "r", "f", "b":
+                        // Replace escape sequence with space
+                        if !lastWasSpace {
+                            result.append(" ")
+                            lastWasSpace = true
+                        }
+                        i = s.index(after: next)
+                        continue
+                    default:
+                        // Keep \\ , \" , \uXXXX, etc. — append both characters
+                        result.append(char)
+                        result.append(nextChar)
+                        lastWasSpace = false
+                        i = s.index(after: next)
+                        continue
+                    }
+                }
+            }
+
+            if char == " " {
+                if !lastWasSpace {
+                    result.append(" ")
+                    lastWasSpace = true
+                }
+            } else {
+                result.append(char)
+                lastWasSpace = false
+            }
+
+            i = s.index(after: i)
+        }
+
+        return String(result)
+    }
+
     func validateJSON(_ jsonString: String) -> Bool {
         let sanitized = sanitizeForJSON(jsonString)
         let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)

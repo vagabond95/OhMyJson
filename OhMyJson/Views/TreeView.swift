@@ -117,6 +117,13 @@ struct TreeView: View {
             guard isActive else { isDirty = true; return }
             updateVisibleNodes()
         }
+        .onChange(of: settings.ignoreEscapeSequences) { _, _ in
+            guard isActive else { isDirty = true; return }
+            searchPathCache = nil
+            if !searchText.isEmpty {
+                updateSearchResults()
+            }
+        }
         .onChange(of: selectedNodeId) { _, newId in
             guard isActive else { return }
             if let nodeId = newId {
@@ -331,7 +338,7 @@ struct TreeView: View {
         if let cache = searchPathCache, cache.rootId == rootNode.id, cache.query == query {
             paths = cache.paths
         } else {
-            paths = rootNode.value.searchMatchPaths(key: rootNode.key, query: query)
+            paths = rootNode.value.searchMatchPaths(key: rootNode.key, query: query, ignoreEscapeSequences: settings.ignoreEscapeSequences)
             searchPathCache = (rootId: rootNode.id, query: query, paths: paths)
         }
 
@@ -339,7 +346,7 @@ struct TreeView: View {
 
         var occurrences: [TreeSearchOccurrence] = []
         for node in nodes {
-            let count = JSONValue.leafOccurrenceCount(value: node.value, key: node.key, query: query)
+            let count = JSONValue.leafOccurrenceCount(value: node.value, key: node.key, query: query, ignoreEscapeSequences: settings.ignoreEscapeSequences)
             guard count > 0 else { continue }
             for i in 0..<count {
                 occurrences.append(TreeSearchOccurrence(node: node, localIndex: i))

@@ -388,6 +388,67 @@ struct JSONParserTests {
         #expect(!minified!.contains("4.5999999999999996"))
     }
 
+    // MARK: - stripControlCharacters
+
+    @Test("stripControlCharacters replaces control chars with space")
+    func stripControlCharactersBasic() {
+        #expect(JSONParser.stripControlCharacters("hello\nworld") == "hello world")
+        #expect(JSONParser.stripControlCharacters("hello\tworld") == "hello world")
+        #expect(JSONParser.stripControlCharacters("hello\rworld") == "hello world")
+        #expect(JSONParser.stripControlCharacters("hello\u{0C}world") == "hello world")
+        #expect(JSONParser.stripControlCharacters("hello\u{08}world") == "hello world")
+    }
+
+    @Test("stripControlCharacters collapses consecutive spaces")
+    func stripControlCharactersCollapse() {
+        #expect(JSONParser.stripControlCharacters("a\n\n\nb") == "a b")
+        #expect(JSONParser.stripControlCharacters("a\n \t\rb") == "a b")
+        #expect(JSONParser.stripControlCharacters("a   b") == "a b")
+    }
+
+    @Test("stripControlCharacters preserves backslashes")
+    func stripControlCharactersBackslash() {
+        #expect(JSONParser.stripControlCharacters("path\\to\\file") == "path\\to\\file")
+    }
+
+    @Test("stripControlCharacters returns same string when no control chars")
+    func stripControlCharactersNoOp() {
+        #expect(JSONParser.stripControlCharacters("hello world") == "hello world")
+        #expect(JSONParser.stripControlCharacters("") == "")
+    }
+
+    // MARK: - stripEscapeSequencesInJSONString
+
+    @Test("stripEscapeSequencesInJSONString replaces literal escape sequences")
+    func stripEscapeSequencesBasic() {
+        #expect(JSONParser.stripEscapeSequencesInJSONString("hello\\nworld") == "hello world")
+        #expect(JSONParser.stripEscapeSequencesInJSONString("hello\\tworld") == "hello world")
+        #expect(JSONParser.stripEscapeSequencesInJSONString("hello\\rworld") == "hello world")
+        #expect(JSONParser.stripEscapeSequencesInJSONString("hello\\fworld") == "hello world")
+        #expect(JSONParser.stripEscapeSequencesInJSONString("hello\\bworld") == "hello world")
+    }
+
+    @Test("stripEscapeSequencesInJSONString collapses consecutive")
+    func stripEscapeSequencesCollapse() {
+        #expect(JSONParser.stripEscapeSequencesInJSONString("a\\n\\n\\nb") == "a b")
+        #expect(JSONParser.stripEscapeSequencesInJSONString("a\\n \\t\\rb") == "a b")
+    }
+
+    @Test("stripEscapeSequencesInJSONString preserves escaped backslash")
+    func stripEscapeSequencesPreservesBackslash() {
+        #expect(JSONParser.stripEscapeSequencesInJSONString("path\\\\to\\\\file") == "path\\\\to\\\\file")
+    }
+
+    @Test("stripEscapeSequencesInJSONString preserves escaped quote")
+    func stripEscapeSequencesPreservesQuote() {
+        #expect(JSONParser.stripEscapeSequencesInJSONString("say \\\"hello\\\"") == "say \\\"hello\\\"")
+    }
+
+    @Test("stripEscapeSequencesInJSONString preserves unicode escapes")
+    func stripEscapeSequencesPreservesUnicode() {
+        #expect(JSONParser.stripEscapeSequencesInJSONString("\\u0041BC") == "\\u0041BC")
+    }
+
     @Test("minifyJSON preserves precision in complex case")
     func minifyJSONPreservesPrecisionComplex() {
         let json = #"{"name":"Claude","version":4.6,"scores":[0.1,0.3],"nested":{"val":-4.6}}"#

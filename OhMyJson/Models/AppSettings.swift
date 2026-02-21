@@ -154,6 +154,7 @@ class AppSettings {
     private let lastInstalledVersionKey = "lastInstalledVersion"
     private let defaultViewModeKey = "defaultViewMode"
     private let autoCheckForUpdatesKey = "autoCheckForUpdates"
+    private let ignoreEscapeSequencesKey = "ignoreEscapeSequences"
 
     // Legacy key for migration
     private let legacyHotKeyKey = "hotKeyCombo"
@@ -251,6 +252,12 @@ class AppSettings {
         }
     }
 
+    var ignoreEscapeSequences: Bool {
+        didSet {
+            UserDefaults.standard.set(ignoreEscapeSequences, forKey: ignoreEscapeSequencesKey)
+        }
+    }
+
     // MARK: - Init
 
     private init() {
@@ -317,6 +324,9 @@ class AppSettings {
         // Load Auto Check for Updates (default: false)
         self.autoCheckForUpdates = UserDefaults.standard.bool(forKey: autoCheckForUpdatesKey)
 
+        // Load Ignore Escape Sequences (default: false)
+        self.ignoreEscapeSequences = UserDefaults.standard.bool(forKey: ignoreEscapeSequencesKey)
+
     }
 
     // MARK: - Hotkey Persistence
@@ -360,6 +370,7 @@ class AppSettings {
         themeMode = .dark
         defaultViewMode = .beautify
         autoCheckForUpdates = false
+        ignoreEscapeSequences = false
     }
 }
 

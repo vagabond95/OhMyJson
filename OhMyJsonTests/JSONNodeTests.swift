@@ -1012,6 +1012,65 @@ struct JSONValueTests {
         #expect(result.valueText == "\"line1\\nline2\\ttab\"")
     }
 
+    @Test("searchDisplayTexts with ignoreEscapeSequences strips control chars")
+    func searchDisplayTextsIgnoreEscapes() {
+        let result = JSONValue.searchDisplayTexts(value: .string("hello\nworld"), key: nil, ignoreEscapeSequences: true)
+        #expect(result.valueText == "\"hello world\"")
+    }
+
+    @Test("searchDisplayTexts with ignoreEscapeSequences strips key control chars")
+    func searchDisplayTextsIgnoreEscapesKey() {
+        let result = JSONValue.searchDisplayTexts(value: .string("val"), key: "key\twith\ttabs", ignoreEscapeSequences: true)
+        #expect(result.keyText == "key with tabs")
+    }
+
+    @Test("searchDisplayTexts with ignoreEscapeSequences collapses consecutive")
+    func searchDisplayTextsIgnoreEscapesCollapse() {
+        let result = JSONValue.searchDisplayTexts(value: .string("a\n\n\nb"), key: nil, ignoreEscapeSequences: true)
+        #expect(result.valueText == "\"a b\"")
+    }
+
+    @Test("searchDisplayTexts with ignoreEscapeSequences preserves backslash")
+    func searchDisplayTextsIgnoreEscapesBackslash() {
+        let result = JSONValue.searchDisplayTexts(value: .string("path\\to"), key: nil, ignoreEscapeSequences: true)
+        #expect(result.valueText == "\"path\\\\to\"")
+    }
+
+    @Test("countMatches with ignoreEscapeSequences matches stripped text")
+    func countMatchesIgnoreEscapes() {
+        let value = JSONValue.object([
+            "msg": .string("hello\nworld")
+        ])
+        // With escape sequences: display is "hello\nworld", "hello world" won't match
+        #expect(value.countMatches(key: nil, query: "hello world", ignoreEscapeSequences: false) == 0)
+        // With ignoreEscapeSequences: display becomes "hello world"
+        #expect(value.countMatches(key: nil, query: "hello world", ignoreEscapeSequences: true) == 1)
+    }
+
+    @Test("searchMatchPaths with ignoreEscapeSequences finds matches on stripped text")
+    func searchMatchPathsIgnoreEscapes() {
+        let value = JSONValue.object([
+            "data": .string("hello\nworld")
+        ])
+        let pathsNormal = value.searchMatchPaths(key: nil, query: "hello world", ignoreEscapeSequences: false)
+        #expect(pathsNormal.isEmpty)
+
+        let pathsStripped = value.searchMatchPaths(key: nil, query: "hello world", ignoreEscapeSequences: true)
+        #expect(pathsStripped.count == 1)
+    }
+
+    @Test("leafOccurrenceCount with ignoreEscapeSequences")
+    func leafOccurrenceCountIgnoreEscapes() {
+        // "hello\nworld" with ignoreEscapeSequences → display: "\"hello world\""
+        let count = JSONValue.leafOccurrenceCount(
+            value: .string("hello\nworld"),
+            key: nil,
+            query: "hello world",
+            ignoreEscapeSequences: true
+        )
+        #expect(count == 1)
+    }
+
     @Test("searchDisplayTexts returns nil valueText for containers")
     func searchDisplayTextsContainer() {
         let objResult = JSONValue.searchDisplayTexts(value: .object(["a": .null]), key: "obj")

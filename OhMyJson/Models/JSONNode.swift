@@ -106,23 +106,23 @@ enum JSONValue: Equatable {
     // MARK: - Search without JSONNode materialization
 
     /// Count matches in the JSONValue tree without creating any JSONNode objects.
-    func countMatches(key: String?, query: String) -> Int {
+    func countMatches(key: String?, query: String, ignoreEscapeSequences: Bool = false) -> Int {
         var count = 0
-        countMatchesRecursive(key: key, query: query, count: &count)
+        countMatchesRecursive(key: key, query: query, ignoreEscapeSequences: ignoreEscapeSequences, count: &count)
         return count
     }
 
-    private func countMatchesRecursive(key: String?, query: String, count: inout Int) {
-        count += Self.leafOccurrenceCount(value: self, key: key, query: query)
+    private func countMatchesRecursive(key: String?, query: String, ignoreEscapeSequences: Bool, count: inout Int) {
+        count += Self.leafOccurrenceCount(value: self, key: key, query: query, ignoreEscapeSequences: ignoreEscapeSequences)
 
         switch self {
         case .object(let dict):
             for (childKey, childValue) in dict {
-                childValue.countMatchesRecursive(key: childKey, query: query, count: &count)
+                childValue.countMatchesRecursive(key: childKey, query: query, ignoreEscapeSequences: ignoreEscapeSequences, count: &count)
             }
         case .array(let arr):
             for (index, childValue) in arr.enumerated() {
-                childValue.countMatchesRecursive(key: "[\(index)]", query: query, count: &count)
+                childValue.countMatchesRecursive(key: "[\(index)]", query: query, ignoreEscapeSequences: ignoreEscapeSequences, count: &count)
             }
         default:
             break
@@ -131,14 +131,14 @@ enum JSONValue: Equatable {
 
     /// Find paths (child indices at each depth) to all matching nodes.
     /// Paths use sorted-key order for objects (matching JSONNode.buildChildren).
-    func searchMatchPaths(key: String?, query: String) -> [[Int]] {
+    func searchMatchPaths(key: String?, query: String, ignoreEscapeSequences: Bool = false) -> [[Int]] {
         var results: [[Int]] = []
-        searchMatchPathsRecursive(key: key, query: query, currentPath: [], results: &results)
+        searchMatchPathsRecursive(key: key, query: query, ignoreEscapeSequences: ignoreEscapeSequences, currentPath: [], results: &results)
         return results
     }
 
-    private func searchMatchPathsRecursive(key: String?, query: String, currentPath: [Int], results: inout [[Int]]) {
-        if Self.leafMatches(value: self, key: key, query: query) {
+    private func searchMatchPathsRecursive(key: String?, query: String, ignoreEscapeSequences: Bool, currentPath: [Int], results: inout [[Int]]) {
+        if Self.leafMatches(value: self, key: key, query: query, ignoreEscapeSequences: ignoreEscapeSequences) {
             results.append(currentPath)
         }
 
@@ -147,14 +147,14 @@ enum JSONValue: Equatable {
             let sortedKeys = dict.keys.sorted()
             for (index, childKey) in sortedKeys.enumerated() {
                 dict[childKey]!.searchMatchPathsRecursive(
-                    key: childKey, query: query,
+                    key: childKey, query: query, ignoreEscapeSequences: ignoreEscapeSequences,
                     currentPath: currentPath + [index], results: &results
                 )
             }
         case .array(let arr):
             for (index, childValue) in arr.enumerated() {
                 childValue.searchMatchPathsRecursive(
-                    key: "[\(index)]", query: query,
+                    key: "[\(index)]", query: query, ignoreEscapeSequences: ignoreEscapeSequences,
                     currentPath: currentPath + [index], results: &results
                 )
             }
@@ -180,18 +180,28 @@ enum JSONValue: Equatable {
 
     /// Return the display texts that TreeNodeView renders for search matching.
     /// Matches the exact escape/formatting logic used in TreeNodeView.highlightedText.
-    static func searchDisplayTexts(value: JSONValue, key: String?) -> (keyText: String?, valueText: String?) {
-        let keyText = key
+    static func searchDisplayTexts(value: JSONValue, key: String?, ignoreEscapeSequences: Bool = false) -> (keyText: String?, valueText: String?) {
+        let keyText: String?
+        if let key = key {
+            keyText = ignoreEscapeSequences ? JSONParser.stripControlCharacters(key) : key
+        } else {
+            keyText = nil
+        }
 
         let valueText: String?
         switch value {
         case .string(let s):
-            let escaped = s
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\n", with: "\\n")
-                .replacingOccurrences(of: "\r", with: "\\r")
-                .replacingOccurrences(of: "\t", with: "\\t")
-            valueText = "\"\(escaped)\""
+            if ignoreEscapeSequences {
+                let stripped = JSONParser.stripControlCharacters(s)
+                valueText = "\"\(stripped.replacingOccurrences(of: "\\", with: "\\\\"))\""
+            } else {
+                let escaped = s
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "\n", with: "\\n")
+                    .replacingOccurrences(of: "\r", with: "\\r")
+                    .replacingOccurrences(of: "\t", with: "\\t")
+                valueText = "\"\(escaped)\""
+            }
         case .number(let n):
             valueText = n.truncatingRemainder(dividingBy: 1) == 0
                 ? String(format: "%.0f", n)
@@ -208,8 +218,8 @@ enum JSONValue: Equatable {
     }
 
     /// Count all text-level occurrences of `query` in the display texts of a leaf node.
-    static func leafOccurrenceCount(value: JSONValue, key: String?, query: String) -> Int {
-        let texts = searchDisplayTexts(value: value, key: key)
+    static func leafOccurrenceCount(value: JSONValue, key: String?, query: String, ignoreEscapeSequences: Bool = false) -> Int {
+        let texts = searchDisplayTexts(value: value, key: key, ignoreEscapeSequences: ignoreEscapeSequences)
         var count = 0
         if let keyText = texts.keyText {
             count += substringCount(in: keyText, of: query)
@@ -221,14 +231,22 @@ enum JSONValue: Equatable {
     }
 
     /// Check if a leaf node matches the search query (same logic as JSONNode.matches).
-    private static func leafMatches(value: JSONValue, key: String?, query: String) -> Bool {
-        if let key = key, key.lowercased().contains(query) {
+    private static func leafMatches(value: JSONValue, key: String?, query: String, ignoreEscapeSequences: Bool = false) -> Bool {
+        let displayKey: String?
+        if let key = key {
+            displayKey = ignoreEscapeSequences ? JSONParser.stripControlCharacters(key) : key
+        } else {
+            displayKey = nil
+        }
+
+        if let displayKey = displayKey, displayKey.lowercased().contains(query) {
             return true
         }
 
         switch value {
         case .string(let s):
-            return s.lowercased().contains(query)
+            let displayValue = ignoreEscapeSequences ? JSONParser.stripControlCharacters(s) : s
+            return displayValue.lowercased().contains(query)
         case .number(let n):
             let numStr = n.truncatingRemainder(dividingBy: 1) == 0
                 ? String(format: "%.0f", n)

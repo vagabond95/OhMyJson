@@ -153,6 +153,19 @@ struct SettingsWindowView: View {
                         indentSegment
                     }
                 }
+
+                // Ignore Escape Sequences
+                settingsCard {
+                    HStack {
+                        Text("Ignore escape sequences on view")
+                            .font(.system(size: 13))
+                            .foregroundColor(theme.primaryText)
+                        Spacer()
+                        Toggle("", isOn: $settings.ignoreEscapeSequences)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)

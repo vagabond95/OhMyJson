@@ -342,6 +342,51 @@ struct AppSettingsDefaultsTests {
         settings.autoCheckForUpdates = saved
     }
 
+    // MARK: - Ignore Escape Sequences Tests
+
+    @Test("ignoreEscapeSequences defaults to false")
+    func ignoreEscapeSequencesDefault() {
+        let settings = AppSettings.shared
+        let saved = settings.ignoreEscapeSequences
+        settings.resetToDefaults()
+        #expect(settings.ignoreEscapeSequences == false)
+        settings.ignoreEscapeSequences = saved
+    }
+
+    @Test("ignoreEscapeSequences is included in resetToDefaults")
+    func ignoreEscapeSequencesReset() {
+        let settings = AppSettings.shared
+        let saved = settings.ignoreEscapeSequences
+
+        settings.ignoreEscapeSequences = true
+        #expect(settings.ignoreEscapeSequences == true)
+
+        settings.resetToDefaults()
+        #expect(settings.ignoreEscapeSequences == false)
+
+        settings.ignoreEscapeSequences = saved
+    }
+
+    @Test("ignoreEscapeSequences observation triggers on change")
+    func ignoreEscapeSequencesObservation() {
+        let settings = AppSettings.shared
+        let saved = settings.ignoreEscapeSequences
+
+        settings.ignoreEscapeSequences = false
+
+        var didChange = false
+        withObservationTracking {
+            _ = settings.ignoreEscapeSequences
+        } onChange: {
+            didChange = true
+        }
+
+        settings.ignoreEscapeSequences = true
+        #expect(didChange == true, "Changing ignoreEscapeSequences must trigger observation")
+
+        settings.ignoreEscapeSequences = saved
+    }
+
     // MARK: - Default View Mode Tests
 
     @Test("defaultViewMode can be set to tree")

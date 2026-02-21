@@ -209,6 +209,9 @@
         }
       }
     },
+    "Ignore escape sequences on view" : {
+
+    },
     "input.placeholder" : {
       "localizations" : {
         "en" : {
@@ -262,22 +265,22 @@
         }
       }
     },
-    "menu.collapse_all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Collapse All"
-          }
-        }
-      }
-    },
     "menu.close_tab" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close Tab"
+          }
+        }
+      }
+    },
+    "menu.collapse_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse All"
           }
         }
       }
@@ -292,22 +295,22 @@
         }
       }
     },
-    "menu.expand_all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expand All"
-          }
-        }
-      }
-    },
     "menu.cut" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cut"
+          }
+        }
+      }
+    },
+    "menu.expand_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All"
           }
         }
       }
@@ -851,16 +854,6 @@
         }
       }
     },
-    "shortcuts.collapse_all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Collapse All"
-          }
-        }
-      }
-    },
     "shortcuts.close_search" : {
       "localizations" : {
         "en" : {
@@ -877,6 +870,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close Tab"
+          }
+        }
+      }
+    },
+    "shortcuts.collapse_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse All"
           }
         }
       }
@@ -1202,16 +1205,6 @@
         }
       }
     },
-    "tooltip.collapse_all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Collapse All (⌘⇧-)"
-          }
-        }
-      }
-    },
     "tooltip.clear" : {
       "localizations" : {
         "en" : {
@@ -1222,12 +1215,12 @@
         }
       }
     },
-    "tooltip.expand_all" : {
+    "tooltip.collapse_all" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Expand All (⌘⇧+)"
+            "value" : "Collapse All (⌘⇧-)"
           }
         }
       }
@@ -1278,6 +1271,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy Value"
+          }
+        }
+      }
+    },
+    "tooltip.expand_all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All (⌘⇧+)"
           }
         }
       }

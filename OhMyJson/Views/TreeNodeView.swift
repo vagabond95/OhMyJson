@@ -31,6 +31,7 @@ struct TreeNodeView: View {
                 currentOccurrenceLocalIndex: currentOccurrenceLocalIndex,
                 isSelected: isSelected,
                 isDarkMode: settings.isDarkMode,
+                ignoreEscapeSequences: settings.ignoreEscapeSequences,
                 onToggleExpand: onToggleExpand
             )
             .equatable()
@@ -162,6 +163,7 @@ struct TreeNodeContent: View, Equatable {
     let currentOccurrenceLocalIndex: Int?
     let isSelected: Bool
     let isDarkMode: Bool
+    let ignoreEscapeSequences: Bool
     let onToggleExpand: (() -> Void)?
 
     static func == (lhs: Self, rhs: Self) -> Bool {
@@ -170,7 +172,8 @@ struct TreeNodeContent: View, Equatable {
         lhs.searchText == rhs.searchText &&
         lhs.currentOccurrenceLocalIndex == rhs.currentOccurrenceLocalIndex &&
         lhs.isSelected == rhs.isSelected &&
-        lhs.isDarkMode == rhs.isDarkMode
+        lhs.isDarkMode == rhs.isDarkMode &&
+        lhs.ignoreEscapeSequences == rhs.ignoreEscapeSequences
     }
 
     @Environment(AppSettings.self) var settings
@@ -231,7 +234,8 @@ struct TreeNodeContent: View, Equatable {
     /// Number of search occurrences in the key text (used as offset for value occurrences).
     private var keyOccurrenceCount: Int {
         guard !searchText.isEmpty, let key = node.key else { return 0 }
-        let lowerKey = key.lowercased()
+        let displayKey = ignoreEscapeSequences ? JSONParser.stripControlCharacters(key) : key
+        let lowerKey = displayKey.lowercased()
         let lowerSearch = searchText.lowercased()
         guard !lowerSearch.isEmpty else { return 0 }
         var count = 0
@@ -247,7 +251,8 @@ struct TreeNodeContent: View, Equatable {
     private var keyView: some View {
         Group {
             if let key = node.key {
-                highlightedText(key, color: keyColor, occurrenceOffset: 0)
+                let displayKey = ignoreEscapeSequences ? JSONParser.stripControlCharacters(key) : key
+                highlightedText(displayKey, color: keyColor, occurrenceOffset: 0)
                     .fontWeight(.medium)
                 Text(": ")
                     .foregroundColor(structureColor)
@@ -260,12 +265,7 @@ struct TreeNodeContent: View, Equatable {
         Group {
             switch node.value {
             case .string(let s):
-                let escaped = s
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "\n", with: "\\n")
-                    .replacingOccurrences(of: "\r", with: "\\r")
-                    .replacingOccurrences(of: "\t", with: "\\t")
-                highlightedText("\"\(escaped)\"", color: stringColor, occurrenceOffset: keyOccurrenceCount)
+                highlightedText(escapedStringDisplay(s), color: stringColor, occurrenceOffset: keyOccurrenceCount)
 
             case .number(let n):
                 let numStr = n.truncatingRemainder(dividingBy: 1) == 0
@@ -303,6 +303,20 @@ struct TreeNodeContent: View, Equatable {
             }
         }
         .font(.system(.body, design: .monospaced))
+    }
+
+    private func escapedStringDisplay(_ s: String) -> String {
+        if ignoreEscapeSequences {
+            let stripped = JSONParser.stripControlCharacters(s)
+            return "\"\(stripped.replacingOccurrences(of: "\\", with: "\\\\"))\""
+        } else {
+            let escaped = s
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+                .replacingOccurrences(of: "\t", with: "\\t")
+            return "\"\(escaped)\""
+        }
     }
 
     private func highlightedText(_ text: String, color: Color, occurrenceOffset: Int = 0) -> Text {

@@ -531,7 +531,11 @@ class ViewerViewModel {
             searchResultCount = 0
         } else {
             // Count matches at JSONValue level — no JSONNode materialization needed
-            searchResultCount = rootNode.value.countMatches(key: rootNode.key, query: searchText.lowercased())
+            searchResultCount = rootNode.value.countMatches(
+                key: rootNode.key,
+                query: searchText.lowercased(),
+                ignoreEscapeSequences: AppSettings.shared.ignoreEscapeSequences
+            )
         }
     }
 

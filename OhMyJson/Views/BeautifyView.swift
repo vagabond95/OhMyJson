@@ -100,6 +100,12 @@ struct BeautifyView: View {
             formatJSON()
             rebuildBaseAndHighlights()
         }
+        .onChange(of: settings.ignoreEscapeSequences) { _, _ in
+            guard isActive else { isDirty = true; return }
+            formatJSON()
+            updateSearchResults()
+            rebuildBaseAndHighlights()
+        }
         .background(theme.background)
     }
 
@@ -310,17 +316,17 @@ struct BeautifyView: View {
 
     private func formatJSON() {
         // formattedJSON is already formatted, just tokenize it
-        formattedLines = tokenizeFormattedJSON(formattedJSON)
+        formattedLines = tokenizeFormattedJSON(formattedJSON, stripEscapes: settings.ignoreEscapeSequences)
     }
 
-    private func tokenizeFormattedJSON(_ json: String) -> [FormattedLine] {
+    private func tokenizeFormattedJSON(_ json: String, stripEscapes: Bool = false) -> [FormattedLine] {
         let lines = json.components(separatedBy: "\n")
         return lines.map { line in
-            FormattedLine(tokens: tokenizeLine(line))
+            FormattedLine(tokens: tokenizeLine(line, stripEscapes: stripEscapes))
         }
     }
 
-    private func tokenizeLine(_ line: String) -> [JSONToken] {
+    private func tokenizeLine(_ line: String, stripEscapes: Bool = false) -> [JSONToken] {
         var tokens: [JSONToken] = []
         var remaining = line[...]
 
@@ -350,7 +356,17 @@ struct BeautifyView: View {
                     let afterString = remaining.drop(while: { $0 == " " })
                     let isKey = afterString.first == ":"
 
-                    tokens.append(JSONToken(text: stringContent, type: isKey ? .key : .string))
+                    let tokenText: String
+                    if stripEscapes {
+                        // Strip escape sequences inside the quoted string, preserve quotes
+                        let inner = String(stringContent.dropFirst().dropLast())
+                        let stripped = JSONParser.stripEscapeSequencesInJSONString(inner)
+                        tokenText = "\"\(stripped)\""
+                    } else {
+                        tokenText = stringContent
+                    }
+
+                    tokens.append(JSONToken(text: tokenText, type: isKey ? .key : .string))
                     continue
                 }
             }
