@@ -48,8 +48,8 @@ struct TreeNodeHoverWrapper<Content: View>: View {
 
     @State private var isHovered = false
     @State private var isOverlayHovered = false
-    @State private var dismissWorkItem: DispatchWorkItem?
     @State private var hoverStartX: CGFloat?
+    @State private var dismissWorkItem: DispatchWorkItem?
 
     init(
         node: JSONNode,
@@ -70,16 +70,11 @@ struct TreeNodeHoverWrapper<Content: View>: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
                 onSelect()
             }
-            .onHover { hovering in
-                if hovering {
-                    NSCursor.arrow.push()
-                } else {
-                    NSCursor.pop()
-                }
-            }
+            .arrowCursor()
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
+                    NSCursor.arrow.set()
                     dismissWorkItem?.cancel()
                     dismissWorkItem = nil
                     if !isHovered {
@@ -103,7 +98,7 @@ struct TreeNodeHoverWrapper<Content: View>: View {
                         }
                     }
                     .fixedSize()
-                    .frame(width: max(startX - 4, 0), alignment: .trailing)
+                    .frame(width: max(startX - 14, 0), alignment: .trailing)
                     .allowsHitTesting(true)
                 }
             }
