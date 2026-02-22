@@ -296,6 +296,46 @@ struct AppSettingsDefaultsTests {
         settings.themeMode = savedMode
     }
 
+    // MARK: - currentAppearance Tests
+
+    @Test("currentAppearance returns NSAppearance matching themeMode")
+    func currentAppearanceMatchesThemeMode() {
+        #if os(macOS)
+        let settings = AppSettings.shared
+        let savedMode = settings.themeMode
+
+        settings.themeMode = .dark
+        #expect(settings.currentAppearance?.name == .darkAqua)
+
+        settings.themeMode = .light
+        #expect(settings.currentAppearance?.name == .aqua)
+
+        settings.themeMode = savedMode
+        #endif
+    }
+
+    @Test("currentAppearance observation triggers on themeMode change")
+    func currentAppearanceObservation() {
+        #if os(macOS)
+        let settings = AppSettings.shared
+        let savedMode = settings.themeMode
+
+        settings.themeMode = .dark
+
+        var didChange = false
+        withObservationTracking {
+            _ = settings.currentAppearance
+        } onChange: {
+            didChange = true
+        }
+
+        settings.themeMode = .light
+        #expect(didChange == true, "Accessing currentAppearance must register observation on themeMode")
+
+        settings.themeMode = savedMode
+        #endif
+    }
+
     // MARK: - Auto Check for Updates Tests
 
     @Test("autoCheckForUpdates defaults to false")

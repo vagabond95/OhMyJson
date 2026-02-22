@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftUI
+import AppKit
 import Carbon.HIToolbox
 import Combine
 import Observation
@@ -211,6 +212,11 @@ class AppSettings {
         let theme: AppTheme = isDarkMode ? DarkTheme() : LightTheme()
         _cachedTheme = theme
         return theme
+    }
+
+    var currentAppearance: NSAppearance? {
+        let _ = themeMode
+        return NSAppearance(named: isDarkMode ? .darkAqua : .aqua)
     }
 
     func toggleTheme() {

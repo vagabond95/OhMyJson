@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     private var onboardingController: OnboardingWindowController?
     private var hotKeyCancellable: AnyCancellable?
     private var updateCheckCancellable: AnyCancellable?
+    private var settingsThemeCancellable: AnyCancellable?
 
     /// Sparkle updater controller
     private var updaterController: SPUStandardUpdaterController!
@@ -300,6 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
 
     @objc private func showSettings(_ sender: Any?) {
         if let existing = settingsWindow, existing.isVisible {
+            existing.appearance = AppSettings.shared.currentAppearance
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate()
             return
@@ -314,12 +316,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         window.title = String(localized: "settings.title")
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
+        window.appearance = AppSettings.shared.currentAppearance
         window.contentViewController = NSHostingController(
             rootView: SettingsWindowView()
                 .environment(AppSettings.shared)
         )
         window.delegate = self
         settingsWindow = window
+
+        settingsThemeCancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.settingsWindow?.appearance = AppSettings.shared.currentAppearance
+            }
 
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -331,6 +340,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               window === settingsWindow else { return }
+        settingsThemeCancellable = nil
         settingsWindow?.delegate = nil
         settingsWindow = nil
     }
@@ -469,6 +479,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         HotKeyManager.shared.stop()
         hotKeyCancellable = nil
         updateCheckCancellable = nil
+        settingsThemeCancellable = nil
         WindowManager.shared.closeViewer()
     }
 }
