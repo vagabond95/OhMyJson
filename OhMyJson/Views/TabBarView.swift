@@ -197,6 +197,7 @@ struct TabItemView: View {
                 .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
                 .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
                 .contentShape(Rectangle())
+                .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
                 .onTapGesture {
                     onClose()
                 }

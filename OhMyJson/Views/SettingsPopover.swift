@@ -76,6 +76,8 @@ struct SettingsWindowView: View {
     @Environment(AppSettings.self) var settings
     @State private var isRecordingHotKey = false
     @State private var lastUpdateCheckDate: Date? = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
+    @State private var isCheckUpdateHovered = false
+    @State private var isHotKeyHovered = false
 
     private var theme: AppTheme { settings.currentTheme }
 
@@ -307,7 +309,7 @@ struct SettingsWindowView: View {
                         // Right: action icon
                         Image(systemName: isRecordingHotKey ? "arrow.counterclockwise" : "xmark")
                             .font(.system(size: 11))
-                            .foregroundColor(theme.secondaryText)
+                            .foregroundColor(isHotKeyHovered && !isRecordingHotKey ? theme.primaryText : theme.secondaryText)
                             .frame(width: 30)
                     }
                     .background(
@@ -318,6 +320,7 @@ struct SettingsWindowView: View {
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(isRecordingHotKey ? theme.accent : theme.border, lineWidth: 1)
                     )
+                    .onHover { isHotKeyHovered = $0 }
                 }
                 .buttonStyle(.plain)
             }
@@ -372,19 +375,19 @@ struct SettingsWindowView: View {
 
     private var footerSection: some View {
         HStack(spacing: 10) {
-            aboutButton(title: String(localized: "settings.about.github"), customIcon: "github_mark") {
+            AboutButton(title: String(localized: "settings.about.github"), customIcon: "github_mark") {
                 if let url = URL(string: "https://github.com/vagabond95/OhMyJson") {
                     NSWorkspace.shared.open(url)
                 }
             }
 
-            aboutButton(title: String(localized: "settings.about.chrome_plugin"), customIcon: "chrome_logo") {
+            AboutButton(title: String(localized: "settings.about.chrome_plugin"), customIcon: "chrome_logo") {
                 if let url = URL(string: "https://chromewebstore.google.com/detail/ohmyjson-open-in-json-vie/bmfbdagmfcaibmpngdkpdendfonpepde") {
                     NSWorkspace.shared.open(url)
                 }
             }
 
-            aboutButton(title: String(localized: "settings.about.report_bug"), icon: "ladybug") {
+            AboutButton(title: String(localized: "settings.about.report_bug"), icon: "ladybug") {
                 if let url = URL(string: "https://github.com/vagabond95/OhMyJson/issues") {
                     NSWorkspace.shared.open(url)
                 }
@@ -392,7 +395,7 @@ struct SettingsWindowView: View {
 
             Spacer()
 
-            aboutButton(title: String(localized: "settings.about.quit"), icon: "power", isDestructive: true) {
+            AboutButton(title: String(localized: "settings.about.quit"), icon: "power", isDestructive: true) {
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -427,6 +430,10 @@ struct SettingsWindowView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
+                    .fill(isCheckUpdateHovered ? theme.toggleHoverBg : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(
                         LinearGradient(
                             colors: theme.colorScheme == .dark
@@ -443,6 +450,7 @@ struct SettingsWindowView: View {
                     .stroke(theme.border, lineWidth: 1)
             )
             .contentShape(Rectangle())
+            .onHover { isCheckUpdateHovered = $0 }
         }
         .buttonStyle(.plain)
     }
@@ -476,7 +484,6 @@ struct SettingsWindowView: View {
                 Button(action: { selection.wrappedValue = option }) {
                     Text(label(option))
                         .font(.system(size: 12, design: .monospaced))
-                        .toolbarIconHover(isActive: isSelected)
                         .frame(minWidth: 54)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
@@ -487,6 +494,7 @@ struct SettingsWindowView: View {
                                 .stroke(isSelected ? theme.border : Color.clear, lineWidth: 1)
                         )
                         .contentShape(Rectangle())
+                        .toolbarIconHover(isActive: isSelected)
                 }
                 .buttonStyle(.plain)
             }
@@ -504,7 +512,6 @@ struct SettingsWindowView: View {
                 Button(action: { settings.jsonIndent = size }) {
                     Text("\(size)")
                         .font(.system(size: 12, design: .monospaced))
-                        .toolbarIconHover(isActive: isSelected)
                         .frame(width: 40)
                         .padding(.vertical, 4)
                         .background(isSelected ? theme.panelBackground : Color.clear)
@@ -514,6 +521,7 @@ struct SettingsWindowView: View {
                                 .stroke(isSelected ? theme.border : Color.clear, lineWidth: 1)
                         )
                         .contentShape(Rectangle())
+                        .toolbarIconHover(isActive: isSelected)
                 }
                 .buttonStyle(.plain)
             }
@@ -524,7 +532,23 @@ struct SettingsWindowView: View {
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.border, lineWidth: 1))
     }
 
-    private func aboutButton(title: String, icon: String? = nil, customIcon: String? = nil, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
+}
+
+// MARK: - About Button
+
+private struct AboutButton: View {
+    let title: String
+    var icon: String? = nil
+    var customIcon: String? = nil
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    @Environment(AppSettings.self) var settings
+    @State private var isHovered = false
+
+    private var theme: AppTheme { settings.currentTheme }
+
+    var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if let customIcon {
@@ -548,8 +572,14 @@ struct SettingsWindowView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovered ? (isDestructive ? theme.accent.opacity(0.15) : theme.toggleHoverBg) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
                     .stroke(isDestructive ? theme.accent.opacity(0.4) : theme.border, lineWidth: 1)
-                )
+            )
+            .contentShape(Rectangle())
+            .onHover { isHovered = $0 }
         }
         .buttonStyle(.plain)
     }
