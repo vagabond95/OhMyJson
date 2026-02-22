@@ -176,6 +176,7 @@ struct SettingsWindowView: View {
             hotKeySection(combo: $settings.openHotKeyCombo)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
+                .zIndex(1)
 
             divider
 
@@ -256,20 +257,25 @@ struct SettingsWindowView: View {
 
     // MARK: - Hotkey Section
 
+    private var hotKeyTooltipContent: some View {
+        (
+            Text(String(localized: "settings.hotkeys.help.prefix"))
+            + Text(String(localized: "settings.hotkeys.help.bold")).bold()
+            + Text(String(localized: "settings.hotkeys.help.suffix"))
+        )
+        .lineSpacing(2)
+    }
+
     private func hotKeySection(combo: Binding<HotKeyCombo>) -> some View {
         settingsCard {
             HStack(spacing: 8) {
-                // Hidden recorder
-                HotKeyRecorderView(
-                    isRecording: $isRecordingHotKey,
-                    hotKeyCombo: combo
-                )
-                .frame(width: 1, height: 1)
-                .opacity(0)
-
                 Text(String(localized: "settings.hotkeys.open"))
                     .font(.system(size: 13))
                     .foregroundColor(theme.primaryText)
+
+                InfoTooltipIcon(tooltipPosition: .top) {
+                    hotKeyTooltipContent
+                }
 
                 Spacer()
 
@@ -315,6 +321,14 @@ struct SettingsWindowView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .overlay {
+                HotKeyRecorderView(
+                    isRecording: $isRecordingHotKey,
+                    hotKeyCombo: combo
+                )
+                .frame(width: 1, height: 1)
+                .opacity(0)
+            }
         }
     }
 
@@ -353,7 +367,7 @@ struct SettingsWindowView: View {
                 }
         }
     }
-
+ 
     // MARK: - Footer
 
     private var footerSection: some View {

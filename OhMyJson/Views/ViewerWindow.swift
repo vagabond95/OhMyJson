@@ -56,6 +56,14 @@ struct ViewerWindow: View {
                     .fill(theme.border)
                     .frame(height: 1)
 
+                // Update Banner
+                if viewModel.isUpdateAvailable {
+                    UpdateBannerView()
+                    Rectangle()
+                        .fill(theme.border)
+                        .frame(height: 1)
+                }
+
                 // Main Content: Input (35%) | Resizable Divider | Viewer (65%)
                 GeometryReader { geometry in
                     let totalWidth = geometry.size.width

@@ -51,11 +51,6 @@ private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
             ShortcutItem(action: String(localized: "shortcuts.expand_all"), keys: AppShortcut.expandAll.displayString),
             ShortcutItem(action: String(localized: "shortcuts.collapse_all"), keys: AppShortcut.collapseAll.displayString),
         ]),
-        ShortcutGroup(title: String(localized: "shortcuts.group.edit"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.undo"), keys: AppShortcut.undo.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.redo"), keys: AppShortcut.redo.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.copy_paste_cut"), keys: "\(AppShortcut.copy.displayString) / \(AppShortcut.paste.displayString) / \(AppShortcut.cut.displayString)"),
-        ]),
     ]
 }
 

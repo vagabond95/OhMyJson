@@ -10,7 +10,7 @@ import Combine
 import Sparkle
 import Sentry
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var onboardingController: OnboardingWindowController?
@@ -54,7 +54,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         // Initialize Sparkle updater (startingUpdater: false so we can configure before starting)
-        updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: self)
         updaterController.updater.automaticallyChecksForUpdates = AppSettings.shared.autoCheckForUpdates
         do {
             try updaterController.updater.start()
@@ -433,6 +433,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             print("Terminated old instance: PID \(app.processIdentifier)")
         }
     }
+
+    // MARK: - SPUStandardUserDriverDelegate (Gentle Reminders)
+
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    func standardUserDriverShouldHandleShowingScheduledUpdate(
+        _ update: SUAppcastItem,
+        andInImmediateFocus immediateFocus: Bool
+    ) -> Bool {
+        false // Always suppress Sparkle's modal UI
+    }
+
+    func standardUserDriverWillHandleShowingUpdate(
+        _ handleShowingUpdate: Bool,
+        forUpdate update: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        if !handleShowingUpdate {
+            viewModel.setUpdateAvailable(version: update.displayVersionString)
+        }
+    }
+
+    func standardUserDriverWillFinishUpdateSession() {}
+
+    // MARK: - SPUUpdaterDelegate
+
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        viewModel.setUpdateAvailable(version: item.displayVersionString)
+    }
+
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: any Error) {}
 
     func applicationWillTerminate(_ notification: Notification) {
         HotKeyManager.shared.stop()

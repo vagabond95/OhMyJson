@@ -46,6 +46,20 @@ class ViewerViewModel {
     var isRestoringTabState: Bool = false
     var isCheatSheetVisible: Bool = false
 
+    // MARK: - Update Banner State
+
+    var availableVersion: String? = nil
+    @ObservationIgnored private let skippedVersionKey = "bannerSkippedVersion"
+    var skippedVersion: String? {
+        get { UserDefaults.standard.string(forKey: skippedVersionKey) }
+        set { UserDefaults.standard.set(newValue, forKey: skippedVersionKey) }
+    }
+    var isUpdateAvailable: Bool {
+        guard let version = availableVersion else { return false }
+        guard let skipped = skippedVersion else { return true }
+        return version != skipped
+    }
+
     // MARK: - Tree Structure Version (incremented on expand/collapse from ViewModel)
 
     var treeStructureVersion: Int = 0
@@ -685,6 +699,23 @@ class ViewerViewModel {
         treeSearchIndex = 0
         beautifySearchDismissed = false
         treeSearchDismissed = false
+    }
+
+    func setUpdateAvailable(version: String) {
+        guard version != skippedVersion else {
+            availableVersion = nil
+            return
+        }
+        availableVersion = version
+    }
+
+    func dismissUpdateBanner() {
+        skippedVersion = availableVersion
+        availableVersion = nil
+    }
+
+    func triggerUpdate() {
+        NotificationCenter.default.post(name: .checkForUpdates, object: nil)
     }
 
     func copyAllJSON() {

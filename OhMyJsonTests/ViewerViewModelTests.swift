@@ -1275,4 +1275,126 @@ struct ViewerViewModelTests {
         #expect(vm.selectedNodeId == containerNode.id)
     }
 }
+
+// Serialized suite to avoid UserDefaults race conditions in parallel test execution
+@Suite("Update Banner Tests", .serialized)
+struct UpdateBannerTests {
+
+    private func makeSUT() -> ViewerViewModel {
+        let tabManager = MockTabManager()
+        let clipboard = MockClipboardService()
+        let parser = MockJSONParser()
+        let windowManager = MockWindowManager()
+        return ViewerViewModel(
+            tabManager: tabManager,
+            clipboardService: clipboard,
+            jsonParser: parser,
+            windowManager: windowManager
+        )
+    }
+
+    private func cleanUp() {
+        UserDefaults.standard.removeObject(forKey: "bannerSkippedVersion")
+    }
+
+    @Test("setUpdateAvailable sets availableVersion and isUpdateAvailable")
+    func setUpdateAvailableSetsState() {
+        cleanUp()
+        let vm = makeSUT()
+
+        vm.setUpdateAvailable(version: "2.0.0")
+
+        #expect(vm.availableVersion == "2.0.0")
+        #expect(vm.isUpdateAvailable == true)
+        cleanUp()
+    }
+
+    @Test("dismissUpdateBanner saves skippedVersion and clears availableVersion")
+    func dismissUpdateBannerSkipsVersion() {
+        cleanUp()
+        let vm = makeSUT()
+
+        vm.setUpdateAvailable(version: "2.0.0")
+        vm.dismissUpdateBanner()
+
+        #expect(vm.isUpdateAvailable == false)
+        #expect(vm.availableVersion == nil)
+        #expect(vm.skippedVersion == "2.0.0")
+        cleanUp()
+    }
+
+    @Test("setUpdateAvailable with already-skipped version keeps banner hidden")
+    func setUpdateAvailableSkippedVersionHidden() {
+        cleanUp()
+        let vm = makeSUT()
+
+        vm.setUpdateAvailable(version: "2.0.0")
+        vm.dismissUpdateBanner()
+
+        // Same version again
+        vm.setUpdateAvailable(version: "2.0.0")
+
+        #expect(vm.availableVersion == nil)
+        #expect(vm.isUpdateAvailable == false)
+        cleanUp()
+    }
+
+    @Test("setUpdateAvailable with newer version after skip shows banner")
+    func setUpdateAvailableNewerVersionAfterSkip() {
+        cleanUp()
+        let vm = makeSUT()
+
+        vm.setUpdateAvailable(version: "2.0.0")
+        vm.dismissUpdateBanner()
+
+        // Newer version
+        vm.setUpdateAvailable(version: "2.1.0")
+
+        #expect(vm.availableVersion == "2.1.0")
+        #expect(vm.isUpdateAvailable == true)
+        cleanUp()
+    }
+
+    @Test("isUpdateAvailable is false when availableVersion is nil")
+    func isUpdateAvailableFalseWhenNil() {
+        cleanUp()
+        let vm = makeSUT()
+
+        #expect(vm.availableVersion == nil)
+        #expect(vm.isUpdateAvailable == false)
+        cleanUp()
+    }
+
+    @Test("availableVersion observation triggers view update")
+    func availableVersionObservation() {
+        let vm = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.availableVersion
+        } onChange: {
+            observed = true
+        }
+
+        vm.availableVersion = "2.0.0"
+        #expect(observed == true)
+    }
+
+    @Test("isUpdateAvailable observation chain triggered by availableVersion change")
+    func isUpdateAvailableObservationChain() {
+        cleanUp()
+        let vm = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isUpdateAvailable
+        } onChange: {
+            observed = true
+        }
+
+        vm.availableVersion = "2.0.0"
+        #expect(observed == true)
+        cleanUp()
+    }
+}
 #endif

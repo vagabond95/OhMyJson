@@ -684,6 +684,36 @@
         }
       }
     },
+    "settings.hotkeys.help.bold" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON from your clipboard"
+          }
+        }
+      }
+    },
+    "settings.hotkeys.help.prefix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press this shortcut to automatically read "
+          }
+        }
+      }
+    },
+    "settings.hotkeys.help.suffix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " and format it."
+          }
+        }
+      }
+    },
     "settings.hotkeys.new_tab" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -711,7 +741,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open OhMyJson"
+            "value" : "Grab JSON from Clipboard"
           }
         }
       }
@@ -895,6 +925,7 @@
       }
     },
     "shortcuts.copy_paste_cut" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -955,6 +986,7 @@
       }
     },
     "shortcuts.group.edit" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -989,7 +1021,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tabs"
+            "value" : "Tab"
           }
         }
       }
@@ -1096,6 +1128,7 @@
       }
     },
     "shortcuts.redo" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1136,6 +1169,7 @@
       }
     },
     "shortcuts.undo" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1344,6 +1378,12 @@
           }
         }
       }
+    },
+    "Update" : {
+
+    },
+    "v%@ available" : {
+
     },
     "viewer.invalid_json" : {
       "localizations" : {
