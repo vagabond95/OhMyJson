@@ -240,6 +240,9 @@ jobs:
       - name: Staple notarization ticket
         run: xcrun stapler staple "${{ steps.dmg.outputs.dmg_name }}"
 
+      - name: Staple notarization ticket to app bundle
+        run: xcrun stapler staple "./build/Build/Products/Release/$APP_NAME.app"
+
       # ── Create Sparkle ZIP ────────────────────────────────────
       - name: Create Sparkle update ZIP
         id: zip
