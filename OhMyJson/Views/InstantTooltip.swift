@@ -6,6 +6,79 @@
 import SwiftUI
 
 #if os(macOS)
+
+// MARK: - Tooltip Window Controller
+
+/// Renders tooltip content in a floating NSPanel at .popUpMenu level,
+/// so it is never clipped by any parent view or window boundary.
+private final class TooltipWindowController {
+    static let shared = TooltipWindowController()
+    private var panel: NSPanel?
+
+    private init() {}
+
+    func show(anyView: AnyView, near screenPoint: NSPoint) {
+        hide()
+
+        let hostingView = NSHostingView(rootView: anyView)
+        hostingView.layout()
+        var size = hostingView.fittingSize
+        size.width  = max(size.width,  10)
+        size.height = max(size.height, 10)
+
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isFloatingPanel = true
+        panel.level = .popUpMenu          // always above all app content
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.contentView = hostingView
+        panel.setFrameOrigin(NSPoint(
+            x: screenPoint.x - size.width / 2,
+            y: screenPoint.y + 16          // appear above cursor
+        ))
+        panel.orderFrontRegardless()
+        self.panel = panel
+    }
+
+    func hide() {
+        panel?.orderOut(nil)
+        panel = nil
+    }
+}
+
+// MARK: - Tooltip Content
+
+private struct TooltipLabel: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11))
+            .foregroundColor(Color(hex: "FAF9F6"))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(hex: "2A2A2A"))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color(hex: "3A3A3A"), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
+            .fixedSize()
+    }
+}
+
+// MARK: - Simple Text Tooltip
+
 enum TooltipPosition {
     case top
     case bottom
@@ -13,38 +86,19 @@ enum TooltipPosition {
 
 struct InstantTooltip: ViewModifier {
     let text: String
-    let position: TooltipPosition
-    @State private var isHovered = false
+    let position: TooltipPosition   // kept for API compatibility; NSPanel always floats near cursor
 
     func body(content: Content) -> some View {
         content
-            .onHover { isHovered = $0 }
-            .overlay {
-                GeometryReader { geometry in
-                    if isHovered {
-                        Text(text)
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "FAF9F6"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(hex: "2A2A2A"))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(Color(hex: "3A3A3A"), lineWidth: 0.5)
-                            )
-                            .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
-                            .fixedSize()
-                            .position(
-                                x: geometry.size.width / 2 - 10,
-                                y: position == .top ? -14 : geometry.size.height + 14
-                            )
-                            .allowsHitTesting(false)
-                    }
+            .onHover { hovering in
+                if hovering {
+                    TooltipWindowController.shared.show(
+                        anyView: AnyView(TooltipLabel(text: text)),
+                        near: NSEvent.mouseLocation
+                    )
+                } else {
+                    TooltipWindowController.shared.hide()
                 }
-                .allowsHitTesting(false)
             }
     }
 }
@@ -63,19 +117,16 @@ enum TooltipAlignment {
 }
 
 struct InstantRichTooltip<TooltipContent: View>: ViewModifier {
-    let position: TooltipPosition
-    let alignment: TooltipAlignment
+    let position: TooltipPosition   // kept for API compatibility
+    let alignment: TooltipAlignment // kept for API compatibility
     let maxWidth: CGFloat
     @ViewBuilder let tooltipContent: () -> TooltipContent
-    @State private var isHovered = false
-    @State private var tooltipSize: CGSize = .zero
 
     func body(content: Content) -> some View {
         content
-            .onHover { isHovered = $0 }
-            .overlay {
-                GeometryReader { parentGeo in
-                    if isHovered {
+            .onHover { hovering in
+                if hovering {
+                    let view = AnyView(
                         tooltipContent()
                             .font(.system(size: 11))
                             .foregroundColor(Color(hex: "FAF9F6"))
@@ -92,43 +143,12 @@ struct InstantRichTooltip<TooltipContent: View>: ViewModifier {
                                     .stroke(Color(hex: "3A3A3A"), lineWidth: 0.5)
                             )
                             .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
-                            .background(
-                                GeometryReader { tooltipGeo in
-                                    Color.clear.onAppear { tooltipSize = tooltipGeo.size }
-                                }
-                            )
-                            .opacity(tooltipSize.height > 0 ? 1 : 0)
-                            .position(
-                                x: tooltipX(parentWidth: parentGeo.size.width),
-                                y: tooltipY(parentHeight: parentGeo.size.height)
-                            )
-                            .allowsHitTesting(false)
-                    }
+                    )
+                    TooltipWindowController.shared.show(anyView: view, near: NSEvent.mouseLocation)
+                } else {
+                    TooltipWindowController.shared.hide()
                 }
-                .allowsHitTesting(false)
             }
-    }
-
-    private let gap: CGFloat = 4
-
-    private func tooltipX(parentWidth: CGFloat) -> CGFloat {
-        let totalWidth = maxWidth + 16
-        switch alignment {
-        case .leading:
-            return totalWidth / 2
-        case .center:
-            return parentWidth / 2
-        }
-    }
-
-    private func tooltipY(parentHeight: CGFloat) -> CGFloat {
-        let h = tooltipSize.height
-        switch position {
-        case .top:
-            return -(h / 2 + gap)
-        case .bottom:
-            return parentHeight + h / 2 + gap
-        }
     }
 }
 
