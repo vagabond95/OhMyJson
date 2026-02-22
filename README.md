@@ -37,7 +37,10 @@ Formatting JSON is something developers do dozens of times a day — yet most re
 
 **[OhMyJson for Chrome](https://chromewebstore.google.com/detail/ohmyjson-open-in-json-vie/bmfbdagmfcaibmpngdkpdendfonpepde)** brings OhMyJson into your browser.
 
-Select any JSON text on a webpage → right-click → **Open in OhMyJson**. No copying, no hotkey — just instant viewing.
+Select any JSON text on a chrome → right-click → **Open in OhMyJson**.  — just instant viewing.
+
+<img src="Resources/chrome_extension.png" width="200" alt="OhMyJson Chrome Extension demo" />
+
 
 
 
