@@ -79,7 +79,7 @@ struct CheatSheetButton: View {
             }) {
                 Image(systemName: "keyboard")
                     .font(.system(size: 14))
-                    .foregroundColor(theme.secondaryText)
+                    .toolbarIconHover()
                     .instantTooltip("Shortcuts")
                     .frame(width: 32, height: 32)
                     .background(theme.secondaryBackground)

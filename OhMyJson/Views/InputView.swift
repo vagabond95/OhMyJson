@@ -342,7 +342,7 @@ struct InputPanel: View {
                 Button(action: onClear) {
                     Image(systemName: "trash")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.secondaryText)
+                        .toolbarIconHover()
                         .frame(width: 24, height: 24)
                         .contentShape(Rectangle())
                 }

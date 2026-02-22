@@ -66,4 +66,31 @@ extension View {
     }
 }
 
+// MARK: - Toolbar Icon Hover Modifier
+
+/// Animates toolbar icon color from `secondaryText` (default) to `primaryText` on hover.
+/// When `isActive` is `true`, `primaryText` is always applied regardless of hover state.
+struct ToolbarIconHoverModifier: ViewModifier {
+    let isActive: Bool
+
+    @Environment(AppSettings.self) var settings
+    @State private var isHovered = false
+
+    private var theme: AppTheme { settings.currentTheme }
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundColor(isActive || isHovered ? theme.primaryText : theme.secondaryText)
+            .onHover { isHovered = $0 }
+    }
+}
+
+extension View {
+    /// Toolbar 아이콘에 hover 시 `primaryText` 색상을 적용. 기본: `secondaryText`.
+    /// `isActive: true`이면 hover 여부와 무관하게 `primaryText` 고정.
+    func toolbarIconHover(isActive: Bool = false) -> some View {
+        self.modifier(ToolbarIconHoverModifier(isActive: isActive))
+    }
+}
+
 #endif
