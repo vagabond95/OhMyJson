@@ -40,5 +40,17 @@
         length="4298940"
         type="application/octet-stream" />
     </item>
+      <item>
+      <title>Version 0.3.3</title>
+      <pubDate>Sun, 22 Feb 2026 17:15:46 +0000</pubDate>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://github.com/vagabond95/OhMyJson/releases/download/v0.3.3/OhMyJson_v0.3.3.zip"
+        sparkle:version="16"
+        sparkle:shortVersionString="0.3.3"
+        sparkle:edSignature="JraM2gkMCs1v+endpSSDp/0F4mvv4eXcCrsJLuDz2/+v94bJ65wbQEdxfTFDPfNDhfcFYhd0fdl0sv1PlikSAg=="
+        length="4302107"
+        type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
