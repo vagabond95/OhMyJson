@@ -7,6 +7,50 @@ import SwiftUI
 
 #if os(macOS)
 
+// MARK: - Frame Capture
+
+/// Captures the screen-coordinate frame of a SwiftUI view via an embedded NSView.
+/// Used to position the tooltip panel relative to the anchor view, not the cursor.
+private class FrameCaptureNSView: NSView {
+    var onFrameUpdate: (NSRect) -> Void
+
+    init(onFrameUpdate: @escaping (NSRect) -> Void) {
+        self.onFrameUpdate = onFrameUpdate
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        reportFrame()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        reportFrame()
+    }
+
+    private func reportFrame() {
+        guard let window else { return }
+        let frameInWindow = convert(bounds, to: nil)
+        let frameInScreen = window.convertToScreen(frameInWindow)
+        onFrameUpdate(frameInScreen)
+    }
+}
+
+private struct FrameCapture: NSViewRepresentable {
+    let onFrameUpdate: (NSRect) -> Void
+
+    func makeNSView(context: Context) -> FrameCaptureNSView {
+        FrameCaptureNSView(onFrameUpdate: onFrameUpdate)
+    }
+
+    func updateNSView(_ nsView: FrameCaptureNSView, context: Context) {
+        nsView.onFrameUpdate = onFrameUpdate
+    }
+}
+
 // MARK: - Tooltip Window Controller
 
 /// Renders tooltip content in a floating NSPanel at .popUpMenu level,
@@ -17,7 +61,13 @@ private final class TooltipWindowController {
 
     private init() {}
 
-    func show(anyView: AnyView, near screenPoint: NSPoint) {
+    func show(
+        anyView: AnyView,
+        anchorFrame: NSRect,
+        position: TooltipPosition,
+        alignment: TooltipAlignment = .center,
+        gap: CGFloat = 4
+    ) {
         hide()
 
         let hostingView = NSHostingView(rootView: anyView)
@@ -25,6 +75,14 @@ private final class TooltipWindowController {
         var size = hostingView.fittingSize
         size.width  = max(size.width,  10)
         size.height = max(size.height, 10)
+
+        let origin = tooltipOrigin(
+            tooltipSize: size,
+            anchorFrame: anchorFrame,
+            position: position,
+            alignment: alignment,
+            gap: gap
+        )
 
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
@@ -39,10 +97,7 @@ private final class TooltipWindowController {
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.contentView = hostingView
-        panel.setFrameOrigin(NSPoint(
-            x: screenPoint.x - size.width / 2,
-            y: screenPoint.y + 16          // appear above cursor
-        ))
+        panel.setFrameOrigin(origin)
         panel.orderFrontRegardless()
         self.panel = panel
     }
@@ -50,6 +105,36 @@ private final class TooltipWindowController {
     func hide() {
         panel?.orderOut(nil)
         panel = nil
+    }
+
+    /// Computes the bottom-left origin of the tooltip panel in screen coordinates.
+    /// macOS screen coords: (0,0) = bottom-left of primary screen, y increases upward.
+    private func tooltipOrigin(
+        tooltipSize: NSSize,
+        anchorFrame: NSRect,
+        position: TooltipPosition,
+        alignment: TooltipAlignment,
+        gap: CGFloat
+    ) -> NSPoint {
+        let x: CGFloat
+        switch alignment {
+        case .center:
+            x = anchorFrame.midX - tooltipSize.width / 2
+        case .leading:
+            x = anchorFrame.minX
+        }
+
+        let y: CGFloat
+        switch position {
+        case .top:
+            // Tooltip sits above the anchor: panel bottom = anchor top + gap
+            y = anchorFrame.maxY + gap
+        case .bottom:
+            // Tooltip sits below the anchor: panel bottom = anchor bottom - gap - height
+            y = anchorFrame.minY - gap - tooltipSize.height
+        }
+
+        return NSPoint(x: x, y: y)
     }
 }
 
@@ -86,15 +171,18 @@ enum TooltipPosition {
 
 struct InstantTooltip: ViewModifier {
     let text: String
-    let position: TooltipPosition   // kept for API compatibility; NSPanel always floats near cursor
+    let position: TooltipPosition
+    @State private var anchorFrame: NSRect = .zero
 
     func body(content: Content) -> some View {
         content
+            .background(FrameCapture { anchorFrame = $0 })
             .onHover { hovering in
                 if hovering {
                     TooltipWindowController.shared.show(
                         anyView: AnyView(TooltipLabel(text: text)),
-                        near: NSEvent.mouseLocation
+                        anchorFrame: anchorFrame,
+                        position: position
                     )
                 } else {
                     TooltipWindowController.shared.hide()
@@ -117,13 +205,15 @@ enum TooltipAlignment {
 }
 
 struct InstantRichTooltip<TooltipContent: View>: ViewModifier {
-    let position: TooltipPosition   // kept for API compatibility
-    let alignment: TooltipAlignment // kept for API compatibility
+    let position: TooltipPosition
+    let alignment: TooltipAlignment
     let maxWidth: CGFloat
     @ViewBuilder let tooltipContent: () -> TooltipContent
+    @State private var anchorFrame: NSRect = .zero
 
     func body(content: Content) -> some View {
         content
+            .background(FrameCapture { anchorFrame = $0 })
             .onHover { hovering in
                 if hovering {
                     let view = AnyView(
@@ -144,7 +234,12 @@ struct InstantRichTooltip<TooltipContent: View>: ViewModifier {
                             )
                             .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
                     )
-                    TooltipWindowController.shared.show(anyView: view, near: NSEvent.mouseLocation)
+                    TooltipWindowController.shared.show(
+                        anyView: view,
+                        anchorFrame: anchorFrame,
+                        position: position,
+                        alignment: alignment
+                    )
                 } else {
                     TooltipWindowController.shared.hide()
                 }
