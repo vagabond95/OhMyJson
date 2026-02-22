@@ -372,8 +372,14 @@ struct SettingsWindowView: View {
 
     private var footerSection: some View {
         HStack(spacing: 10) {
-            aboutButton(title: String(localized: "settings.about.github"), icon: "link") {
+            aboutButton(title: String(localized: "settings.about.github"), customIcon: "github_mark") {
                 if let url = URL(string: "https://github.com/vagabond95/OhMyJson") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+
+            aboutButton(title: String(localized: "settings.about.chrome_plugin"), customIcon: "chrome_logo") {
+                if let url = URL(string: "https://chromewebstore.google.com/detail/ohmyjson-open-in-json-vie/bmfbdagmfcaibmpngdkpdendfonpepde") {
                     NSWorkspace.shared.open(url)
                 }
             }
@@ -518,11 +524,18 @@ struct SettingsWindowView: View {
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.border, lineWidth: 1))
     }
 
-    private func aboutButton(title: String, icon: String, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
+    private func aboutButton(title: String, icon: String? = nil, customIcon: String? = nil, isDestructive: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 11))
+            HStack(spacing: 6) {
+                if let customIcon {
+                    Image(customIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 11, height: 11)
+                } else if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 11))
+                }
                 Text(title)
                     .font(.system(size: 12))
             }

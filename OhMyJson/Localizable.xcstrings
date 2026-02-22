@@ -462,6 +462,16 @@
         }
       }
     },
+    "settings.about.chrome_plugin" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chrome Plugin"
+          }
+        }
+      }
+    },
     "settings.about.github" : {
       "localizations" : {
         "en" : {
