@@ -75,7 +75,6 @@ struct TreeNodeHoverWrapper<Content: View>: View {
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
-                    NSCursor.arrow.set()
                     dismissWorkItem?.cancel()
                     dismissWorkItem = nil
                     if !isHovered {
