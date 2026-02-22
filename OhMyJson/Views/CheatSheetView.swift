@@ -79,8 +79,6 @@ struct CheatSheetButton: View {
             }) {
                 Image(systemName: "keyboard")
                     .font(.system(size: 14))
-                    .toolbarIconHover()
-                    .instantTooltip("Shortcuts")
                     .frame(width: 32, height: 32)
                     .background(theme.secondaryBackground)
                     .cornerRadius(8)
@@ -90,6 +88,8 @@ struct CheatSheetButton: View {
                     )
                     .shadow(color: Color.black.opacity(theme.shadowOpacity), radius: 4, x: 0, y: 2)
                     .contentShape(Rectangle())
+                    .toolbarIconHover()
+                    .instantTooltip("Shortcuts")
             }
             .buttonStyle(.plain)
         }

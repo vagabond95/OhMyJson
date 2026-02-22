@@ -20,7 +20,6 @@ struct ViewerWindow: View {
     @State private var dragStartRatio: CGFloat = 0
     @State private var keyMonitor: Any?
     @State private var dragStartX: CGFloat = 0
-    @State private var hoveredViewMode: ViewMode?
     private enum Layout {
         static let minPanelWidth: CGFloat = 200
         static let dividerHitAreaWidth: CGFloat = 9
@@ -242,9 +241,9 @@ struct ViewerWindow: View {
                     Button { viewModel.expandAllNodes() } label: {
                         Image(systemName: "chevron.down.2")
                             .font(.system(size: 12))
-                            .toolbarIconHover()
                             .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
+                            .toolbarIconHover()
                     }
                     .buttonStyle(.plain)
                     .instantTooltip(String(localized: "tooltip.expand_all"), position: .bottom)
@@ -254,9 +253,9 @@ struct ViewerWindow: View {
                     Button { viewModel.collapseAllNodes() } label: {
                         Image(systemName: "chevron.up.2")
                             .font(.system(size: 12))
-                            .toolbarIconHover()
                             .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
+                            .toolbarIconHover()
                     }
                     .buttonStyle(.plain)
                     .instantTooltip(String(localized: "tooltip.collapse_all"), position: .bottom)
@@ -270,9 +269,9 @@ struct ViewerWindow: View {
                     } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 12))
-                            .toolbarIconHover(isActive: viewModel.isSearchVisible)
                             .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
+                            .toolbarIconHover(isActive: viewModel.isSearchVisible)
                     }
                     .buttonStyle(.plain)
                     .instantTooltip(String(localized: "tooltip.search"), position: .bottom)
@@ -280,9 +279,9 @@ struct ViewerWindow: View {
                     Button(action: viewModel.copyAllJSON) {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12))
-                            .toolbarIconHover()
                             .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
+                            .toolbarIconHover()
                     }
                     .buttonStyle(.plain)
                     .instantTooltip(String(localized: "tooltip.copy_all"), position: .bottom)
@@ -325,11 +324,7 @@ struct ViewerWindow: View {
                 }) {
                     Text(mode.displayName)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(
-                            viewModel.viewMode == mode
-                                ? theme.primaryText
-                                : (hoveredViewMode == mode ? theme.primaryText : theme.secondaryText)
-                        )
+                        .toolbarIconHover(isActive: viewModel.viewMode == mode)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(
@@ -339,9 +334,6 @@ struct ViewerWindow: View {
                         )
                         .cornerRadius(4)
                         .contentShape(Rectangle())
-                        .onHover { isHovered in
-                            hoveredViewMode = isHovered ? mode : nil
-                        }
                 }
                 .buttonStyle(.plain)
             }

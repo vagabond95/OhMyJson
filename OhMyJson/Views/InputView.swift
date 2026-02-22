@@ -342,9 +342,9 @@ struct InputPanel: View {
                 Button(action: onClear) {
                     Image(systemName: "trash")
                         .font(.system(size: 12))
-                        .toolbarIconHover()
                         .frame(width: 24, height: 24)
                         .contentShape(Rectangle())
+                        .toolbarIconHover()
                 }
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.clear"), position: .bottom)

@@ -476,7 +476,7 @@ struct SettingsWindowView: View {
                 Button(action: { selection.wrappedValue = option }) {
                     Text(label(option))
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(isSelected ? theme.primaryText : theme.secondaryText)
+                        .toolbarIconHover(isActive: isSelected)
                         .frame(minWidth: 54)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
@@ -504,7 +504,7 @@ struct SettingsWindowView: View {
                 Button(action: { settings.jsonIndent = size }) {
                     Text("\(size)")
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(isSelected ? theme.primaryText : theme.secondaryText)
+                        .toolbarIconHover(isActive: isSelected)
                         .frame(width: 40)
                         .padding(.vertical, 4)
                         .background(isSelected ? theme.panelBackground : Color.clear)
