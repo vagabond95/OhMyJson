@@ -41,4 +41,29 @@ private struct ArrowCursorFallbackModifier: ViewModifier {
     }
 }
 
+// MARK: - Hover Highlight Modifier
+
+/// Adds a rounded rectangle background that appears on hover.
+struct HoverHighlightModifier: ViewModifier {
+    let hoverColor: Color
+    let cornerRadius: CGFloat
+
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(isHovered ? hoverColor : Color.clear)
+            )
+            .onHover { isHovered = $0 }
+    }
+}
+
+extension View {
+    func hoverHighlight(color: Color, cornerRadius: CGFloat = 4) -> some View {
+        self.modifier(HoverHighlightModifier(hoverColor: color, cornerRadius: cornerRadius))
+    }
+}
+
 #endif

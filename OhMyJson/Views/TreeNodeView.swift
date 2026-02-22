@@ -135,21 +135,13 @@ struct ExpandToggleButton: View {
     let hoverBgColor: Color
     let onToggle: () -> Void
 
-    @State private var isHovered = false
-
     var body: some View {
         Text(isExpanded ? "▼" : "▶")
             .font(.system(size: 10, weight: .semibold))
             .foregroundColor(structureColor.opacity(0.7))
             .frame(width: 16, height: 16)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(isHovered ? hoverBgColor : Color.clear)
-            )
             .contentShape(Rectangle())
-            .onHover { hovering in
-                isHovered = hovering
-            }
+            .hoverHighlight(color: hoverBgColor)
             .onTapGesture { onToggle() }
     }
 }

@@ -27,8 +27,8 @@ struct TabBarView: View {
         static let tabSpacing: CGFloat = 6
         static let elementPadding: CGFloat = 10
         static let themeButtonWidth: CGFloat = 30
-        static let addTabButtonWidth: CGFloat = 10
-        static let buttonHeight: CGFloat = 28
+        static let addTabButtonWidth: CGFloat = 30
+        static let buttonHeight: CGFloat = 30
         static let trafficLightWidth: CGFloat = 60
     }
 
@@ -83,6 +83,7 @@ struct TabBarView: View {
                         .foregroundColor(theme.secondaryText)
                         .frame(width: Layout.themeButtonWidth, height: Layout.buttonHeight)
                         .contentShape(Rectangle())
+                        .hoverHighlight(color: theme.toggleHoverBg)
                 }
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
@@ -126,6 +127,7 @@ struct TabBarView: View {
                         .foregroundColor(theme.secondaryText)
                         .frame(width: Layout.addTabButtonWidth, height: Layout.buttonHeight)
                         .contentShape(Rectangle())
+                        .hoverHighlight(color: theme.toggleHoverBg)
                 }
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
