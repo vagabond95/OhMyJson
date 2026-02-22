@@ -13,6 +13,7 @@ import SwiftUI
 /// Used to position the tooltip panel relative to the anchor view, not the cursor.
 private class FrameCaptureNSView: NSView {
     var onFrameUpdate: (NSRect) -> Void
+    private var windowObserver: NSObjectProtocol?
 
     init(onFrameUpdate: @escaping (NSRect) -> Void) {
         self.onFrameUpdate = onFrameUpdate
@@ -28,7 +29,28 @@ private class FrameCaptureNSView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if let windowObserver {
+            NotificationCenter.default.removeObserver(windowObserver)
+            self.windowObserver = nil
+        }
+        if let window {
+            windowObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didMoveNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                self?.reportFrame()
+            }
+        }
         reportFrame()
+    }
+
+    override func removeFromSuperview() {
+        if let windowObserver {
+            NotificationCenter.default.removeObserver(windowObserver)
+            self.windowObserver = nil
+        }
+        super.removeFromSuperview()
     }
 
     private func reportFrame() {
