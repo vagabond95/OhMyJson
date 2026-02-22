@@ -451,6 +451,16 @@
         }
       }
     },
+    "settings.about.chrome_plugin" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chrome Plugin"
+          }
+        }
+      }
+    },
     "settings.about.copyright" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -458,16 +468,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copyright © 2026 vagabond95"
-          }
-        }
-      }
-    },
-    "settings.about.chrome_plugin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chrome Plugin"
           }
         }
       }
@@ -497,7 +497,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Report a Bug"
+            "value" : "Report a bug"
           }
         }
       }
@@ -548,7 +548,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Default View"
+            "value" : "Default view mode for a new tab"
           }
         }
       }
@@ -558,7 +558,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JSON Indent"
+            "value" : "JSON indent"
           }
         }
       }
@@ -568,7 +568,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Launch at Login"
+            "value" : "Launch at login"
           }
         }
       }
