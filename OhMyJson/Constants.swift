@@ -65,8 +65,25 @@ enum WindowSize {
 // MARK: - File Size Thresholds
 
 enum FileSize {
-    static let largeThreshold = 5 * 1024 * 1024 // 5MB
+    static let largeThreshold = 2 * megabyte // 2MB
     static let megabyte       = 1024 * 1024      // 1MB
+}
+
+// MARK: - Input Size Thresholds
+
+enum InputSize {
+    /// Maximum byte size for direct NSTextView display.
+    /// Text larger than this threshold is truncated in InputView to prevent
+    /// TextKit's synchronous glyph generation causing SBBOD on the main thread.
+    static let displayThreshold = 512 * 1024  // 512KB
+}
+
+// MARK: - Beautify Display Limits
+
+enum BeautifyLimit {
+    /// Maximum lines displayed in BeautifyView's NSTextView.
+    /// Lines beyond this are truncated to prevent TextKit SBBOD.
+    static let maxDisplayLines = 5_000
 }
 
 // MARK: - Tree Layout

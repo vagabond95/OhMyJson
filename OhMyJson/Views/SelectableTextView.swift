@@ -62,6 +62,12 @@ struct SelectableTextView: NSViewRepresentable {
     var scrollToRange: NSRange?
     var isRestoringTabState: Bool
     var onMouseDown: (() -> Void)?
+    /// O(1) identity token for the content attributed string.
+    /// Callers increment this whenever the attributed string content actually changes,
+    /// replacing the previous O(n) NSAttributedString equality check in updateNSView.
+    var contentId: Int
+    /// O(1) identity token for the line-number gutter attributed string.
+    var gutterContentId: Int
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -74,7 +80,9 @@ struct SelectableTextView: NSViewRepresentable {
         scrollPosition: Binding<CGFloat>,
         scrollToRange: NSRange? = nil,
         isRestoringTabState: Bool = false,
-        onMouseDown: (() -> Void)? = nil
+        onMouseDown: (() -> Void)? = nil,
+        contentId: Int = 0,
+        gutterContentId: Int = 0
     ) {
         self.attributedString = attributedString
         self.lineNumberString = lineNumberString
@@ -85,6 +93,8 @@ struct SelectableTextView: NSViewRepresentable {
         self.scrollToRange = scrollToRange
         self.isRestoringTabState = isRestoringTabState
         self.onMouseDown = onMouseDown
+        self.contentId = contentId
+        self.gutterContentId = gutterContentId
     }
 
     func makeCoordinator() -> Coordinator {
@@ -147,9 +157,6 @@ struct SelectableTextView: NSViewRepresentable {
 
         // Set initial content
         contentTextView.textStorage?.setAttributedString(attributedString)
-
-        // Force layout computation so scroll restoration works on newly created views
-        contentTextView.layoutManager?.ensureLayout(for: contentTextView.textContainer!)
 
         // Wire mouseDown callback via coordinator
         let coordinator = context.coordinator
@@ -272,19 +279,15 @@ struct SelectableTextView: NSViewRepresentable {
     }
 
     private func calculateGutterWidth(for lineNumbers: NSAttributedString) -> CGFloat {
-        // Measure the width needed for the line numbers
-        let layoutManager = NSLayoutManager()
-        let textContainer = NSTextContainer(size: NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
-        let textStorage = NSTextStorage(attributedString: lineNumbers)
-
-        layoutManager.addTextContainer(textContainer)
-        textStorage.addLayoutManager(layoutManager)
-
-        layoutManager.ensureLayout(for: textContainer)
-        let rect = layoutManager.usedRect(for: textContainer)
-
-        // Add some padding
-        return ceil(rect.width) + 8
+        // The last line number is always the widest (most digits + padding).
+        // Measure only that one string instead of laying out the entire document.
+        let fullString = lineNumbers.string
+        let lastLine = fullString.components(separatedBy: "\n").last ?? fullString
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        ]
+        let size = (lastLine as NSString).size(withAttributes: attrs)
+        return ceil(size.width) + 8
     }
 
     func updateNSView(_ containerView: NSView, context: Context) {
@@ -295,14 +298,14 @@ struct SelectableTextView: NSViewRepresentable {
         guard let contentTextView = context.coordinator.contentTextView,
               let contentScrollView = context.coordinator.contentScrollView else { return }
 
-        // Update content if changed
-        let contentChanged = contentTextView.attributedString() != attributedString
+        // Update content if changed (O(1) id check avoids O(n) NSAttributedString comparison)
+        let contentChanged = contentId != context.coordinator.lastContentId
         if contentChanged {
+            context.coordinator.lastContentId = contentId
             // Preserve selection if possible
             let selectedRange = contentTextView.selectedRange()
 
             contentTextView.textStorage?.setAttributedString(attributedString)
-            contentTextView.layoutManager?.ensureLayout(for: contentTextView.textContainer!)
 
             // Restore selection if valid
             let maxLocation = attributedString.length
@@ -316,9 +319,9 @@ struct SelectableTextView: NSViewRepresentable {
         if let lineNumbers = lineNumberString,
            let gutterTextView = context.coordinator.gutterTextView,
            let gutterScrollView = context.coordinator.gutterScrollView {
-            if gutterTextView.attributedString() != lineNumbers {
+            if gutterContentId != context.coordinator.lastGutterContentId {
+                context.coordinator.lastGutterContentId = gutterContentId
                 gutterTextView.textStorage?.setAttributedString(lineNumbers)
-                gutterTextView.layoutManager?.ensureLayout(for: gutterTextView.textContainer!)
 
                 // Recalculate and update gutter width if needed
                 let newWidth = calculateGutterWidth(for: lineNumbers)
@@ -401,6 +404,10 @@ struct SelectableTextView: NSViewRepresentable {
         private var isScrollingToRange = false
         /// Callback for mouseDown events (updated by parent on each updateNSView)
         var onMouseDown: (() -> Void)?
+        /// Last seen contentId — used for O(1) content-change detection in updateNSView
+        var lastContentId: Int = -1
+        /// Last seen gutterContentId — used for O(1) gutter-change detection in updateNSView
+        var lastGutterContentId: Int = -1
 
         init(_ parent: SelectableTextView) {
             self.parent = parent

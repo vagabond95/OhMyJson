@@ -77,28 +77,25 @@ struct ViewerViewModelTests {
         #expect(vm.currentJSON == json)
     }
 
-    @Test("handleHotKey with invalid JSON shows toast, no new tab")
+    @Test("handleHotKey with invalid JSON creates tab with error view")
     func handleHotKeyInvalidJSON() {
-        let (vm, tabManager, _, parser, windowManager) = makeSUT(clipboardText: "not json")
-
-        parser.validateResult = false
+        let (vm, tabManager, _, _, _) = makeSUT(clipboardText: "not json")
 
         vm.handleHotKey()
 
-        // Invalid JSON should NOT create a tab
-        #expect(tabManager.createTabCallCount == 0)
-        // Should bring existing window to front if open
-        #expect(vm.currentJSON == nil)
+        // Invalid JSON always creates a tab — ErrorView shows parse error details
+        #expect(tabManager.createTabCallCount == 1)
+        #expect(vm.currentJSON == "not json")
     }
 
     @Test("handleHotKey with invalid JSON brings window to front if open")
     func handleHotKeyInvalidJSONBringToFront() {
-        let (vm, _, _, parser, windowManager) = makeSUT(clipboardText: "not json")
+        let (vm, _, _, _, windowManager) = makeSUT(clipboardText: "not json")
         windowManager.isViewerOpen = true
-        parser.validateResult = false
 
         vm.handleHotKey()
 
+        // createNewTab calls bringToFront when window is already open
         #expect(windowManager.bringToFrontCallCount == 1)
     }
 
@@ -1273,6 +1270,207 @@ struct ViewerViewModelTests {
         // Next move should stay at "a" (no more visible nodes)
         vm.moveSelectionDown()
         #expect(vm.selectedNodeId == containerNode.id)
+    }
+
+    // MARK: - Large Text Paste Handling
+
+    private func makeLargeText() -> String {
+        // Generate text that exceeds InputSize.displayThreshold (512KB)
+        return String(repeating: "x", count: InputSize.displayThreshold + 1)
+    }
+
+    @Test("handleLargeTextPaste sets truncated inputText and stores fullInputText")
+    func handleLargeTextPasteSetsState() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let largeText = makeLargeText()
+        vm.handleLargeTextPaste(largeText)
+
+        // inputText should be truncated (shorter than original)
+        #expect(vm.inputText.utf8.count < largeText.utf8.count)
+        // fullInputText should hold the original
+        #expect(vm.fullInputText == largeText)
+        // Tab should store truncated display text
+        let tab = tabManager.tabs.first(where: { $0.id == id })
+        #expect(tab?.inputText.utf8.count ?? 0 < largeText.utf8.count)
+        // Tab should store full text
+        #expect(tab?.fullInputText == largeText)
+    }
+
+    @Test("handleLargeTextPaste starts background parse with full text")
+    func handleLargeTextPasteStartsParse() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let largeText = makeLargeText()
+        vm.handleLargeTextPaste(largeText)
+
+        // Background parse should be in progress
+        #expect(vm.isParsing == true)
+    }
+
+    @Test("handleTextChange clears fullInputText when user edits")
+    func handleTextChangeClearsFullInputText() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        // Simulate fullInputText was set (e.g. from a previous large paste)
+        vm.fullInputText = "original full text"
+        tabManager.updateTabFullInput(id: id, fullText: "original full text")
+
+        vm.handleTextChange("edited text")
+
+        #expect(vm.fullInputText == nil)
+        #expect(tabManager.activeTab?.fullInputText == nil)
+    }
+
+    @Test("handleTextChange does not clear fullInputText during tab restoration")
+    func handleTextChangeSkipsClearDuringRestore() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.fullInputText = "original full text"
+        vm.isRestoringTabState = true
+
+        vm.handleTextChange("some text")
+
+        // Should be a no-op during restore
+        #expect(vm.fullInputText == "original full text")
+    }
+
+    @Test("restoreTabState restores fullInputText from tab")
+    func restoreTabStateRestoresFullInputText() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: "truncated preview")
+        tabManager.activeTabId = id
+        tabManager.updateTabFullInput(id: id, fullText: "full original text")
+
+        vm.restoreTabState()
+
+        #expect(vm.fullInputText == "full original text")
+        #expect(vm.inputText == "truncated preview")
+    }
+
+    @Test("restoreTabState uses fullInputText for currentJSON")
+    func restoreTabStateUsesfullInputTextForCurrentJSON() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: "truncated")
+        tabManager.activeTabId = id
+        tabManager.updateTabFullInput(id: id, fullText: "full json content")
+
+        vm.restoreTabState()
+
+        #expect(vm.currentJSON == "full json content")
+    }
+
+    @Test("restoreTabState with no fullInputText uses inputText for currentJSON")
+    func restoreTabStateNoFullInputText() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: "small json")
+        tabManager.activeTabId = id
+
+        vm.restoreTabState()
+
+        #expect(vm.fullInputText == nil)
+        #expect(vm.currentJSON == "small json")
+    }
+
+    @Test("clearAll resets fullInputText")
+    func clearAllResetsFullInputText() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.fullInputText = "some full text"
+        tabManager.updateTabFullInput(id: id, fullText: "some full text")
+
+        vm.clearAll()
+
+        #expect(vm.fullInputText == nil)
+        #expect(tabManager.activeTab?.fullInputText == nil)
+    }
+
+    @Test("saveTabState saves fullInputText to tab")
+    func saveTabStateSavesFullInputText() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.fullInputText = "full content"
+
+        vm.saveTabState(for: id)
+
+        #expect(tabManager.activeTab?.fullInputText == "full content")
+    }
+
+    @Test("buildTruncatedPreview returns prefix with annotation")
+    func buildTruncatedPreviewReturnsPrefix() {
+        let text = String(repeating: "a", count: 20_000)
+        let preview = ViewerViewModel.buildTruncatedPreview(text)
+
+        // Preview should start with first characters
+        #expect(preview.hasPrefix(String(repeating: "a", count: 10_000)))
+        // Preview should contain truncation notice
+        #expect(preview.contains("Large input"))
+        #expect(preview.contains("truncated"))
+        // Preview should be shorter than original
+        #expect(preview.count < text.count)
+    }
+
+    @Test("createNewTab with large JSON stores truncated display and full text")
+    func createNewTabLargeJSONStoresTruncated() {
+        let largeText = makeLargeText()
+        let (vm, tabManager, _, _, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        vm.createNewTab(with: largeText)
+
+        // Tab inputText should be truncated
+        let tab = tabManager.activeTab
+        #expect(tab?.inputText.utf8.count ?? 0 < largeText.utf8.count)
+        // Tab fullInputText should hold original
+        #expect(tab?.fullInputText == largeText)
+        // ViewModel fullInputText should be set
+        #expect(vm.fullInputText == largeText)
+        // currentJSON should be full text (for parsing)
+        #expect(vm.currentJSON == largeText)
+    }
+
+    // MARK: - isBeautifyRendering
+
+    @Test("isBeautifyRendering defaults to false")
+    func isBeautifyRenderingDefaultsFalse() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.isBeautifyRendering == false)
+    }
+
+    @Test("clearAll resets isBeautifyRendering")
+    func clearAllResetsIsBeautifyRendering() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.isBeautifyRendering = true
+
+        vm.clearAll()
+
+        #expect(vm.isBeautifyRendering == false)
+    }
+
+    @Test("isBeautifyRendering observation triggers view update")
+    func isBeautifyRenderingObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isBeautifyRendering
+        } onChange: {
+            observed = true
+        }
+
+        vm.isBeautifyRendering = true
+        #expect(observed == true)
     }
 }
 

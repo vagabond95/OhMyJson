@@ -23,6 +23,9 @@ enum ViewMode: String, CaseIterable {
 struct JSONTab: Identifiable, Equatable {
     let id: UUID
     var inputText: String
+    /// Full original text when inputText is a truncated preview (large input > 512KB).
+    /// nil means inputText is the complete content.
+    var fullInputText: String?
     var parseResult: JSONParseResult?
     var createdAt: Date
     var lastAccessedAt: Date
@@ -63,6 +66,7 @@ struct JSONTab: Identifiable, Equatable {
     init(
         id: UUID = UUID(),
         inputText: String = "",
+        fullInputText: String? = nil,
         parseResult: JSONParseResult? = nil,
         createdAt: Date = Date(),
         lastAccessedAt: Date = Date(),
@@ -82,6 +86,7 @@ struct JSONTab: Identifiable, Equatable {
     ) {
         self.id = id
         self.inputText = inputText
+        self.fullInputText = fullInputText
         self.parseResult = parseResult
         self.createdAt = createdAt
         self.lastAccessedAt = lastAccessedAt

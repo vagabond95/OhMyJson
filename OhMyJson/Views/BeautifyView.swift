@@ -18,6 +18,7 @@ struct BeautifyView: View {
     var isRestoringTabState: Bool = false
     var isSearchDismissed: Bool = false
     var onMouseDown: (() -> Void)?
+    @Binding var isRendering: Bool
 
     @State private var formattedLines: [FormattedLine] = []
     @State private var searchResults: [SearchResult] = []
@@ -25,6 +26,12 @@ struct BeautifyView: View {
     @State private var hasInitialized = false
     @State private var isDirty = false
     @State private var buildTask: Task<Void, Never>?
+    /// Monotonically increasing version counter for cachedContentString.
+    /// Incremented whenever the displayed content attributed string changes,
+    /// allowing SelectableTextView to detect updates in O(1) instead of O(n).
+    @State private var contentVersion: Int = 0
+    /// Monotonically increasing version counter for cachedLineNumberString.
+    @State private var gutterVersion: Int = 0
 
     /// Line count threshold for switching to async attributed string building
     private static let asyncBuildThreshold = 1000
@@ -50,7 +57,9 @@ struct BeautifyView: View {
             scrollPosition: $scrollPosition,
             scrollToRange: isRestoringTabState ? nil : (isSearchDismissed ? nil : currentSearchResultLocation?.characterRange),
             isRestoringTabState: isRestoringTabState,
-            onMouseDown: onMouseDown
+            onMouseDown: onMouseDown,
+            contentId: contentVersion,
+            gutterContentId: gutterVersion
         )
         .onChange(of: searchText) { _, newValue in
             guard isActive else { isDirty = true; return }
@@ -79,17 +88,25 @@ struct BeautifyView: View {
             if !hasInitialized {
                 performFullInit()
             } else if isDirty {
-                formatJSON()
-                updateSearchResults()
-                rebuildBaseAndHighlights()
-                isDirty = false
+                isRendering = true
+                formatJSON {
+                    updateSearchResults()
+                    rebuildBaseAndHighlights {
+                        self.isRendering = false
+                    }
+                    isDirty = false
+                }
             }
         }
         .onChange(of: formattedJSON) { _, _ in
-            guard isActive else { isDirty = true; return }
-            formatJSON()
-            updateSearchResults()
-            rebuildBaseAndHighlights()
+            guard isActive else { isDirty = true; isRendering = false; return }
+            isRendering = true
+            formatJSON {
+                updateSearchResults()
+                rebuildBaseAndHighlights {
+                    self.isRendering = false
+                }
+            }
         }
         .onChange(of: isSearchDismissed) { _, _ in
             guard isActive else { return }
@@ -97,14 +114,18 @@ struct BeautifyView: View {
         }
         .onChange(of: settings.isDarkMode) { _, _ in
             guard isActive else { isDirty = true; return }
-            formatJSON()
+            // Theme change doesn't affect token data — only colors need rebuilding
             rebuildBaseAndHighlights()
         }
         .onChange(of: settings.ignoreEscapeSequences) { _, _ in
             guard isActive else { isDirty = true; return }
-            formatJSON()
-            updateSearchResults()
-            rebuildBaseAndHighlights()
+            isRendering = true
+            formatJSON {
+                updateSearchResults()
+                rebuildBaseAndHighlights {
+                    self.isRendering = false
+                }
+            }
         }
         .background(theme.background)
     }
@@ -112,11 +133,15 @@ struct BeautifyView: View {
     // MARK: - Initialization
 
     private func performFullInit() {
-        formatJSON()
-        restoreSearchState()
-        rebuildBaseAndHighlights()
-        hasInitialized = true
-        isDirty = false
+        isRendering = true
+        formatJSON {
+            restoreSearchState()
+            rebuildBaseAndHighlights {
+                self.isRendering = false
+            }
+            hasInitialized = true
+            isDirty = false
+        }
     }
 
     // MARK: - Attributed String Building (2-Stage Pipeline)
@@ -176,14 +201,16 @@ struct BeautifyView: View {
 
     /// Stage 1 + 2: Rebuilds base content string, then applies search highlights.
     /// Called when content or theme changes.
-    private func rebuildBaseAndHighlights() {
+    private func rebuildBaseAndHighlights(completion: (() -> Void)? = nil) {
         let snapshot = BuildSnapshot(lines: formattedLines, theme: theme)
 
         if snapshot.lines.count < Self.asyncBuildThreshold {
             buildTask?.cancel()
             cachedBaseContentString = Self.buildBaseContentString(snapshot)
             cachedLineNumberString = Self.buildLineNumberString(snapshot)
+            gutterVersion &+= 1
             applySearchHighlights()
+            completion?()
             return
         }
 
@@ -200,7 +227,9 @@ struct BeautifyView: View {
             guard !Task.isCancelled else { return }
             cachedBaseContentString = pair.content
             cachedLineNumberString = pair.lineNumbers
+            gutterVersion &+= 1
             applySearchHighlights()
+            completion?()
         }
     }
 
@@ -209,6 +238,7 @@ struct BeautifyView: View {
     private func applySearchHighlights() {
         guard !searchText.isEmpty, !isSearchDismissed else {
             cachedContentString = cachedBaseContentString
+            contentVersion &+= 1
             return
         }
 
@@ -245,6 +275,7 @@ struct BeautifyView: View {
         }
 
         cachedContentString = highlighted
+        contentVersion &+= 1
     }
 
     // MARK: - NSAttributedString Building
@@ -314,19 +345,48 @@ struct BeautifyView: View {
 
     // MARK: - JSON Formatting
 
-    private func formatJSON() {
-        // formattedJSON is already formatted, just tokenize it
-        formattedLines = tokenizeFormattedJSON(formattedJSON, stripEscapes: settings.ignoreEscapeSequences)
-    }
+    @State private var formatTask: Task<Void, Never>?
 
-    private func tokenizeFormattedJSON(_ json: String, stripEscapes: Bool = false) -> [FormattedLine] {
-        let lines = json.components(separatedBy: "\n")
-        return lines.map { line in
-            FormattedLine(tokens: tokenizeLine(line, stripEscapes: stripEscapes))
+    /// Tokenizes formattedJSON on a background thread to avoid blocking the main thread
+    /// for large documents. Calls `completion` on the main actor when done.
+    private func formatJSON(completion: (() -> Void)? = nil) {
+        formatTask?.cancel()
+        let json = formattedJSON
+        let strip = settings.ignoreEscapeSequences
+        let maxLines = BeautifyLimit.maxDisplayLines
+        formatTask = Task {
+            let lines = await Task.detached(priority: .userInitiated) {
+                Self.tokenizeFormattedJSON(json, stripEscapes: strip, maxLines: maxLines)
+            }.value
+            guard !Task.isCancelled else { return }
+            formattedLines = lines
+            completion?()
         }
     }
 
-    private func tokenizeLine(_ line: String, stripEscapes: Bool = false) -> [JSONToken] {
+    private static func tokenizeFormattedJSON(
+        _ json: String,
+        stripEscapes: Bool = false,
+        maxLines: Int? = nil
+    ) -> [FormattedLine] {
+        let lines = json.components(separatedBy: "\n")
+        let totalCount = lines.count
+        let isTruncated = maxLines != nil && totalCount > maxLines!
+        let linesToProcess = isTruncated ? Array(lines.prefix(maxLines!)) : lines
+
+        var result = linesToProcess.map { line in
+            FormattedLine(tokens: tokenizeLine(line, stripEscapes: stripEscapes))
+        }
+
+        if isTruncated {
+            let notice = "// ---- Display truncated (\(maxLines!.formatted()) of \(totalCount.formatted()) lines) ----\n// Full content parsed. Use Tree mode for complete view."
+            result.append(FormattedLine(tokens: [JSONToken(text: notice, type: .structure)]))
+        }
+
+        return result
+    }
+
+    private static func tokenizeLine(_ line: String, stripEscapes: Bool = false) -> [JSONToken] {
         var tokens: [JSONToken] = []
         var remaining = line[...]
 
@@ -412,7 +472,7 @@ struct BeautifyView: View {
         return tokens
     }
 
-    private func findStringEnd(in text: Substring) -> String.Index? {
+    private static func findStringEnd(in text: Substring) -> String.Index? {
         guard text.first == "\"" else { return nil }
 
         var index = text.index(after: text.startIndex)
@@ -557,7 +617,8 @@ struct BeautifyView_Previews: PreviewProvider {
             """,
             searchText: .constant(""),
             currentSearchIndex: .constant(0),
-            scrollPosition: .constant(0)
+            scrollPosition: .constant(0),
+            isRendering: .constant(false)
         )
         .frame(width: 400, height: 300)
     }

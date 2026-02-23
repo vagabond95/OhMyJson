@@ -76,7 +76,8 @@ struct ViewerWindow: View {
                             onTextChange: viewModel.handleTextChange,
                             onClear: viewModel.clearAll,
                             scrollPosition: $viewModel.inputScrollPosition,
-                            isRestoringTabState: viewModel.isRestoringTabState
+                            isRestoringTabState: viewModel.isRestoringTabState,
+                            onLargeTextPaste: viewModel.handleLargeTextPaste
                         )
                         .frame(width: inputWidth)
                         .allowsHitTesting(!isDraggingDivider)
@@ -362,7 +363,8 @@ struct ViewerWindow: View {
                             scrollPosition: Bindable(viewModel).beautifyScrollPosition,
                             isRestoringTabState: viewModel.isRestoringTabState,
                             isSearchDismissed: viewModel.beautifySearchDismissed,
-                            onMouseDown: { viewModel.dismissBeautifySearchHighlights() }
+                            onMouseDown: { viewModel.dismissBeautifySearchHighlights() },
+                            isRendering: Bindable(viewModel).isBeautifyRendering
                         )
                         .opacity(viewModel.viewMode == .beautify ? 1 : 0)
                         .allowsHitTesting(viewModel.viewMode == .beautify)
@@ -417,7 +419,7 @@ struct ViewerWindow: View {
                 }
             }
 
-            if viewModel.isParsing, viewModel.parseResult != nil {
+            if (viewModel.isParsing || viewModel.isBeautifyRendering), viewModel.parseResult != nil {
                 ProgressView()
                     .controlSize(.small)
                     .padding(.top, 8)

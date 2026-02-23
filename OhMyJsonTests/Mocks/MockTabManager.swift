@@ -82,6 +82,11 @@ final class MockTabManager: TabManagerProtocol {
         tabs[index].inputText = text
     }
 
+    func updateTabFullInput(id: UUID, fullText: String?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].fullInputText = fullText
+    }
+
     func updateTabParseResult(id: UUID, result: JSONParseResult) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].parseResult = result

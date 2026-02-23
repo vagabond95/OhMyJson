@@ -86,6 +86,7 @@ class ViewerViewModel {
         }
     }
     var isParsing: Bool = false
+    var isBeautifyRendering: Bool = false
 
     private var _formattedJSONCache: String?
     var formattedJSON: String? { _formattedJSONCache }
@@ -96,6 +97,10 @@ class ViewerViewModel {
     @ObservationIgnored private let debounceInterval: TimeInterval = Timing.parseDebounce
     @ObservationIgnored private var parseTask: Task<Void, Never>?
     @ObservationIgnored private var suppressFormatOnSet: Bool = false
+
+    /// Full original text when inputText displays a truncated preview (large input > 512KB).
+    /// nil means inputText is the complete content.
+    @ObservationIgnored var fullInputText: String?
 
     @ObservationIgnored private var restoreTask: DispatchWorkItem?
     @ObservationIgnored private var hasRestoredCurrentTab: Bool = false
@@ -173,6 +178,43 @@ class ViewerViewModel {
             }
     }
 
+    // MARK: - Truncated Preview Utility
+
+    /// Builds a truncated preview of large input text for display in InputView.
+    /// Shows the first ~10KB of content with a note indicating truncation.
+    static func buildTruncatedPreview(_ text: String) -> String {
+        let previewCharCount = 10_000
+        let preview = String(text.prefix(previewCharCount))
+        let sizeKB = text.utf8.count / 1024
+        return preview
+            + "\n\n// ---- Large input (\(sizeKB) KB) ----\n"
+            + "// Display truncated for performance.\n"
+            + "// Full content parsed. View in Beautify or Tree mode."
+    }
+
+    // MARK: - Large Text Paste Handling
+
+    /// Called by EditableTextView when pasted text exceeds InputSize.displayThreshold.
+    /// Stores the full text separately and displays a truncated preview in InputView,
+    /// then parses the full text in the background.
+    func handleLargeTextPaste(_ text: String) {
+        guard let activeTabId = tabManager.activeTabId else { return }
+
+        fullInputText = text
+        let truncated = ViewerViewModel.buildTruncatedPreview(text)
+
+        tabManager.updateTabInput(id: activeTabId, text: truncated)
+        tabManager.updateTabFullInput(id: activeTabId, fullText: text)
+
+        // Trigger SwiftUI → updateNSView with truncated text (fast — avoids SBBOD)
+        inputText = truncated
+
+        // Parse full text immediately, skipping debounce
+        debounceTask?.cancel()
+        parseTask?.cancel()
+        parseAndUpdateJSON(text: text, activeTabId: activeTabId)
+    }
+
     // MARK: - HotKey Handling (moved from AppDelegate)
 
     func handleHotKey() {
@@ -196,15 +238,8 @@ class ViewerViewModel {
             return
         }
 
-        // Lightweight validation (no JSONNode tree construction)
-        if jsonParser.validateJSON(trimmed) {
-            createNewTab(with: trimmed)
-        } else {
-            ToastManager.shared.show(String(localized: "toast.invalid_json"), duration: Duration.toastLong)
-            if windowManager.isViewerOpen {
-                windowManager.bringToFront()
-            }
-        }
+        // Always create tab — if JSON is invalid, ErrorView will show the parse error details
+        createNewTab(with: trimmed)
     }
 
     private func showSizeConfirmationDialog(size: Double, text: String) {
@@ -242,8 +277,20 @@ class ViewerViewModel {
             ToastManager.shared.show("Too many tabs open. Please close unused tabs", duration: Duration.toastLong)
         }
 
-        // Create tab immediately (no synchronous parse)
-        let tabId = tabManager.createTab(with: jsonString)
+        // Determine display text — truncate if large to avoid SBBOD in NSTextView
+        let isLarge = (jsonString?.utf8.count ?? 0) > InputSize.displayThreshold
+        let displayText = isLarge ? ViewerViewModel.buildTruncatedPreview(jsonString!) : jsonString
+
+        // Create tab with display text (truncated or full)
+        let tabId = tabManager.createTab(with: displayText)
+
+        // Store full text reference if large
+        if isLarge, let full = jsonString {
+            tabManager.updateTabFullInput(id: tabId, fullText: full)
+            fullInputText = full
+        } else {
+            fullInputText = nil
+        }
 
         // Show / bring window to front
         if !windowManager.isViewerOpen {
@@ -254,11 +301,11 @@ class ViewerViewModel {
 
         // Update ViewModel data state (suppress formatJSON — background parse will provide it)
         suppressFormatOnSet = true
-        currentJSON = jsonString
+        currentJSON = jsonString  // always full text for parsing
         suppressFormatOnSet = false
         parseResult = nil
 
-        // Start background parse if JSON provided
+        // Start background parse if JSON provided (always use full text)
         if let json = jsonString {
             parseInBackground(json: json, tabId: tabId)
         }
@@ -267,9 +314,20 @@ class ViewerViewModel {
     private func reuseEmptyTab(_ tab: JSONTab, with jsonString: String?) {
         let wasAlreadyActive = (activeTabId == tab.id)
 
-        // Update tab input if JSON provided (no synchronous parse)
+        // Update tab input — truncate display if large
         if let json = jsonString {
-            tabManager.updateTabInput(id: tab.id, text: json)
+            let isLarge = json.utf8.count > InputSize.displayThreshold
+            let displayText = isLarge ? ViewerViewModel.buildTruncatedPreview(json) : json
+            tabManager.updateTabInput(id: tab.id, text: displayText)
+            if isLarge {
+                tabManager.updateTabFullInput(id: tab.id, fullText: json)
+                fullInputText = json
+            } else {
+                tabManager.updateTabFullInput(id: tab.id, fullText: nil)
+                fullInputText = nil
+            }
+        } else {
+            fullInputText = nil
         }
 
         // Select the tab (marks as accessed, triggers tab change if needed)
@@ -284,7 +342,7 @@ class ViewerViewModel {
 
         // Update ViewModel data state (suppress formatJSON — background parse will provide it)
         suppressFormatOnSet = true
-        currentJSON = jsonString
+        currentJSON = jsonString  // always full text for parsing
         suppressFormatOnSet = false
         parseResult = nil
 
@@ -292,13 +350,18 @@ class ViewerViewModel {
         // (selectTab won't trigger onActiveTabChanged for same tab)
         if wasAlreadyActive {
             isRestoringTabState = true
-            inputText = jsonString ?? ""
+            if let json = jsonString {
+                let isLarge = json.utf8.count > InputSize.displayThreshold
+                inputText = isLarge ? ViewerViewModel.buildTruncatedPreview(json) : json
+            } else {
+                inputText = ""
+            }
             DispatchQueue.main.async { [weak self] in
                 self?.isRestoringTabState = false
             }
         }
 
-        // Start background parse if JSON provided
+        // Start background parse if JSON provided (always use full text)
         if let json = jsonString {
             parseInBackground(json: json, tabId: tab.id)
         }
@@ -343,6 +406,12 @@ class ViewerViewModel {
     func handleTextChange(_ text: String) {
         guard !isRestoringTabState else { return }
         guard let activeTabId = tabManager.activeTabId else { return }
+
+        // User edited the text directly — invalidate stored full text
+        if fullInputText != nil {
+            fullInputText = nil
+            tabManager.updateTabFullInput(id: activeTabId, fullText: nil)
+        }
 
         tabManager.updateTabInput(id: activeTabId, text: text)
 
@@ -410,6 +479,8 @@ class ViewerViewModel {
                     self.currentJSON = json
                     self._formattedJSONCache = formatted
                     self.suppressFormatOnSet = false
+                    // Signal BeautifyView rendering will begin — prevents progress gap
+                    self.isBeautifyRendering = true
                 case .failure(let error):
                     self.parseResult = .failure(error)
                     self.suppressFormatOnSet = true
@@ -477,6 +548,7 @@ class ViewerViewModel {
         tabManager.updateTabTreeScrollAnchor(id: tabId, nodeId: treeScrollAnchorId)
         tabManager.updateTabTreeHorizontalScroll(id: tabId, offset: treeHorizontalScrollOffset)
         tabManager.updateTabSearchDismissState(id: tabId, beautifyDismissed: beautifySearchDismissed, treeDismissed: treeSearchDismissed)
+        tabManager.updateTabFullInput(id: tabId, fullText: fullInputText)
     }
 
     func restoreTabState() {
@@ -504,8 +576,11 @@ class ViewerViewModel {
         }
 
         inputText = activeTab.inputText
+        fullInputText = activeTab.fullInputText
         parseResult = activeTab.parseResult
-        currentJSON = activeTab.inputText.isEmpty ? nil : activeTab.inputText
+        // Use full text for currentJSON (parsing / copy-all), display text for inputText
+        let jsonForParse = activeTab.fullInputText ?? activeTab.inputText
+        currentJSON = jsonForParse.isEmpty ? nil : jsonForParse
 
         searchText = activeTab.searchText
         beautifySearchIndex = activeTab.beautifySearchIndex
@@ -685,7 +760,10 @@ class ViewerViewModel {
         debounceTask?.cancel()
         parseTask?.cancel()
         isParsing = false
+        isBeautifyRendering = false
 
+        fullInputText = nil
+        tabManager.updateTabFullInput(id: activeTabId, fullText: nil)
         tabManager.updateTabInput(id: activeTabId, text: "")
         tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
         tabManager.updateTabSearchState(id: activeTabId, searchText: "", beautifySearchIndex: 0, treeSearchIndex: 0)

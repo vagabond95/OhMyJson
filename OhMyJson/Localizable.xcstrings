@@ -235,6 +235,16 @@
     "Last checked: %@" : {
 
     },
+    "Line %lld, Column %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Line %1$lld, Column %2$lld"
+          }
+        }
+      }
+    },
     "menu.about" : {
       "localizations" : {
         "en" : {
@@ -1200,6 +1210,7 @@
       }
     },
     "toast.invalid_json" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

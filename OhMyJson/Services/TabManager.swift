@@ -128,6 +128,13 @@ class TabManager: TabManagerProtocol {
         tabs[index].inputText = text
     }
 
+    /// Update the full (untruncated) input text of a specific tab.
+    /// Set to nil when inputText is the complete content.
+    func updateTabFullInput(id: UUID, fullText: String?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].fullInputText = fullText
+    }
+
     /// Update the parse result of a specific tab
     /// - Parameters:
     ///   - id: UUID of the tab

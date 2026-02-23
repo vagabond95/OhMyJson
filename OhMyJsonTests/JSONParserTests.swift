@@ -223,6 +223,59 @@ struct JSONParserTests {
         }
     }
 
+    @Test("Smart quotes inside straight-quote string are preserved as value characters")
+    func smartQuotesInsideStraightQuoteStringPreserved() {
+        // Value contains smart quotes but structure uses straight quotes (U+201C/201D)
+        let json = "{\"text\": \"\u{201C}hello\u{201D}\"}"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success: smart quotes inside straight-quote string should be preserved")
+            return
+        }
+        if let child = node.children.first, case .string(let s) = child.value {
+            #expect(s == "\u{201C}hello\u{201D}")
+        } else {
+            Issue.record("Expected string child with smart quote value")
+        }
+    }
+
+    @Test("All-smart-quote JSON (rich text paste) is correctly sanitized")
+    func allSmartQuoteJSONSanitized() {
+        // All structural quotes are smart quotes (e.g. copy-pasted from a web page)
+        let json = "{\u{201C}key\u{201D}: \u{201C}value\u{201D}}"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success after structural smart quote sanitization")
+            return
+        }
+        if let child = node.children.first {
+            #expect(child.key == "key")
+            if case .string(let s) = child.value {
+                #expect(s == "value")
+            } else {
+                Issue.record("Expected string value")
+            }
+        } else {
+            Issue.record("Expected at least one child node")
+        }
+    }
+
+    @Test("Straight-quote key with smart-quote value is sanitized")
+    func straightKeySmartValueSanitized() {
+        // Key uses straight quotes, value uses smart quotes
+        let json = "{\"key\": \u{201C}value\u{201D}}"
+        let result = parser.parse(json)
+        guard case .success(let node) = result else {
+            Issue.record("Expected success after sanitizing smart-quote value")
+            return
+        }
+        if let child = node.children.first, case .string(let s) = child.value {
+            #expect(s == "value")
+        } else {
+            Issue.record("Expected string child with value")
+        }
+    }
+
     // MARK: - Formatting
 
     @Test("formatJSON produces pretty-printed output")

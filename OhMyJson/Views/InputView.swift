@@ -9,6 +9,19 @@ import Carbon.HIToolbox
 
 // MARK: - Custom NSTextView that handles key equivalents directly
 class EditableTextView: NSTextView {
+    /// Called instead of NSTextView insertion when pasted text exceeds InputSize.displayThreshold.
+    var onLargeTextPaste: ((String) -> Void)?
+
+    override func paste(_ sender: Any?) {
+        guard let text = NSPasteboard.general.string(forType: .string),
+              text.utf8.count > InputSize.displayThreshold else {
+            super.paste(sender)
+            return
+        }
+        // Bypass NSTextView insertion for large text to prevent SBBOD on main thread.
+        onLargeTextPaste?(text)
+    }
+
     override func resignFirstResponder() -> Bool {
         setSelectedRange(NSRange(location: selectedRange().location, length: 0))
         return super.resignFirstResponder()
@@ -89,6 +102,7 @@ struct UndoableTextView: NSViewRepresentable {
     let onTextChange: (String) -> Void
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
+    var onLargeTextPaste: ((String) -> Void)?
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -139,7 +153,9 @@ struct UndoableTextView: NSViewRepresentable {
 
         // Set initial text
         textView.string = text
-        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+
+        // Wire large-paste callback
+        textView.onLargeTextPaste = onLargeTextPaste
 
         // Store references in coordinator
         context.coordinator.textView = textView
@@ -210,7 +226,6 @@ struct UndoableTextView: NSViewRepresentable {
             // Update text view
             let selectedRange = textView.selectedRange()
             textView.string = text
-            textView.layoutManager?.ensureLayout(for: textView.textContainer!)
 
             if isRestoringTabState {
                 // During tab restoration (hotkey, tab switch), cursor goes to beginning
@@ -287,6 +302,7 @@ struct InputView: View {
     let onTextChange: (String) -> Void
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
+    var onLargeTextPaste: ((String) -> Void)?
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -309,7 +325,8 @@ struct InputView: View {
                     font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
                     onTextChange: onTextChange,
                     scrollPosition: $scrollPosition,
-                    isRestoringTabState: isRestoringTabState
+                    isRestoringTabState: isRestoringTabState,
+                    onLargeTextPaste: onLargeTextPaste
                 )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -325,6 +342,7 @@ struct InputPanel: View {
     let onClear: () -> Void
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
+    var onLargeTextPaste: ((String) -> Void)?
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -364,7 +382,8 @@ struct InputPanel: View {
                 text: $text,
                 onTextChange: onTextChange,
                 scrollPosition: $scrollPosition,
-                isRestoringTabState: isRestoringTabState
+                isRestoringTabState: isRestoringTabState,
+                onLargeTextPaste: onLargeTextPaste
             )
             .padding(8)
         }

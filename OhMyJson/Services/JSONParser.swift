@@ -24,8 +24,14 @@ struct JSONParseError: Error, LocalizedError {
         self.line = line
         self.column = column
         if let text = originalText {
-            let lines = text.components(separatedBy: .newlines)
-            self.preview = lines.prefix(5).joined(separator: "\n")
+            // Scan first 5 lines without splitting the entire string (avoids O(n) alloc for large inputs)
+            var lineCount = 0
+            var endIndex = text.startIndex
+            while endIndex < text.endIndex && lineCount < 5 {
+                if text[endIndex] == "\n" { lineCount += 1 }
+                endIndex = text.index(after: endIndex)
+            }
+            self.preview = String(text[text.startIndex..<endIndex])
         } else {
             self.preview = nil
         }
@@ -65,24 +71,91 @@ class JSONParser: JSONParserProtocol {
     }
 
     /// Slow path: builds a new string replacing/removing problematic unicode scalars.
+    /// Context-aware: tracks whether we are inside a JSON string to avoid corrupting
+    /// smart quotes that appear as value characters inside straight-quote strings.
     private func sanitizeForJSONSlow(_ scalars: String.UnicodeScalarView) -> String {
         var result: [UnicodeScalar] = []
-        result.reserveCapacity(scalars.count)
+        result.reserveCapacity(scalars.underestimatedCount)
+
+        var insideString = false
+        var openedWithStraightQuote = false
+        var prevWasBackslash = false
 
         for scalar in scalars {
+            // Character after \ is escaped — append verbatim without state change
+            if prevWasBackslash {
+                result.append(scalar)
+                prevWasBackslash = false
+                continue
+            }
+
             switch scalar.value {
-            // Smart/curly quotes → straight double quote
-            case 0x201C, 0x201D, 0x201E, 0x201F:
-                result.append("\"")
+            case 0x5C: // backslash
+                result.append(scalar)
+                if insideString { prevWasBackslash = true }
+
+            case 0x22: // straight double quote "
+                result.append(scalar)
+                if insideString && openedWithStraightQuote {
+                    insideString = false
+                    openedWithStraightQuote = false
+                } else if !insideString {
+                    insideString = true
+                    openedWithStraightQuote = true
+                }
+                // An unmatched " inside a smart-quote string is left as-is
+
+            // Opening smart quotes: " (201C), „ (201E)
+            case 0x201C, 0x201E:
+                if insideString && openedWithStraightQuote {
+                    // Inside a straight-quote JSON string: preserve — JSONSerialization handles it
+                    result.append(scalar)
+                } else if !insideString {
+                    // Structural smart quote (e.g. rich-text paste): replace with "
+                    result.append("\"")
+                    insideString = true
+                    openedWithStraightQuote = false
+                } else {
+                    // Nested opening inside a smart-quote string: replace with "
+                    result.append("\"")
+                }
+
+            // Closing smart quotes: " (201D), ‟ (201F)
+            case 0x201D, 0x201F:
+                if insideString && openedWithStraightQuote {
+                    // Inside a straight-quote JSON string: preserve
+                    result.append(scalar)
+                } else if insideString && !openedWithStraightQuote {
+                    // Closes a smart-quote string
+                    result.append("\"")
+                    insideString = false
+                    openedWithStraightQuote = false
+                } else {
+                    // Outside any string: replace with "
+                    result.append("\"")
+                }
+
             // Special spaces → regular space
             case 0x00A0, 0x2007, 0x202F:
                 result.append(" ")
+
             // Zero-width / invisible → remove
             case 0xFEFF, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F:
                 break
-            // Line/paragraph separator → newline
+
+            // Line/paragraph separator: escape inside strings (JSON spec), newline outside
             case 0x2028, 0x2029:
-                result.append("\n")
+                if insideString {
+                    result.append("\\")
+                    result.append("u")
+                    result.append("2")
+                    result.append("0")
+                    result.append("2")
+                    result.append(scalar.value == 0x2028 ? "8" : "9")
+                } else {
+                    result.append("\n")
+                }
+
             default:
                 result.append(scalar)
             }
@@ -466,7 +539,8 @@ class JSONParser: JSONParserProtocol {
                 while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
             }
 
-            let original = String(jsonString.unicodeScalars[jsonString.unicodeScalars.index(jsonString.unicodeScalars.startIndex, offsetBy: start)..<jsonString.unicodeScalars.index(jsonString.unicodeScalars.startIndex, offsetBy: i)])
+            var original = ""
+            original.unicodeScalars.append(contentsOf: chars[start..<i])
 
             // Optimization: skip integers in safe integer range (no precision loss possible)
             if !hasDecimalOrExp, let intVal = Int64(original), intVal >= -9007199254740991 && intVal <= 9007199254740991 {
@@ -491,9 +565,9 @@ class JSONParser: JSONParserProtocol {
     private func patchNumbers(_ formattedJSON: String, with mapping: [String: String]) -> String {
         guard !mapping.isEmpty else { return formattedJSON }
 
-        var result: [UnicodeScalar] = []
-        result.reserveCapacity(formattedJSON.unicodeScalars.count)
         let chars = Array(formattedJSON.unicodeScalars)
+        var result: [UnicodeScalar] = []
+        result.reserveCapacity(chars.count)
         let count = chars.count
         var i = 0
 
@@ -545,7 +619,8 @@ class JSONParser: JSONParserProtocol {
                 while i < count && chars[i] >= "0" && chars[i] <= "9" { i += 1 }
             }
 
-            let numStr = String(formattedJSON.unicodeScalars[formattedJSON.unicodeScalars.index(formattedJSON.unicodeScalars.startIndex, offsetBy: start)..<formattedJSON.unicodeScalars.index(formattedJSON.unicodeScalars.startIndex, offsetBy: i)])
+            var numStr = ""
+            numStr.unicodeScalars.append(contentsOf: chars[start..<i])
 
             if let replacement = mapping[numStr] {
                 result.append(contentsOf: replacement.unicodeScalars)

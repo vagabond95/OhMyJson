@@ -25,6 +25,7 @@ protocol TabManagerProtocol: AnyObject {
     func getTabIndex(id: UUID) -> Int
 
     func updateTabInput(id: UUID, text: String)
+    func updateTabFullInput(id: UUID, fullText: String?)
     func updateTabParseResult(id: UUID, result: JSONParseResult)
     func updateTabSearchState(id: UUID, searchText: String, beautifySearchIndex: Int, treeSearchIndex: Int)
     func updateTabViewMode(id: UUID, viewMode: ViewMode)
