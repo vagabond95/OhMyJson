@@ -390,43 +390,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.tag }}"
           DMG_NAME="${{ steps.dmg.outputs.dmg_name }}"
           ZIP_NAME="${{ steps.zip.outputs.zip_name }}"
-          SHA256="${{ steps.sha.outputs.sha256 }}"
 
           # Extract tag annotation message
-          TAG_MSG=$(git tag -l --format='%(contents)' "$TAG" | head -20)
+          TAG_MSG=$(git tag -l --format='%(contents)' "$TAG")
           if [ -z "$TAG_MSG" ]; then
             TAG_MSG="Release $TAG"
           fi
 
           gh release create "$TAG" "$DMG_NAME" "$ZIP_NAME" \
             --title "$APP_NAME $TAG" \
-            --notes "$(cat <<EOF
-          $TAG_MSG
-
-          ## Install
-
-          ### Direct Download
-          Download \`$DMG_NAME\`, open it, and drag OhMyJson to Applications.
-
-          ### Homebrew
-          \`\`\`bash
-          brew tap vagabond95/ohmyjson
-          brew install --cask ohmyjson
-          \`\`\`
-
-          ## Verify
-
-          **SHA256:** \`$SHA256\`
-
-          \`\`\`bash
-          shasum -a 256 $DMG_NAME
-          \`\`\`
-          EOF
-          )"
+            --notes "$TAG_MSG"
 
       # ── Homebrew Cask Update ─────────────────────────────────
       - name: Update Homebrew cask
