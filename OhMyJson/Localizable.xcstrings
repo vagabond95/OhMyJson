@@ -31,6 +31,9 @@
     "▼" : {
 
     },
+    "20/20" : {
+
+    },
     "accessibility.description" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -669,7 +672,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JSON from your clipboard"
+            "value" : "reads your clipboard"
           }
         }
       }
@@ -679,7 +682,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Press this shortcut to automatically read "
+            "value" : "When pressed, this shortcut "
           }
         }
       }
@@ -689,7 +692,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : " and format it."
+            "value" : ", then parses and formats it as JSON."
           }
         }
       }
@@ -915,6 +918,22 @@
         }
       }
     },
+    "shortcuts.double_click" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double-click"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더블클릭"
+          }
+        }
+      }
+    },
     "shortcuts.expand_all" : {
       "localizations" : {
         "en" : {
@@ -1118,6 +1137,22 @@
         }
       }
     },
+    "shortcuts.rename_tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Tab"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 이름 변경"
+          }
+        }
+      }
+    },
     "shortcuts.settings" : {
       "localizations" : {
         "en" : {
@@ -1155,6 +1190,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Undo"
+          }
+        }
+      }
+    },
+    "tab.context.close" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Tab"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭 닫기"
+          }
+        }
+      }
+    },
+    "tab.context.rename" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이름 변경"
           }
         }
       }

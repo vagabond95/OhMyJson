@@ -386,4 +386,44 @@ struct TabManagerTests {
         sut.updateTabTreeHorizontalScroll(id: UUID(), offset: 100)
         #expect(sut.tabs.isEmpty)
     }
+
+    // MARK: - updateTabTitle
+
+    @Test("updateTabTitle sets customTitle")
+    func updateTabTitleSets() {
+        let sut = makeSUT()
+        let id = sut.createTab(with: nil)
+        sut.updateTabTitle(id: id, customTitle: "My Tab")
+
+        let tab = sut.tabs.first(where: { $0.id == id })
+        #expect(tab?.customTitle == "My Tab")
+    }
+
+    @Test("updateTabTitle with nil clears customTitle")
+    func updateTabTitleClear() {
+        let sut = makeSUT()
+        let id = sut.createTab(with: nil)
+        sut.updateTabTitle(id: id, customTitle: "My Tab")
+        sut.updateTabTitle(id: id, customTitle: nil)
+
+        let tab = sut.tabs.first(where: { $0.id == id })
+        #expect(tab?.customTitle == nil)
+    }
+
+    @Test("updateTabTitle is no-op for unknown tab id")
+    func updateTabTitleUnknown() {
+        let sut = makeSUT()
+        sut.updateTabTitle(id: UUID(), customTitle: "X")
+        #expect(sut.tabs.isEmpty)
+    }
+
+    @Test("displayTitle reflects customTitle after updateTabTitle")
+    func displayTitleAfterUpdate() {
+        let sut = makeSUT()
+        let id = sut.createTab(with: nil)
+        sut.updateTabTitle(id: id, customTitle: "Custom")
+
+        let tab = sut.tabs.first(where: { $0.id == id })
+        #expect(tab?.displayTitle == "Custom")
+    }
 }

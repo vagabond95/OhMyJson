@@ -30,6 +30,7 @@ private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
         ShortcutGroup(title: String(localized: "shortcuts.group.tabs"), items: [
             ShortcutItem(action: String(localized: "shortcuts.new_tab"), keys: AppShortcut.newTab.displayString),
             ShortcutItem(action: String(localized: "shortcuts.close_tab"), keys: AppShortcut.closeTab.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.rename_tab"), keys: String(localized: "shortcuts.double_click")),
             ShortcutItem(action: String(localized: "shortcuts.previous_tab"), keys: AppShortcut.previousTab.displayString),
             ShortcutItem(action: String(localized: "shortcuts.next_tab"), keys: AppShortcut.nextTab.displayString),
         ]),

@@ -18,6 +18,7 @@ struct JSONTabTests {
         #expect(tab.inputText == "")
         #expect(tab.parseResult == nil)
         #expect(tab.title == "")
+        #expect(tab.customTitle == nil)
         #expect(tab.searchText == "")
         #expect(tab.beautifySearchIndex == 0)
         #expect(tab.treeSearchIndex == 0)
@@ -115,6 +116,32 @@ struct JSONTabTests {
         let tab1 = JSONTab(inputText: "same")
         let tab2 = JSONTab(inputText: "same")
         #expect(tab1 != tab2)
+    }
+
+    // MARK: - displayTitle
+
+    @Test("displayTitle returns customTitle when set")
+    func displayTitleCustom() {
+        let tab = JSONTab(title: "01/01, 12:00:00", customTitle: "My Tab")
+        #expect(tab.displayTitle == "My Tab")
+    }
+
+    @Test("displayTitle falls back to title when customTitle is nil")
+    func displayTitleNilFallback() {
+        let tab = JSONTab(title: "01/01, 12:00:00", customTitle: nil)
+        #expect(tab.displayTitle == "01/01, 12:00:00")
+    }
+
+    @Test("displayTitle falls back to title when customTitle is empty string")
+    func displayTitleEmptyFallback() {
+        let tab = JSONTab(title: "01/01, 12:00:00", customTitle: "")
+        #expect(tab.displayTitle == "01/01, 12:00:00")
+    }
+
+    @Test("displayTitle falls back to title when customTitle is whitespace-only")
+    func displayTitleWhitespaceFallback() {
+        let tab = JSONTab(title: "01/01, 12:00:00", customTitle: "   ")
+        #expect(tab.displayTitle == "01/01, 12:00:00")
     }
 
     // MARK: - ViewMode

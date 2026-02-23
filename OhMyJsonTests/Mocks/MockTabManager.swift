@@ -139,4 +139,9 @@ final class MockTabManager: TabManagerProtocol {
         tabs[index].beautifySearchDismissed = beautifyDismissed
         tabs[index].treeSearchDismissed = treeDismissed
     }
+
+    func updateTabTitle(id: UUID, customTitle: String?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].customTitle = customTitle
+    }
 }

@@ -218,6 +218,15 @@ class TabManager: TabManagerProtocol {
         tabs[index].treeSearchDismissed = treeDismissed
     }
 
+    /// Update the custom title of a specific tab
+    /// - Parameters:
+    ///   - id: UUID of the tab
+    ///   - customTitle: User-provided title, or nil to revert to auto-generated timestamp title
+    func updateTabTitle(id: UUID, customTitle: String?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].customTitle = customTitle
+    }
+
     /// Close all tabs
     func closeAllTabs() {
         tabs.removeAll()

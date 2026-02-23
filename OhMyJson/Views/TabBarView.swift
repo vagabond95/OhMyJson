@@ -10,6 +10,7 @@ import SwiftUI
 struct TabBarView: View {
     var tabManager: TabManager
     @Environment(AppSettings.self) var settings
+    @Environment(ViewerViewModel.self) var viewModel
 
     @State private var hoveredTabId: UUID?
 
@@ -111,6 +112,15 @@ struct TabBarView: View {
                             },
                             onHover: { isHovering in
                                 hoveredTabId = isHovering ? tab.id : nil
+                            },
+                            onRename: { newTitle in
+                                tabManager.updateTabTitle(id: tab.id, customTitle: newTitle)
+                            },
+                            onStartEditing: {
+                                viewModel.isRenamingTab = true
+                            },
+                            onFinishEditing: {
+                                viewModel.isRenamingTab = false
                             }
                         )
                     }
@@ -150,9 +160,16 @@ struct TabItemView: View {
     let onSelect: () -> Void
     let onClose: () -> Void
     let onHover: (Bool) -> Void
+    let onRename: (String?) -> Void
+    let onStartEditing: () -> Void
+    let onFinishEditing: () -> Void
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
+
+    @State private var isEditing = false
+    @State private var editingText = ""
+    @FocusState private var isTextFieldFocused: Bool
 
     private enum Layout {
         static let closeButtonWidth: CGFloat = 14
@@ -166,17 +183,57 @@ struct TabItemView: View {
 
     private var textWithGradient: some View {
         ZStack {
-            Text(tab.title)
-                .font(.system(size: 12, design: .monospaced))
-                .fontWeight(isActive ? .semibold : .regular)
-                .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
-                .fixedSize(horizontal: true, vertical: false)
-                .lineLimit(1)
+            if isEditing {
+                HStack(spacing: 2) {
+                    TextField("", text: $editingText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, design: .monospaced))
+                        .fontWeight(isActive ? .semibold : .regular)
+                        .foregroundColor(theme.primaryText)
+                        .multilineTextAlignment(.center)
+                        .focused($isTextFieldFocused)
+                        .lineLimit(1)
+                        .onChange(of: editingText) { _, newValue in
+                            if newValue.count > 20 {
+                                editingText = String(newValue.prefix(20))
+                            }
+                        }
+                        .onSubmit { commitRename() }
+                        .onKeyPress(.escape) {
+                            cancelEditing()
+                            return .handled
+                        }
+                        .onChange(of: isTextFieldFocused) { _, focused in
+                            if !focused && isEditing {
+                                commitRename()
+                            }
+                        }
+                        .overlay(alignment: .bottom) {
+                            Rectangle()
+                                .fill(theme.secondaryText)
+                                .frame(height: 1)
+                        }
+
+                    if editingText.count >= 20 {
+                        Text("20/20")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(theme.secondaryText)
+                            .fixedSize()
+                    }
+                }
+            } else {
+                Text(tab.displayTitle)
+                    .font(.system(size: 12, design: .monospaced))
+                    .fontWeight(isActive ? .semibold : .regular)
+                    .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .lineLimit(1)
+            }
         }
-        .frame(width: availableTextWidth, alignment: .trailing)
+        .frame(width: availableTextWidth, alignment: .center)
         .clipped()
         .overlay(alignment: .leading) {
-            if showGradient {
+            if showGradient && !isEditing {
                 LinearGradient(
                     colors: [backgroundColor, backgroundColor.opacity(0)],
                     startPoint: .leading,
@@ -191,16 +248,21 @@ struct TabItemView: View {
         HStack(spacing: Layout.spacing) {
             textWithGradient
 
-            // Close button
-            Image(systemName: "xmark")
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
-                .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
-                .contentShape(Rectangle())
-                .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
-                .onTapGesture {
-                    onClose()
-                }
+            // Close button — hidden during editing but space preserved
+            if !isEditing {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
+                    .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
+                    .contentShape(Rectangle())
+                    .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
+                    .onTapGesture {
+                        onClose()
+                    }
+            } else {
+                Color.clear
+                    .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
+            }
         }
         .padding(.horizontal, Layout.horizontalPadding)
         .padding(.vertical, 6)
@@ -221,7 +283,22 @@ struct TabItemView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            onSelect()
+            if !isEditing { onSelect() }
+        }
+        .simultaneousGesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    if !isEditing { startEditing() }
+                }
+        )
+        .contextMenu {
+            Button(String(localized: "tab.context.rename")) {
+                startEditing()
+            }
+            Divider()
+            Button(String(localized: "tab.context.close")) {
+                onClose()
+            }
         }
         .onHover { hovering in
             onHover(hovering)
@@ -234,6 +311,33 @@ struct TabItemView: View {
         } else {
             return theme.inactiveTabBorder
         }
+    }
+
+    private func startEditing() {
+        editingText = tab.displayTitle
+        isEditing = true
+        onStartEditing()
+        DispatchQueue.main.async {
+            isTextFieldFocused = true
+        }
+    }
+
+    private func commitRename() {
+        guard isEditing else { return }
+        isEditing = false
+        isTextFieldFocused = false
+        onFinishEditing()
+
+        let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            onRename(trimmed)
+        }
+    }
+
+    private func cancelEditing() {
+        isEditing = false
+        isTextFieldFocused = false
+        onFinishEditing()
     }
 }
 

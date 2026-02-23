@@ -33,6 +33,17 @@ struct JSONTab: Identifiable, Equatable {
     /// Display title for the tab (e.g., "Tab 1", "Tab 2")
     var title: String
 
+    /// User-provided custom title. nil = use auto-generated timestamp title.
+    var customTitle: String?
+
+    /// Display title: returns customTitle if non-empty, otherwise falls back to auto-generated title.
+    var displayTitle: String {
+        if let custom = customTitle, !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return custom
+        }
+        return title
+    }
+
     /// Search state for this tab
     var searchText: String
     var beautifySearchIndex: Int
@@ -71,6 +82,7 @@ struct JSONTab: Identifiable, Equatable {
         createdAt: Date = Date(),
         lastAccessedAt: Date = Date(),
         title: String = "",
+        customTitle: String? = nil,
         searchText: String = "",
         beautifySearchIndex: Int = 0,
         treeSearchIndex: Int = 0,
@@ -91,6 +103,7 @@ struct JSONTab: Identifiable, Equatable {
         self.createdAt = createdAt
         self.lastAccessedAt = lastAccessedAt
         self.title = title
+        self.customTitle = customTitle
         self.searchText = searchText
         self.beautifySearchIndex = beautifySearchIndex
         self.treeSearchIndex = treeSearchIndex
