@@ -272,9 +272,15 @@ class AppSettings {
         let storedVersion = UserDefaults.standard.string(forKey: lastInstalledVersionKey)
 
         if let storedVersion = storedVersion, storedVersion != currentVersion {
+            // Preserve onboarding state across version resets
+            let onboardingCompleted = UserDefaults.standard.bool(forKey: hasSeenOnboardingKey)
+
             if let bundleId = Bundle.main.bundleIdentifier {
                 UserDefaults.standard.removePersistentDomain(forName: bundleId)
             }
+
+            // Restore preserved state
+            UserDefaults.standard.set(onboardingCompleted, forKey: hasSeenOnboardingKey)
         }
 
         UserDefaults.standard.set(currentVersion, forKey: lastInstalledVersionKey)
