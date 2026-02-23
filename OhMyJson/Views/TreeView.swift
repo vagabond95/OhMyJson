@@ -34,15 +34,18 @@ struct TreeView: View {
     @State private var hasRestoredScroll = false
     @State private var isReady = false
     @State private var hasInitialized = false
-    @State private var isDirty = false
+    @State private var isStructureDirty = false  // rootNode.id, isExpanded, treeStructureVersion changes
+    @State private var isSearchDirty = false     // searchText changes while inactive
+    @State private var isSettingsDirty = false   // ignoreEscapeSequences changes
 
     // Scroll command system (replaces ScrollViewReader proxy)
     @State private var scrollCommand: TreeScrollCommand?
     @State private var scrollCommandVersion: Int = 0
     @State private var topVisibleIndex: Int = 0
+    @State private var viewportHeight: CGFloat = 0
     @State private var estimatedContentWidth: CGFloat = 0
 
-    // P4: Debounce scrollAnchorId updates
+    // Debounce scrollAnchorId updates (tab state persistence)
     @State private var scrollDebounceItem: DispatchWorkItem?
 
     // Async search task — cancelled when a new search starts
@@ -71,6 +74,12 @@ struct TreeView: View {
                 horizontalScrollOffset: $horizontalScrollOffset,
                 topVisibleIndex: $topVisibleIndex
             )
+            .onAppear {
+                viewportHeight = geometry.size.height
+            }
+            .onChange(of: geometry.size.height) { _, newHeight in
+                viewportHeight = newHeight
+            }
         }
         .opacity(isReady ? 1 : 0)
         .onChange(of: topVisibleIndex) { _, newIndex in
@@ -84,7 +93,7 @@ struct TreeView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: item)
         }
         .onChange(of: rootNode.id) { _, _ in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isStructureDirty = true; isSearchDirty = true; return }
             updateVisibleNodes()
             currentSearchResultId = nil
             currentSearchOccurrenceLocalIndex = 0
@@ -93,11 +102,11 @@ struct TreeView: View {
             }
         }
         .onChange(of: rootNode.isExpanded) { _, _ in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isStructureDirty = true; return }
             updateVisibleNodes()
         }
         .onChange(of: searchText) { _, newValue in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isSearchDirty = true; return }
             updateSearchResults { occurrences in
                 if !newValue.isEmpty && !occurrences.isEmpty {
                     selectedNodeId = nil
@@ -118,11 +127,11 @@ struct TreeView: View {
             }
         }
         .onChange(of: treeStructureVersion) { _, _ in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isStructureDirty = true; return }
             updateVisibleNodes()
         }
         .onChange(of: settings.ignoreEscapeSequences) { _, _ in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isSettingsDirty = true; isSearchDirty = true; return }
             searchPathCache = nil
             if !searchText.isEmpty {
                 updateSearchResults()
@@ -146,10 +155,20 @@ struct TreeView: View {
             guard newValue else { return }
             if !hasInitialized {
                 performFullInit()
-            } else if isDirty {
+            } else if isStructureDirty {
                 updateVisibleNodes()
                 restoreSearchHighlighting()
-                isDirty = false
+                isStructureDirty = false
+                isSearchDirty = false
+                isSettingsDirty = false
+            } else if isSettingsDirty {
+                searchPathCache = nil
+                restoreSearchHighlighting()
+                isSettingsDirty = false
+                isSearchDirty = false
+            } else if isSearchDirty {
+                restoreSearchHighlighting()
+                isSearchDirty = false
             }
         }
         .onDisappear {
@@ -163,8 +182,21 @@ struct TreeView: View {
 
     @ViewBuilder
     private func treeContent(viewportWidth: CGFloat) -> some View {
+        let rowHeight = TreeLayout.rowHeight
+        let buffer = TreeLayout.virtualizationBuffer
+        let visibleRowCount = viewportHeight > 0
+            ? Int(ceil(viewportHeight / rowHeight))
+            : visibleNodes.count
+        let startIndex = max(0, topVisibleIndex - buffer)
+        let endIndex = min(visibleNodes.count, topVisibleIndex + visibleRowCount + buffer)
+        let topHeight = CGFloat(startIndex) * rowHeight
+        let bottomHeight = CGFloat(visibleNodes.count - endIndex) * rowHeight
+
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(visibleNodes) { node in
+            if topHeight > 0 {
+                Color.clear.frame(height: topHeight)
+            }
+            ForEach(visibleNodes[startIndex..<endIndex]) { node in
                 TreeNodeView(
                     node: node,
                     searchText: isSearchDismissed ? "" : searchText,
@@ -176,7 +208,10 @@ struct TreeView: View {
                     },
                     ancestorIsLast: ancestorLastMap[node.id] ?? []
                 )
-                .frame(height: TreeLayout.rowHeight)
+                .frame(height: rowHeight)
+            }
+            if bottomHeight > 0 {
+                Color.clear.frame(height: bottomHeight)
             }
         }
         .padding(.leading, 10).padding(.trailing, 8)
@@ -259,7 +294,9 @@ struct TreeView: View {
             }
         }
         hasInitialized = true
-        isDirty = false
+        isStructureDirty = false
+        isSearchDirty = false
+        isSettingsDirty = false
     }
 
     // MARK: - Incremental expand/collapse

@@ -24,7 +24,9 @@ struct BeautifyView: View {
     @State private var searchResults: [SearchResult] = []
     @State private var currentSearchResultLocation: SearchResultLocation?
     @State private var hasInitialized = false
-    @State private var isDirty = false
+    @State private var isContentDirty = false  // formattedJSON or ignoreEscapeSequences changed
+    @State private var isSearchDirty = false   // searchText changed while inactive
+    @State private var isThemeDirty = false    // isDarkMode changed while inactive
     @State private var buildTask: Task<Void, Never>?
     /// Monotonically increasing version counter for cachedContentString.
     /// Incremented whenever the displayed content attributed string changes,
@@ -62,7 +64,7 @@ struct BeautifyView: View {
             gutterContentId: gutterVersion
         )
         .onChange(of: searchText) { _, newValue in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isSearchDirty = true; return }
             updateSearchResults()
             if !newValue.isEmpty && !searchResults.isEmpty {
                 currentSearchIndex = 0
@@ -90,19 +92,29 @@ struct BeautifyView: View {
             guard newValue else { return }
             if !hasInitialized {
                 performFullInit()
-            } else if isDirty {
+            } else if isContentDirty {
                 isRendering = true
                 formatJSON {
                     updateSearchResults()
                     rebuildBaseAndHighlights {
                         self.isRendering = false
                     }
-                    isDirty = false
+                    isContentDirty = false
+                    isSearchDirty = false
+                    isThemeDirty = false
                 }
+            } else if isThemeDirty {
+                rebuildBaseAndHighlights()
+                isThemeDirty = false
+                isSearchDirty = false
+            } else if isSearchDirty {
+                updateSearchResults()
+                applySearchHighlights()
+                isSearchDirty = false
             }
         }
         .onChange(of: formattedJSON) { _, _ in
-            guard isActive else { isDirty = true; isRendering = false; return }
+            guard isActive else { isContentDirty = true; isRendering = false; return }
             isRendering = true
             formatJSON {
                 updateSearchResults()
@@ -116,12 +128,12 @@ struct BeautifyView: View {
             applySearchHighlights()
         }
         .onChange(of: settings.isDarkMode) { _, _ in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isThemeDirty = true; return }
             // Theme change doesn't affect token data — only colors need rebuilding
             rebuildBaseAndHighlights()
         }
         .onChange(of: settings.ignoreEscapeSequences) { _, _ in
-            guard isActive else { isDirty = true; return }
+            guard isActive else { isContentDirty = true; return }
             isRendering = true
             formatJSON {
                 updateSearchResults()
@@ -143,7 +155,9 @@ struct BeautifyView: View {
                 self.isRendering = false
             }
             hasInitialized = true
-            isDirty = false
+            isContentDirty = false
+            isSearchDirty = false
+            isThemeDirty = false
         }
     }
 

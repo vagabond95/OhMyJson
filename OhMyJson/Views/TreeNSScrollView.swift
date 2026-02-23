@@ -183,7 +183,6 @@ struct TreeNSScrollView: NSViewRepresentable {
         var lastEstimatedContentWidth: CGFloat = 0
         var lastScrollCommandVersion: Int = -1
 
-        private var scrollDebounceItem: DispatchWorkItem?
         private var isExecutingScrollCommand = false
 
         init(_ parent: TreeNSScrollView) {
@@ -206,17 +205,11 @@ struct TreeNSScrollView: NSViewRepresentable {
                 }
             }
 
-            // Debounce vertical topVisibleIndex updates
-            scrollDebounceItem?.cancel()
-            let item = DispatchWorkItem { [weak self] in
-                guard let self else { return }
-                let topIndex = max(0, Int(currentY / TreeLayout.rowHeight))
-                if self.parent.topVisibleIndex != topIndex {
-                    self.parent.topVisibleIndex = topIndex
-                }
+            // Update topVisibleIndex immediately for virtualized rendering
+            let topIndex = max(0, Int(currentY / TreeLayout.rowHeight))
+            if self.parent.topVisibleIndex != topIndex {
+                self.parent.topVisibleIndex = topIndex
             }
-            scrollDebounceItem = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: item)
         }
 
         func executeScrollCommand(_ cmd: TreeScrollCommand, in scrollView: FastScrollView) {
@@ -262,7 +255,6 @@ struct TreeNSScrollView: NSViewRepresentable {
         }
 
         deinit {
-            scrollDebounceItem?.cancel()
             NotificationCenter.default.removeObserver(self)
         }
     }

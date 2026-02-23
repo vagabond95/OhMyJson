@@ -89,6 +89,7 @@ enum BeautifyLimit {
 
 enum TreeLayout {
     static let rowHeight: CGFloat = 26
+    static let virtualizationBuffer: Int = 10  // top/bottom row buffer for windowed rendering
     #if os(macOS)
     static let charWidth: CGFloat = {
         let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
