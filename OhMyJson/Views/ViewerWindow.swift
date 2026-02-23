@@ -419,7 +419,7 @@ struct ViewerWindow: View {
                 }
             }
 
-            if (viewModel.isParsing || viewModel.isBeautifyRendering), viewModel.parseResult != nil {
+            if (viewModel.isParsing || (viewModel.isBeautifyRendering && viewModel.viewMode == .beautify)), viewModel.parseResult != nil {
                 ProgressView()
                     .controlSize(.small)
                     .padding(.top, 8)

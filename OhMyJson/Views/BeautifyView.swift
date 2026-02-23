@@ -80,7 +80,10 @@ struct BeautifyView: View {
             applySearchHighlights()
         }
         .onAppear {
-            guard isActive else { return }
+            guard isActive else {
+                isRendering = false
+                return
+            }
             performFullInit()
         }
         .onChange(of: isActive) { _, newValue in
