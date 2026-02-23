@@ -410,9 +410,15 @@ struct ViewerWindow: View {
             }
 
             if (viewModel.isParsing || (viewModel.isBeautifyRendering && viewModel.viewMode == .beautify)), viewModel.parseResult != nil {
-                ProgressView()
-                    .controlSize(.small)
-                    .padding(.top, 8)
+                if viewModel.isInitialLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(.top, 8)
+                }
             }
         }
     }
@@ -427,6 +433,11 @@ struct ViewerWindow: View {
         }
         let vm = viewModel
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Tab rename in progress — pass all events through to the TextField
+            if vm.isRenamingTab {
+                return event
+            }
+
             // ESC to close cheat sheet or search
             if event.keyCode == KeyCode.escape {
                 if vm.isCheatSheetVisible {

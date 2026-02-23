@@ -1458,6 +1458,122 @@ struct ViewerViewModelTests {
         #expect(vm.currentJSON == largeText)
     }
 
+    // MARK: - isInitialLoading
+
+    @Test("isInitialLoading defaults to false")
+    func isInitialLoadingDefaultsFalse() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @MainActor @Test("isInitialLoading becomes true on first parse success (nil → success)")
+    func isInitialLoadingTrueOnFirstParseSuccess() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let node = JSONNode(value: .object(["a": .number(1)]))
+        parser.parseResult = .success(node)
+        parser.formatResult = #"{"a": 1}"#
+
+        // parseResult is nil before the parse
+        #expect(vm.parseResult == nil)
+
+        vm.handleTextChange(#"{"a": 1}"#)
+
+        // Wait for debounce + background parse to complete
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        // isBeautifyRendering is still true (BeautifyView hasn't rendered yet in tests)
+        // isInitialLoading should be true while isBeautifyRendering is true after first load
+        #expect(vm.isInitialLoading == true)
+        #expect(vm.isBeautifyRendering == true)
+    }
+
+    @Test("isInitialLoading becomes false when isBeautifyRendering is set to false")
+    func isInitialLoadingFalseWhenBeautifyRenderingClears() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.isBeautifyRendering = true
+        vm.isInitialLoading = true
+
+        vm.isBeautifyRendering = false
+
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @MainActor @Test("isInitialLoading stays false on re-parse when parseResult already exists")
+    func isInitialLoadingFalseOnReParse() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        // Seed an existing parse result (simulates already-loaded tab)
+        let existingNode = JSONNode(value: .object(["a": .string("1")]))
+        vm.parseResult = .success(existingNode)
+
+        let newNode = JSONNode(value: .object(["b": .string("2")]))
+        parser.parseResult = .success(newNode)
+        parser.formatResult = #"{"b": "2"}"#
+
+        vm.handleTextChange(#"{"b": "2"}"#)
+
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        // Re-parse with existing content → isInitialLoading must be false
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @Test("clearAll resets isInitialLoading")
+    func clearAllResetsIsInitialLoading() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.isInitialLoading = true
+        vm.isBeautifyRendering = true
+
+        vm.clearAll()
+
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @Test("onWindowWillClose resets isInitialLoading")
+    func onWindowWillCloseResetsIsInitialLoading() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let _ = tabManager.createTab(with: nil)
+        vm.isInitialLoading = true
+
+        vm.onWindowWillClose()
+
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @Test("restoreTabState resets isInitialLoading")
+    func restoreTabStateResetsIsInitialLoading() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.isInitialLoading = true
+
+        vm.restoreTabState()
+
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @Test("isInitialLoading observation triggers view update")
+    func isInitialLoadingObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isInitialLoading
+        } onChange: {
+            observed = true
+        }
+
+        vm.isInitialLoading = true
+        #expect(observed == true)
+    }
+
     // MARK: - isBeautifyRendering
 
     @Test("isBeautifyRendering defaults to false")
@@ -1491,6 +1607,23 @@ struct ViewerViewModelTests {
 
         vm.isBeautifyRendering = true
         #expect(observed == true)
+    }
+
+    // MARK: - isRenamingTab
+
+    @Test("isRenamingTab defaults to false")
+    func isRenamingTabDefault() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.isRenamingTab == false)
+    }
+
+    @Test("isRenamingTab can be set to true and back to false")
+    func isRenamingTabMutable() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.isRenamingTab = true
+        #expect(vm.isRenamingTab == true)
+        vm.isRenamingTab = false
+        #expect(vm.isRenamingTab == false)
     }
 }
 

@@ -45,6 +45,9 @@ class ViewerViewModel {
     var isRestoringTabState: Bool = false
     var isCheatSheetVisible: Bool = false
 
+    /// Whether a tab is currently being renamed (for key monitor protection)
+    var isRenamingTab: Bool = false
+
     // MARK: - Update Banner State
 
     var availableVersion: String? = nil
@@ -85,7 +88,16 @@ class ViewerViewModel {
         }
     }
     var isParsing: Bool = false
-    var isBeautifyRendering: Bool = false
+    var isBeautifyRendering: Bool = false {
+        didSet {
+            if !isBeautifyRendering {
+                isInitialLoading = false
+            }
+        }
+    }
+    /// True while the very first Beautify render of a new parse result is in progress.
+    /// Used to keep the center spinner visible until content is ready (instead of jumping to top).
+    var isInitialLoading: Bool = false
 
     private var _formattedJSONCache: String?
     var formattedJSON: String? { _formattedJSONCache }
@@ -420,6 +432,7 @@ class ViewerViewModel {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedText.isEmpty {
             isParsing = false
+            isInitialLoading = false
             tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
             parseResult = nil
             currentJSON = nil
@@ -473,6 +486,7 @@ class ViewerViewModel {
 
                 switch result {
                 case .success(let node):
+                    let wasEmpty = self.parseResult == nil
                     self.parseResult = .success(node)
                     self.suppressFormatOnSet = true
                     self.currentJSON = json
@@ -480,6 +494,10 @@ class ViewerViewModel {
                     self.suppressFormatOnSet = false
                     // Signal BeautifyView rendering will begin — prevents progress gap
                     self.isBeautifyRendering = true
+                    // Keep center spinner for initial load; top spinner for re-renders
+                    if wasEmpty {
+                        self.isInitialLoading = true
+                    }
                 case .failure(let error):
                     self.parseResult = .failure(error)
                     self.suppressFormatOnSet = true
@@ -570,10 +588,12 @@ class ViewerViewModel {
             treeScrollAnchorId = nil
             beautifySearchDismissed = false
             treeSearchDismissed = false
+            isInitialLoading = false
             isRestoringTabState = false
             return
         }
 
+        isInitialLoading = false
         inputText = activeTab.inputText
         fullInputText = activeTab.fullInputText
         parseResult = activeTab.parseResult
@@ -965,6 +985,7 @@ class ViewerViewModel {
     func onWindowWillClose() {
         parseTask?.cancel()
         isParsing = false
+        isInitialLoading = false
         currentJSON = nil
         parseResult = nil
         tabManager.closeAllTabs()
