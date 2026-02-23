@@ -1,7 +1,7 @@
 <p align="center">
   <img src="Resources/icon.png" width="128" height="128" alt="OhMyJson icon" />
   <h1 align="center">OhMyJson</h1>
-  <p align="center">A lightning-fast, hotkey-driven JSON viewer for macOS.</p>
+  <p align="center">A lightning-fast JSON viewer that lives in your menu bar.<br>Press a hotkey, and your clipboard JSON is instantly formatted.</p>
 </p>
 
 <p align="center">
@@ -13,36 +13,6 @@
 <p align="center">
   <img src="Resources/preview.gif" width="720" alt="OhMyJson demo" />
 </p>
-
-## Why OhMyJson?
-
-Formatting JSON is something developers do dozens of times a day — yet most reach for a browser tab every time. OhMyJson lives in your menu bar and parses clipboard JSON the instant you press key. No context switching, no web tools, no friction.
-
-## Features
-
-- **Global Hotkey** — Instantly parse clipboard JSON from anywhere on your Mac
-- **Real-time Validation** — Auto-parses as you type with inline error reporting (line & column)
-- **Tree View** — Collapsible, syntax-highlighted tree with expand/collapse all (⌘⇧+ / ⌘⇧-)
-- **Beautified View** — Formatted JSON output with one-click copy
-- **Multi-Tab** — Up to 10 tabs with LRU auto-close for older sessions
-- **Search** — Find across keys and values with match navigation (⌘F)
-- **Dark / Light / System Theme** — Follows your macOS appearance or pick your own
-- **Customizable Hotkeys** — Remap the global trigger and clear shortcut
-- **Menu Bar Resident** — No Dock icon, always a hotkey away
-- **Launch at Login** — Start automatically with your Mac
-
-
-
-## Chrome Extension
-
-**[OhMyJson for Chrome](https://chromewebstore.google.com/detail/ohmyjson-open-in-json-vie/bmfbdagmfcaibmpngdkpdendfonpepde)** brings OhMyJson into your browser.
-
-Select any JSON text on a chrome → right-click → **Open in OhMyJson**.  — just instant viewing.
-
-<img src="Resources/chrome_extension.png" width="200" alt="OhMyJson Chrome Extension demo" />
-
-
-
 
 ## Installation
 
@@ -59,7 +29,26 @@ Download the latest `.dmg` from [GitHub Releases](https://github.com/vagabond95/
 
 OhMyJson is signed and notarized with Apple Developer ID — no Gatekeeper warnings.
 
-### Build from Source
+
+
+## Chrome Extension
+
+**[OhMyJson for Chrome](https://chromewebstore.google.com/detail/ohmyjson-open-in-json-vie/bmfbdagmfcaibmpngdkpdendfonpepde)** brings OhMyJson into your browser.
+
+Select any JSON text on a chrome → right-click → **Open in OhMyJson**.  — just instant viewing.
+
+<img src="Resources/chrome_extension.png" width="200" alt="OhMyJson Chrome Extension demo" />
+
+
+
+## Permissions
+
+> Requires **Accessibility** permission for the global hotkey.
+> macOS will prompt on first launch, or enable manually: **System Settings → Privacy & Security → Accessibility**.
+
+
+
+## Development
 
 ```bash
 git clone https://github.com/vagabond95/OhMyJson.git
@@ -77,40 +66,11 @@ xcodebuild -project OhMyJson.xcodeproj -scheme OhMyJson -configuration Release
 
 
 
-## Permissions
-
-OhMyJson uses a **global hotkey** to capture ⌃⌥J system-wide. This requires Accessibility permission.
-
-**System Settings → Privacy & Security → Accessibility** → toggle **OhMyJson** on.
-
-macOS will prompt you on first launch. The app cannot intercept the hotkey without this permission.
-
-
-
-## Usage
-
-### Basic Workflow
-
-1. Copy any JSON to your clipboard
-2. Press **⌃⌥J** — OhMyJson opens and parses it instantly
-3. Explore the tree, search, or copy the formatted output
-
-If the clipboard doesn't contain valid JSON, OhMyJson opens with an empty editor — paste or type JSON directly.
-
-
-
-## Tech Stack
-
-| | |
-|---|---|
-| **Language** | Swift 5.9+ |
-| **UI** | SwiftUI |
-| **Platform** | macOS 14.0+ (Sonoma) |
-| **Dependencies** | [ConfettiSwiftUI](https://github.com/simibac/ConfettiSwiftUI) |
-
 ## Contributing
 
 Found a bug or have a suggestion? [Open an issue](https://github.com/vagabond95/OhMyJson/issues).
+
+
 
 ## License
 
