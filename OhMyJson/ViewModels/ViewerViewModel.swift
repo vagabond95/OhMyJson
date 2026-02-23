@@ -189,18 +189,14 @@ class ViewerViewModel {
             }
     }
 
-    // MARK: - Truncated Preview Utility
+    // MARK: - Large Input Notice Utility
 
-    /// Builds a truncated preview of large input text for display in InputView.
-    /// Shows the first ~10KB of content with a note indicating truncation.
-    static func buildTruncatedPreview(_ text: String) -> String {
-        let previewCharCount = 10_000
-        let preview = String(text.prefix(previewCharCount))
+    /// Builds a notice message for large input text displayed in InputView.
+    /// Returns only the notice (no JSON content) to prevent SBBOD in NSTextView.
+    static func buildLargeInputNotice(_ text: String) -> String {
         let sizeKB = text.utf8.count / 1024
-        return preview
-            + "\n\n// ---- Large input (\(sizeKB) KB) ----\n"
-            + "// Display truncated for performance.\n"
-            + "// Full content parsed. View in Beautify or Tree mode."
+        return "// JSON too large to display (\(sizeKB) KB)\n"
+            + "// View in Beautify or Tree mode."
     }
 
     // MARK: - Large Text Paste Handling
@@ -212,7 +208,7 @@ class ViewerViewModel {
         guard let activeTabId = tabManager.activeTabId else { return }
 
         fullInputText = text
-        let truncated = ViewerViewModel.buildTruncatedPreview(text)
+        let truncated = ViewerViewModel.buildLargeInputNotice(text)
 
         tabManager.updateTabInput(id: activeTabId, text: truncated)
         tabManager.updateTabFullInput(id: activeTabId, fullText: text)
@@ -290,7 +286,7 @@ class ViewerViewModel {
 
         // Determine display text — truncate if large to avoid SBBOD in NSTextView
         let isLarge = (jsonString?.utf8.count ?? 0) > InputSize.displayThreshold
-        let displayText = isLarge ? ViewerViewModel.buildTruncatedPreview(jsonString!) : jsonString
+        let displayText = isLarge ? ViewerViewModel.buildLargeInputNotice(jsonString!) : jsonString
 
         // Create tab with display text (truncated or full)
         let tabId = tabManager.createTab(with: displayText)
@@ -328,7 +324,7 @@ class ViewerViewModel {
         // Update tab input — truncate display if large
         if let json = jsonString {
             let isLarge = json.utf8.count > InputSize.displayThreshold
-            let displayText = isLarge ? ViewerViewModel.buildTruncatedPreview(json) : json
+            let displayText = isLarge ? ViewerViewModel.buildLargeInputNotice(json) : json
             tabManager.updateTabInput(id: tab.id, text: displayText)
             if isLarge {
                 tabManager.updateTabFullInput(id: tab.id, fullText: json)
@@ -363,7 +359,7 @@ class ViewerViewModel {
             isRestoringTabState = true
             if let json = jsonString {
                 let isLarge = json.utf8.count > InputSize.displayThreshold
-                inputText = isLarge ? ViewerViewModel.buildTruncatedPreview(json) : json
+                inputText = isLarge ? ViewerViewModel.buildLargeInputNotice(json) : json
             } else {
                 inputText = ""
             }

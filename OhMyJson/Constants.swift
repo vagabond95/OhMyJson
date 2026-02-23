@@ -72,7 +72,7 @@ enum FileSize {
 
 enum InputSize {
     /// Maximum byte size for direct NSTextView display.
-    /// Text larger than this threshold is truncated in InputView to prevent
+    /// Text larger than this threshold is replaced with a notice in InputView to prevent
     /// TextKit's synchronous glyph generation causing SBBOD on the main thread.
     static let displayThreshold = 512 * 1024  // 512KB
 }

@@ -396,7 +396,7 @@ struct BeautifyView: View {
         }
 
         if isTruncated {
-            let notice = "// ---- Display truncated (\(maxLines!.formatted()) of \(totalCount.formatted()) lines) ----\n// Full content parsed. Use Tree mode for complete view."
+            let notice = "// ---- Showing first \(maxLines!.formatted()) of \(totalCount.formatted()) lines ----\n// Full content parsed. Use Tree mode for complete view."
             result.append(FormattedLine(tokens: [JSONToken(text: notice, type: .structure)]))
         }
 

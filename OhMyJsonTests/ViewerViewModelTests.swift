@@ -1425,18 +1425,17 @@ struct ViewerViewModelTests {
         #expect(tabManager.activeTab?.fullInputText == "full content")
     }
 
-    @Test("buildTruncatedPreview returns prefix with annotation")
-    func buildTruncatedPreviewReturnsPrefix() {
+    @Test("buildLargeInputNotice returns notice without JSON content")
+    func buildLargeInputNoticeReturnsNotice() {
         let text = String(repeating: "a", count: 20_000)
-        let preview = ViewerViewModel.buildTruncatedPreview(text)
+        let notice = ViewerViewModel.buildLargeInputNotice(text)
 
-        // Preview should start with first characters
-        #expect(preview.hasPrefix(String(repeating: "a", count: 10_000)))
-        // Preview should contain truncation notice
-        #expect(preview.contains("Large input"))
-        #expect(preview.contains("truncated"))
-        // Preview should be shorter than original
-        #expect(preview.count < text.count)
+        // Notice should contain size info
+        #expect(notice.contains("too large to display"))
+        // Notice should not contain the original JSON content
+        #expect(!notice.hasPrefix("a"))
+        // Notice should be much shorter than original
+        #expect(notice.count < text.count)
     }
 
     @Test("createNewTab with large JSON stores truncated display and full text")
