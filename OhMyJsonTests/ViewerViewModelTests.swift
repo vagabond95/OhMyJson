@@ -389,6 +389,23 @@ struct ViewerViewModelTests {
         #expect(vm.viewMode == .beautify)
     }
 
+    @Test("switchViewMode to beautify succeeds even with large JSON")
+    func switchViewModeBeautifyWithLargeJSON() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        // Simulate a large JSON string (>2MB)
+        let largeJSON = String(repeating: "a", count: 3 * 1024 * 1024)
+        vm.currentJSON = largeJSON
+        vm.switchViewMode(to: .tree)
+        #expect(vm.viewMode == .tree)
+
+        // Switching back to beautify must not be blocked
+        vm.switchViewMode(to: .beautify)
+        #expect(vm.viewMode == .beautify)
+    }
+
     // MARK: - Search
 
     @Test("updateSearchResultCount with tree mode")

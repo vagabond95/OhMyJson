@@ -204,35 +204,39 @@ struct UndoableTextView: NSViewRepresentable {
         if textView.string != text {
             context.coordinator.isProgrammaticUpdate = true
 
-            // Register undo for programmatic text changes (like Clear button)
-            let oldText = textView.string
-            let newText = text
+            if text.isEmpty {
+                // Fast path: clearing — skip undo registration.
+                // clearAll() resets all state, so undoing only the text is meaningless.
+                textView.undoManager?.removeAllActions()
+                textView.string = ""
+            } else {
+                // Normal path: register undo and update text
+                let oldText = textView.string
+                let newText = text
 
-            if let undoManager = textView.undoManager {
-                // Register undo action
-                undoManager.registerUndo(withTarget: context.coordinator) { coordinator in
-                    coordinator.restoreText(oldText)
+                if let undoManager = textView.undoManager {
+                    undoManager.registerUndo(withTarget: context.coordinator) { coordinator in
+                        coordinator.restoreText(oldText)
+                    }
+
+                    if oldText.isEmpty && !newText.isEmpty {
+                        undoManager.setActionName(String(localized: "undo.set_text"))
+                    } else {
+                        undoManager.setActionName(String(localized: "undo.change_text"))
+                    }
                 }
 
-                if oldText.isEmpty && !newText.isEmpty {
-                    undoManager.setActionName(String(localized: "undo.set_text"))
-                } else if !oldText.isEmpty && newText.isEmpty {
-                    undoManager.setActionName(String(localized: "undo.clear"))
-                } else {
-                    undoManager.setActionName(String(localized: "undo.change_text"))
+                // Update text view
+                let selectedRange = textView.selectedRange()
+                textView.string = text
+
+                if isRestoringTabState {
+                    // During tab restoration (hotkey, tab switch), cursor goes to beginning
+                    textView.setSelectedRange(NSRange(location: 0, length: 0))
+                } else if selectedRange.location <= text.count {
+                    // Restore selection if valid
+                    textView.setSelectedRange(selectedRange)
                 }
-            }
-
-            // Update text view
-            let selectedRange = textView.selectedRange()
-            textView.string = text
-
-            if isRestoringTabState {
-                // During tab restoration (hotkey, tab switch), cursor goes to beginning
-                textView.setSelectedRange(NSRange(location: 0, length: 0))
-            } else if selectedRange.location <= text.count {
-                // Restore selection if valid
-                textView.setSelectedRange(selectedRange)
             }
 
             context.coordinator.isProgrammaticUpdate = false

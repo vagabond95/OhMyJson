@@ -65,8 +65,7 @@ enum WindowSize {
 // MARK: - File Size Thresholds
 
 enum FileSize {
-    static let largeThreshold = 2 * megabyte // 2MB
-    static let megabyte       = 1024 * 1024      // 1MB
+    static let megabyte = 1024 * 1024  // 1MB
 }
 
 // MARK: - Input Size Thresholds

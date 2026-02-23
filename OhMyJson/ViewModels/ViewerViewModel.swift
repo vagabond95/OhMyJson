@@ -42,7 +42,6 @@ class ViewerViewModel {
 
     // MARK: - Transient UI State (moved from ViewerWindow @State)
 
-    var showLargeFileWarning: Bool = false
     var isRestoringTabState: Bool = false
     var isCheatSheetVisible: Bool = false
 
@@ -105,8 +104,6 @@ class ViewerViewModel {
     @ObservationIgnored private var restoreTask: DispatchWorkItem?
     @ObservationIgnored private var hasRestoredCurrentTab: Bool = false
     @ObservationIgnored private let restoreDebounceInterval: TimeInterval = Timing.tabRestoreDebounce
-
-    @ObservationIgnored private let largeFileSizeThreshold = FileSize.largeThreshold
 
     @ObservationIgnored private var indentCancellable: AnyCancellable?
 
@@ -705,14 +702,6 @@ class ViewerViewModel {
 
     func switchViewMode(to mode: ViewMode) {
         guard mode != viewMode else { return }
-
-        if mode == .beautify, let json = currentJSON {
-            let dataSize = json.data(using: .utf8)?.count ?? 0
-            if dataSize > largeFileSizeThreshold {
-                showLargeFileWarning = true
-                return
-            }
-        }
 
         // Save scroll position of previous mode
         if let activeTabId = tabManager.activeTabId {

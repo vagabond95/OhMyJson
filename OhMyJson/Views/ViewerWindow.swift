@@ -303,16 +303,6 @@ struct ViewerWindow: View {
                 .padding(8)
         }
         .background(theme.background)
-        .alert("alert.large_file.title", isPresented: Bindable(viewModel).showLargeFileWarning) {
-            Button("alert.large_file.view_anyway") {
-                // Keep current mode (Beautify)
-            }
-            Button("alert.large_file.switch_to_tree") {
-                viewModel.switchViewMode(to: .tree)
-            }
-        } message: {
-            Text("alert.large_file.message")
-        }
     }
 
     // MARK: - View Mode Segmented Control

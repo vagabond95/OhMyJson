@@ -390,6 +390,14 @@ struct SelectableTextView: NSViewRepresentable {
         // No async restore here - it was causing event blocking and position jumps
     }
 
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        // Clear text storage content before NSTextView dealloc.
+        // Using setAttributedString(empty) keeps layout manager attached so TextKit
+        // internal state stays consistent; an empty storage has minimal dealloc cost.
+        coordinator.contentTextView?.textStorage?.setAttributedString(NSAttributedString())
+        coordinator.gutterTextView?.textStorage?.setAttributedString(NSAttributedString())
+    }
+
     class Coordinator: NSObject {
         var parent: SelectableTextView
         weak var contentScrollView: NSScrollView?
