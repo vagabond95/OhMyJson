@@ -106,6 +106,7 @@ class ViewerViewModel {
     @ObservationIgnored private let restoreDebounceInterval: TimeInterval = Timing.tabRestoreDebounce
 
     @ObservationIgnored private var indentCancellable: AnyCancellable?
+    @ObservationIgnored private var searchCountTask: Task<Void, Never>?
 
     // MARK: - Node Cache (for O(1) keyboard navigation)
 
@@ -119,6 +120,7 @@ class ViewerViewModel {
         debounceTask?.cancel()
         restoreTask?.cancel()
         parseTask?.cancel()
+        searchCountTask?.cancel()
         indentCancellable = nil
         onNeedShowWindow = nil
     }
@@ -608,46 +610,55 @@ class ViewerViewModel {
     // MARK: - Search (moved from ViewerWindow)
 
     func updateSearchResultCount() {
-        guard case .success(let rootNode) = parseResult else {
+        guard case .success(let rootNode) = parseResult, !searchText.isEmpty else {
+            searchCountTask?.cancel()
             searchResultCount = 0
             return
         }
 
-        if searchText.isEmpty {
-            searchResultCount = 0
-        } else {
-            // Count matches at JSONValue level — no JSONNode materialization needed
-            searchResultCount = rootNode.value.countMatches(
-                key: rootNode.key,
-                query: searchText.lowercased(),
-                ignoreEscapeSequences: AppSettings.shared.ignoreEscapeSequences
-            )
+        // Count matches at JSONValue level — no JSONNode materialization needed.
+        // Offloaded to background to avoid blocking main thread on large JSON trees.
+        let query = searchText.lowercased()
+        let ignoreEscapes = AppSettings.shared.ignoreEscapeSequences
+        let jsonValue = rootNode.value
+        let key = rootNode.key
+
+        searchCountTask?.cancel()
+        searchCountTask = Task {
+            let count = await Task.detached(priority: .userInitiated) {
+                jsonValue.countMatches(key: key, query: query, ignoreEscapeSequences: ignoreEscapes)
+            }.value
+            guard !Task.isCancelled else { return }
+            self.searchResultCount = count
         }
     }
 
     func updateSearchResultCountForBeautify() {
-        guard !searchText.isEmpty else {
+        guard !searchText.isEmpty, let formatted = formattedJSON else {
+            searchCountTask?.cancel()
             searchResultCount = 0
             return
         }
 
-        guard let formatted = formattedJSON else {
-            searchResultCount = 0
-            return
-        }
-
+        // Scan formatted JSON string for match count.
+        // Offloaded to background to avoid blocking main thread on large JSON strings.
         let lowercasedSearch = searchText.lowercased()
         let lowercasedFormatted = formatted.lowercased()
 
-        var count = 0
-        var searchStart = lowercasedFormatted.startIndex
-
-        while let range = lowercasedFormatted.range(of: lowercasedSearch, range: searchStart..<lowercasedFormatted.endIndex) {
-            count += 1
-            searchStart = range.upperBound
+        searchCountTask?.cancel()
+        searchCountTask = Task {
+            let count = await Task.detached(priority: .userInitiated) {
+                var count = 0
+                var searchStart = lowercasedFormatted.startIndex
+                while let range = lowercasedFormatted.range(of: lowercasedSearch, range: searchStart..<lowercasedFormatted.endIndex) {
+                    count += 1
+                    searchStart = range.upperBound
+                }
+                return count
+            }.value
+            guard !Task.isCancelled else { return }
+            self.searchResultCount = count
         }
-
-        searchResultCount = count
     }
 
     func nextSearchResult() {

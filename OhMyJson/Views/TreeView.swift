@@ -45,6 +45,9 @@ struct TreeView: View {
     // P4: Debounce scrollAnchorId updates
     @State private var scrollDebounceItem: DispatchWorkItem?
 
+    // Async search task — cancelled when a new search starts
+    @State private var searchTask: Task<Void, Never>?
+
     // P6: Cache search paths keyed by (rootNode.id, searchText)
     @State private var searchPathCache: (rootId: UUID, query: String, paths: [[Int]])?
 
@@ -95,15 +98,16 @@ struct TreeView: View {
         }
         .onChange(of: searchText) { _, newValue in
             guard isActive else { isDirty = true; return }
-            updateSearchResults()
-            if !newValue.isEmpty && !searchResults.isEmpty {
-                selectedNodeId = nil
-                currentSearchIndex = 0
-                currentSearchOccurrenceLocalIndex = 0
-                navigateToSearchResult(index: 0)
-            } else {
-                currentSearchResultId = nil
-                currentSearchOccurrenceLocalIndex = 0
+            updateSearchResults { occurrences in
+                if !newValue.isEmpty && !occurrences.isEmpty {
+                    selectedNodeId = nil
+                    currentSearchIndex = 0
+                    currentSearchOccurrenceLocalIndex = 0
+                    navigateToSearchResult(index: 0)
+                } else {
+                    currentSearchResultId = nil
+                    currentSearchOccurrenceLocalIndex = 0
+                }
             }
         }
         .onChange(of: searchNavigationVersion) { _, _ in
@@ -153,6 +157,7 @@ struct TreeView: View {
             isReady = false
             scrollDebounceItem?.cancel()
             scrollDebounceItem = nil
+            searchTask?.cancel()
         }
     }
 
@@ -326,24 +331,9 @@ struct TreeView: View {
         }
     }
 
-    private func updateSearchResults() {
-        guard !searchText.isEmpty else {
-            searchResults = []
-            return
-        }
-
-        let query = searchText.lowercased()
-        let paths: [[Int]]
-
-        if let cache = searchPathCache, cache.rootId == rootNode.id, cache.query == query {
-            paths = cache.paths
-        } else {
-            paths = rootNode.value.searchMatchPaths(key: rootNode.key, query: query, ignoreEscapeSequences: settings.ignoreEscapeSequences)
-            searchPathCache = (rootId: rootNode.id, query: query, paths: paths)
-        }
-
+    /// Resolves paths to TreeSearchOccurrence list. Must be called on main thread.
+    private func resolveOccurrences(paths: [[Int]], query: String) -> [TreeSearchOccurrence] {
         let nodes = paths.compactMap { rootNode.nodeAt(childIndices: $0) }
-
         var occurrences: [TreeSearchOccurrence] = []
         for node in nodes {
             let count = JSONValue.leafOccurrenceCount(value: node.value, key: node.key, query: query, ignoreEscapeSequences: settings.ignoreEscapeSequences)
@@ -352,20 +342,60 @@ struct TreeView: View {
                 occurrences.append(TreeSearchOccurrence(node: node, localIndex: i))
             }
         }
-        searchResults = occurrences
+        return occurrences
+    }
+
+    /// Updates searchResults, calling `onComplete` with the results when done.
+    /// For cache hits the call is synchronous; for cache misses, the expensive
+    /// `searchMatchPaths()` tree traversal runs on a background thread and
+    /// `onComplete` is called once results are ready on the main actor.
+    private func updateSearchResults(onComplete: (([TreeSearchOccurrence]) -> Void)? = nil) {
+        guard !searchText.isEmpty else {
+            searchTask?.cancel()
+            searchResults = []
+            onComplete?([])
+            return
+        }
+
+        let query = searchText.lowercased()
+
+        // Fast path: cache hit — resolve synchronously on main
+        if let cache = searchPathCache, cache.rootId == rootNode.id, cache.query == query {
+            let occurrences = resolveOccurrences(paths: cache.paths, query: query)
+            searchResults = occurrences
+            onComplete?(occurrences)
+            return
+        }
+
+        // Slow path: offload expensive tree traversal to a background thread
+        let valueSnapshot = rootNode.value
+        let keySnapshot = rootNode.key
+        let rootId = rootNode.id
+        let ignoreEscapes = settings.ignoreEscapeSequences
+
+        searchTask?.cancel()
+        searchTask = Task {
+            let paths = await Task.detached(priority: .userInitiated) {
+                valueSnapshot.searchMatchPaths(key: keySnapshot, query: query, ignoreEscapeSequences: ignoreEscapes)
+            }.value
+            guard !Task.isCancelled else { return }
+            searchPathCache = (rootId: rootId, query: query, paths: paths)
+            let occurrences = resolveOccurrences(paths: paths, query: query)
+            searchResults = occurrences
+            onComplete?(occurrences)
+        }
     }
 
     private func restoreSearchHighlighting() {
         guard !searchText.isEmpty else { return }
 
-        updateSearchResults()
-
-        guard !searchResults.isEmpty else { return }
-
-        let validIndex = min(currentSearchIndex, searchResults.count - 1)
-        let occurrence = searchResults[validIndex]
-        currentSearchResultId = occurrence.node.id
-        currentSearchOccurrenceLocalIndex = occurrence.localIndex
+        updateSearchResults { occurrences in
+            guard !occurrences.isEmpty else { return }
+            let validIndex = min(currentSearchIndex, occurrences.count - 1)
+            let occurrence = occurrences[validIndex]
+            currentSearchResultId = occurrence.node.id
+            currentSearchOccurrenceLocalIndex = occurrence.localIndex
+        }
     }
 
     private func navigateToSearchResult(index: Int) {

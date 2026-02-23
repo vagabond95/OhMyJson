@@ -409,7 +409,7 @@ struct ViewerViewModelTests {
     // MARK: - Search
 
     @Test("updateSearchResultCount with tree mode")
-    func updateSearchResultCountTree() {
+    func updateSearchResultCountTree() async throws {
         let (vm, _, _, _, _) = makeSUT()
 
         let root = JSONNode(value: .object([
@@ -421,6 +421,9 @@ struct ViewerViewModelTests {
         vm.viewMode = .tree
 
         vm.updateSearchResultCount()
+
+        // Count is computed on a background thread; give it time to complete
+        try await Task.sleep(nanoseconds: 200_000_000)
 
         #expect(vm.searchResultCount == 1)
     }
