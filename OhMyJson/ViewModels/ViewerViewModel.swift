@@ -151,6 +151,7 @@ class ViewerViewModel {
     @ObservationIgnored private let restoreDebounceInterval: TimeInterval = Timing.tabRestoreDebounce
 
     @ObservationIgnored private var indentCancellable: AnyCancellable?
+    @ObservationIgnored private var indentFormatTask: Task<Void, Never>?
     @ObservationIgnored private var searchCountTask: Task<Void, Never>?
 
     /// Override in tests to avoid showing NSAlert modal when closing the last tab.
@@ -181,6 +182,7 @@ class ViewerViewModel {
         debounceTask?.cancel()
         restoreTask?.cancel()
         parseTask?.cancel()
+        indentFormatTask?.cancel()
         searchCountTask?.cancel()
         indentCancellable = nil
         onNeedShowWindow = nil
@@ -235,7 +237,15 @@ class ViewerViewModel {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newIndent in
                 guard let self, let json = self.currentJSON else { return }
-                self._formattedJSONCache = self.jsonParser.formatJSON(json, indentSize: newIndent)
+                let parser = self.jsonParser
+                self.indentFormatTask?.cancel()
+                self.indentFormatTask = Task.detached {
+                    let formatted = parser.formatJSON(json, indentSize: newIndent)
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run { [weak self] in
+                        self?._formattedJSONCache = formatted
+                    }
+                }
             }
     }
 
@@ -690,6 +700,7 @@ class ViewerViewModel {
         isParsing = true
         parseResult = nil
         currentJSON = nil
+        inputText = ""
 
         restoreTask?.cancel()
 

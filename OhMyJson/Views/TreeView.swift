@@ -32,6 +32,7 @@ struct TreeView: View {
     var allAncestorMapCache: [UUID: [Bool]] = [:]
     /// Pre-computed max content width across ALL nodes. Used instead of O(N) calculation.
     var maxContentWidth: CGFloat = 0
+    @Binding var isRendering: Bool
     var onVisibleNodesChanged: (([JSONNode]) -> Void)?
 
     @State private var visibleNodes: [JSONNode] = []
@@ -102,11 +103,17 @@ struct TreeView: View {
         }
         .onChange(of: rootNode.id) { _, _ in
             guard isActive else { isStructureDirty = true; isSearchDirty = true; return }
-            updateVisibleNodes()
-            currentSearchResultId = nil
-            currentSearchOccurrenceLocalIndex = 0
-            if !searchText.isEmpty {
-                updateSearchResults()
+            if isRestoringTabState {
+                // Tab switch: full init cycle (isReady=false → 0.05s → isReady=true) for progress overlay
+                performFullInit()
+            } else {
+                // Same-tab re-parse: in-place update
+                updateVisibleNodes()
+                currentSearchResultId = nil
+                currentSearchOccurrenceLocalIndex = 0
+                if !searchText.isEmpty {
+                    updateSearchResults()
+                }
             }
         }
         .onChange(of: rootNode.isExpanded) { _, _ in
@@ -171,11 +178,17 @@ struct TreeView: View {
             }
         }
         .onAppear {
-            guard isActive else { return }
+            guard isActive else {
+                isRendering = false
+                return
+            }
             performFullInit()
         }
         .onChange(of: isActive) { _, newValue in
-            guard newValue else { return }
+            guard newValue else {
+                isRendering = false
+                return
+            }
             if !hasInitialized {
                 performFullInit()
             } else if isStructureDirty {
@@ -197,6 +210,7 @@ struct TreeView: View {
         .onDisappear {
             hasRestoredScroll = false
             isReady = false
+            isRendering = false
             scrollDebounceItem?.cancel()
             scrollDebounceItem = nil
             searchTask?.cancel()
@@ -274,6 +288,7 @@ struct TreeView: View {
         // Delay to ensure layout is complete
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             isReady = true
+            isRendering = false
 
             DispatchQueue.main.asyncAfter(deadline: .now() + Timing.treeRestoreDelay) {
                 hasRestoredScroll = true
@@ -297,18 +312,36 @@ struct TreeView: View {
             let newDescendants = Array(node.allNodes().dropFirst())
             if !newDescendants.isEmpty {
                 visibleNodes.insert(contentsOf: newDescendants, at: nodeIndex + 1)
+                // Incrementally add ancestorLastMap entries for new descendants only — O(subtree × depth)
+                for descendant in newDescendants {
+                    ancestorLastMap[descendant.id] = buildAncestorStackFromParent(for: descendant)
+                }
             }
         } else {
             let removeEnd = findDescendantEndIndex(afterNodeAt: nodeIndex)
             if removeEnd > nodeIndex + 1 {
+                // Remove ancestorLastMap entries for collapsed descendants
+                for i in (nodeIndex + 1)..<removeEnd {
+                    ancestorLastMap.removeValue(forKey: visibleNodes[i].id)
+                }
                 visibleNodes.removeSubrange((nodeIndex + 1)..<removeEnd)
             }
         }
 
-        updateAncestorLastMap()
         // Use pre-computed global max width (O(1)) instead of O(N) per-toggle calculation
         estimatedContentWidth = maxContentWidth
         onVisibleNodesChanged?(visibleNodes)
+    }
+
+    /// Builds ancestor isLastChild stack by walking parent pointers — O(depth), typically 2-20 levels.
+    private func buildAncestorStackFromParent(for node: JSONNode) -> [Bool] {
+        var stack: [Bool] = []
+        var current: JSONNode? = node.parent
+        while let ancestor = current, ancestor.id != rootNode.id {
+            stack.insert(ancestor.isLastChild, at: 0)
+            current = ancestor.parent
+        }
+        return stack
     }
 
     private func findDescendantEndIndex(afterNodeAt index: Int) -> Int {
@@ -324,17 +357,8 @@ struct TreeView: View {
 
     private func updateVisibleNodes() {
         let newVisibleNodes = rootNode.allNodes()
-
-        let needsMapUpdate = visibleNodes.count != newVisibleNodes.count ||
-                             visibleNodes.map(\.id) != newVisibleNodes.map(\.id)
-
         visibleNodes = newVisibleNodes
-
-        if needsMapUpdate {
-            updateAncestorLastMap()
-        }
-
-        // Use pre-computed global max width (parse-time O(N) cost, now O(1) here)
+        updateAncestorLastMap()
         estimatedContentWidth = maxContentWidth
         onVisibleNodesChanged?(newVisibleNodes)
     }

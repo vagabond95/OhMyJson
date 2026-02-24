@@ -220,8 +220,12 @@ struct UndoableTextView: NSViewRepresentable {
                 : currentTheme.nsBackground.withAlphaComponent(0.6)
         }
 
-        // Only update if text is different to avoid breaking undo
-        if textView.string != text {
+        // Only update text when tab generation changes (tab switch/creation).
+        // This replaces the O(N) string comparison with an O(1) integer check.
+        // User-typed edits are handled by textDidChange delegate, not here.
+        let needsTextUpdate = context.coordinator.lastSetTabGeneration != tabGeneration
+        if needsTextUpdate {
+            context.coordinator.lastSetTabGeneration = tabGeneration
             context.coordinator.isProgrammaticUpdate = true
 
             // Finalize active IME composition (e.g. Korean Hangul) before replacing
@@ -301,6 +305,7 @@ struct UndoableTextView: NSViewRepresentable {
         var lastAppliedColorScheme: ColorScheme?
         var lastAppliedIsEditable: Bool?
         var lastKnownGeneration: Int = 0
+        var lastSetTabGeneration: Int = -1
 
         init(_ parent: UndoableTextView) {
             self.parent = parent

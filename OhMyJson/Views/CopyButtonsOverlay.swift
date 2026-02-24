@@ -101,22 +101,33 @@ struct CopyButtonsOverlay: View {
     }
 
     private func copyValueOnly() {
-        let text: String
         switch node.value {
         case .string(let s):
-            text = s
+            ClipboardService.shared.writeText(s)
+            ToastManager.shared.show(String(localized: "toast.value_copied"))
         case .number(let n):
-            text = n.truncatingRemainder(dividingBy: 1) == 0
-                ? String(format: "%.0f", n) : String(n)
+            ClipboardService.shared.writeText(
+                n.truncatingRemainder(dividingBy: 1) == 0
+                    ? String(format: "%.0f", n) : String(n)
+            )
+            ToastManager.shared.show(String(localized: "toast.value_copied"))
         case .bool(let b):
-            text = b ? "true" : "false"
+            ClipboardService.shared.writeText(b ? "true" : "false")
+            ToastManager.shared.show(String(localized: "toast.value_copied"))
         case .null:
-            text = "null"
+            ClipboardService.shared.writeText("null")
+            ToastManager.shared.show(String(localized: "toast.value_copied"))
         case .object, .array:
-            text = node.value.toJSONString(prettyPrinted: true) ?? ""
+            let value = node.value
+            ToastManager.shared.show(String(localized: "toast.copying"))
+            Task.detached {
+                let text = value.toJSONString(prettyPrinted: true) ?? ""
+                await MainActor.run {
+                    ClipboardService.shared.writeText(text)
+                    ToastManager.shared.show(String(localized: "toast.value_copied"))
+                }
+            }
         }
-        ClipboardService.shared.writeText(text)
-        ToastManager.shared.show(String(localized: "toast.value_copied"))
     }
 
     private func copyKeyValue() {
@@ -131,9 +142,15 @@ struct CopyButtonsOverlay: View {
     }
 
     private func copyJSON() {
-        let text = node.value.toJSONString(prettyPrinted: true) ?? ""
-        ClipboardService.shared.writeText(text)
-        ToastManager.shared.show(String(localized: "toast.json_copied"))
+        let value = node.value
+        ToastManager.shared.show(String(localized: "toast.copying"))
+        Task.detached {
+            let text = value.toJSONString(prettyPrinted: true) ?? ""
+            await MainActor.run {
+                ClipboardService.shared.writeText(text)
+                ToastManager.shared.show(String(localized: "toast.json_copied"))
+            }
+        }
     }
 }
 #endif

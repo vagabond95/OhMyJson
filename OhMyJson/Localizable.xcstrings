@@ -258,6 +258,56 @@
     "Clear" : {
 
     },
+    "error.header.empty_input" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty Input"
+          }
+        }
+      }
+    },
+    "error.header.encoding_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encoding Error"
+          }
+        }
+      }
+    },
+    "error.header.parsing_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON Parsing Error"
+          }
+        }
+      }
+    },
+    "error.header.syntax_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON Syntax Error"
+          }
+        }
+      }
+    },
+    "error.header.unknown_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid JSON"
+          }
+        }
+      }
+    },
     "Ignore escape sequences on view" : {
 
     },
@@ -505,7 +555,27 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy JSON"
+            "value" : "Copy this JSON"
+          }
+        }
+      }
+    },
+    "onboarding.now_press" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now press:"
+          }
+        }
+      }
+    },
+    "onboarding.to_view" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "to view formatted JSON"
           }
         }
       }
@@ -1322,6 +1392,22 @@
         }
       }
     },
+    "toast.copying" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copying..."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "복사 중..."
+          }
+        }
+      }
+    },
     "toast.invalid_json" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1390,17 +1476,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Beautify is unavailable for large JSON"
-          }
-        }
-      }
-    },
-    "tooltip.expand_all_unavailable_large" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expand All is unavailable for large JSON"
           }
         }
       }
@@ -1485,6 +1560,17 @@
         }
       }
     },
+    "tooltip.expand_all_unavailable_large" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All is unavailable for large JSON"
+          }
+        }
+      }
+    },
     "tooltip.new_tab" : {
       "localizations" : {
         "en" : {
@@ -1561,56 +1647,6 @@
     },
     "v%@ available" : {
 
-    },
-    "error.header.empty_input" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Empty Input"
-          }
-        }
-      }
-    },
-    "error.header.encoding_error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Encoding Error"
-          }
-        }
-      }
-    },
-    "error.header.parsing_error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JSON Parsing Error"
-          }
-        }
-      }
-    },
-    "error.header.syntax_error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JSON Syntax Error"
-          }
-        }
-      }
-    },
-    "error.header.unknown_error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid JSON"
-          }
-        }
-      }
     },
     "viewer.mode.beautify" : {
       "localizations" : {
