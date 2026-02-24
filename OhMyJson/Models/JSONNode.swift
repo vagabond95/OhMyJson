@@ -448,7 +448,16 @@ class JSONNode: Identifiable {
 
     func collapseAll() {
         isExpanded = false
-        children.forEach { $0.collapseAll() }
+        _children?.forEach { $0.collapseAll() }  // un-materialized 자식은 이미 isExpanded=false
+    }
+
+    /// Eagerly materializes all descendant JSONNode objects.
+    /// Must be called on a background thread BEFORE SwiftUI starts observing this node tree.
+    func materializeAllChildren() {
+        _ = children  // triggers materializeChildren() if _children == nil
+        for child in _children! {
+            child.materializeAllChildren()
+        }
     }
 
     /// Returns the count of visible (expanded) descendant nodes, NOT including self.
@@ -462,21 +471,31 @@ class JSONNode: Identifiable {
     }
 
     func allNodes() -> [JSONNode] {
-        var result = [self]
-        if isExpanded {
-            for child in children {
-                result.append(contentsOf: child.allNodes())
-            }
-        }
+        var result: [JSONNode] = []
+        collectVisibleNodes(into: &result)
         return result
     }
 
-    func allNodesIncludingCollapsed() -> [JSONNode] {
-        var result = [self]
-        for child in children {
-            result.append(contentsOf: child.allNodesIncludingCollapsed())
+    private func collectVisibleNodes(into result: inout [JSONNode]) {
+        result.append(self)
+        if isExpanded {
+            for child in children {
+                child.collectVisibleNodes(into: &result)
+            }
         }
+    }
+
+    func allNodesIncludingCollapsed() -> [JSONNode] {
+        var result: [JSONNode] = []
+        collectAllNodes(into: &result)
         return result
+    }
+
+    private func collectAllNodes(into result: inout [JSONNode]) {
+        result.append(self)
+        for child in children {
+            child.collectAllNodes(into: &result)
+        }
     }
 
     func matches(searchText: String) -> Bool {

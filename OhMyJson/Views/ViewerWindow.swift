@@ -401,6 +401,10 @@ struct ViewerWindow: View {
                         treeStructureVersion: viewModel.treeStructureVersion,
                         isRestoringTabState: viewModel.isRestoringTabState,
                         isSearchDismissed: viewModel.treeSearchDismissed,
+                        treeOperation: viewModel.lastTreeOperation,
+                        allNodesCache: viewModel.cachedAllNodes,
+                        allAncestorMapCache: viewModel.cachedAllAncestorMap,
+                        maxContentWidth: viewModel.cachedMaxContentWidth,
                         onVisibleNodesChanged: { nodes in
                             viewModel.updateNodeCache(nodes)
                         }

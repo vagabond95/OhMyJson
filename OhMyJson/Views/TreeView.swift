@@ -24,6 +24,14 @@ struct TreeView: View {
     var treeStructureVersion: Int = 0
     var isRestoringTabState: Bool = false
     var isSearchDismissed: Bool = false
+    /// The most recent bulk tree operation — drives O(1) fast path in onChange(of: treeStructureVersion).
+    var treeOperation: ViewerViewModel.TreeOperation = .normal
+    /// Pre-built flat list of ALL nodes (including collapsed). Set from ViewModel at parse time.
+    var allNodesCache: [JSONNode] = []
+    /// Pre-built ancestor isLastChild map for ALL nodes. Set from ViewModel at parse time.
+    var allAncestorMapCache: [UUID: [Bool]] = [:]
+    /// Pre-computed max content width across ALL nodes. Used instead of O(N) calculation.
+    var maxContentWidth: CGFloat = 0
     var onVisibleNodesChanged: (([JSONNode]) -> Void)?
 
     @State private var visibleNodes: [JSONNode] = []
@@ -128,7 +136,22 @@ struct TreeView: View {
         }
         .onChange(of: treeStructureVersion) { _, _ in
             guard isActive else { isStructureDirty = true; return }
-            updateVisibleNodes()
+            switch treeOperation {
+            case .expandAll:
+                // O(1) fast path: swap pre-built caches — no O(N) traversal needed
+                visibleNodes = allNodesCache
+                ancestorLastMap = allAncestorMapCache
+                estimatedContentWidth = maxContentWidth
+                // onVisibleNodesChanged skipped — ViewModel already pre-set cachedVisibleNodes in expandAllNodes()
+            case .collapseAll:
+                // O(1) fast path: only root is visible after collapseAll
+                visibleNodes = [rootNode]
+                ancestorLastMap = [rootNode.id: []]
+                estimatedContentWidth = maxContentWidth
+                // onVisibleNodesChanged skipped — ViewModel already pre-set cachedVisibleNodes in collapseAllNodes()
+            case .normal:
+                updateVisibleNodes()
+            }
         }
         .onChange(of: settings.ignoreEscapeSequences) { _, _ in
             guard isActive else { isSettingsDirty = true; isSearchDirty = true; return }
@@ -230,43 +253,6 @@ struct TreeView: View {
         )
     }
 
-    private func updateEstimatedContentWidth() {
-        var maxWidth: CGFloat = 0
-        for node in visibleNodes {
-            // Estimate: depth indentation + expand button + key + ": " + value
-            let indentWidth = CGFloat(node.depth) * 2 * TreeLayout.charWidth
-            let expandWidth: CGFloat = 16
-            let keyWidth = CGFloat(node.key?.count ?? 0) * TreeLayout.charWidth
-            let separatorWidth: CGFloat = node.key != nil ? 2 * TreeLayout.charWidth : 0
-
-            let valueLen: Int
-            switch node.value {
-            case .string(let s):
-                var escapedLen = 2 // quotes
-                for c in s.unicodeScalars {
-                    switch c {
-                    case "\n", "\r", "\t", "\\": escapedLen += 2
-                    default: escapedLen += 1
-                    }
-                }
-                valueLen = escapedLen
-            case .number(let n):
-                valueLen = n.truncatingRemainder(dividingBy: 1) == 0
-                    ? String(format: "%.0f", n).count
-                    : String(n).count
-            case .bool(let b): valueLen = b ? 4 : 5
-            case .null: valueLen = 4
-            case .object(let d): valueLen = String(d.count).count + 4
-            case .array(let a): valueLen = String(a.count).count + 4
-            }
-            let valueWidth = CGFloat(valueLen) * TreeLayout.charWidth
-
-            let totalWidth = indentWidth + expandWidth + keyWidth + separatorWidth + valueWidth + 18 // padding
-            maxWidth = max(maxWidth, totalWidth)
-        }
-        estimatedContentWidth = maxWidth
-    }
-
     private func performFullInit() {
         hasRestoredScroll = false
         isReady = false
@@ -320,7 +306,8 @@ struct TreeView: View {
         }
 
         updateAncestorLastMap()
-        updateEstimatedContentWidth()
+        // Use pre-computed global max width (O(1)) instead of O(N) per-toggle calculation
+        estimatedContentWidth = maxContentWidth
         onVisibleNodesChanged?(visibleNodes)
     }
 
@@ -347,24 +334,26 @@ struct TreeView: View {
             updateAncestorLastMap()
         }
 
-        updateEstimatedContentWidth()
+        // Use pre-computed global max width (parse-time O(N) cost, now O(1) here)
+        estimatedContentWidth = maxContentWidth
         onVisibleNodesChanged?(newVisibleNodes)
     }
 
     private func updateAncestorLastMap() {
         ancestorLastMap = [:]
-        buildAncestorLastMap(node: rootNode, ancestors: [])
+        var stack: [Bool] = []
+        buildAncestorLastMap(node: rootNode, stack: &stack)
     }
 
-    private func buildAncestorLastMap(node: JSONNode, ancestors: [Bool]) {
-        ancestorLastMap[node.id] = ancestors
+    private func buildAncestorLastMap(node: JSONNode, stack: inout [Bool]) {
+        ancestorLastMap[node.id] = stack
 
         if node.isExpanded {
+            stack.append(node.isLastChild)
             for child in node.children {
-                var childAncestors = ancestors
-                childAncestors.append(node.isLastChild)
-                buildAncestorLastMap(node: child, ancestors: childAncestors)
+                buildAncestorLastMap(node: child, stack: &stack)
             }
+            stack.removeLast()
         }
     }
 

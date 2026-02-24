@@ -799,6 +799,132 @@ struct ViewerViewModelTests {
         #expect(vm.treeStructureVersion == initialVersion)
     }
 
+    @MainActor @Test("cachedAllNodes populated after background parse")
+    func cachedAllNodesPopulatedAfterParse() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")]),
+            "b": .array([.number(1), .number(2)])
+        ]))
+        parser.parseResult = .success(root)
+        parser.formatResult = "{}"
+        vm.onNeedShowWindow = {}
+
+        vm.handleTextChange(#"{"a":{},"b":[]}"#)
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        // After parse, cachedAllNodes must contain ALL nodes (including collapsed subtrees)
+        #expect(!vm.cachedAllNodes.isEmpty)
+        #expect(vm.cachedMaxContentWidth > 0)
+        #expect(vm.cachedAllNodeIndexMap.count == vm.cachedAllNodes.count)
+    }
+
+    @Test("expandAllNodes sets keyboard nav cache to all visible nodes")
+    func expandAllNodesSetsVisibleCache() {
+        let (vm, _, _, _, _) = makeSUT()
+        // defaultFoldDepth=1: root expanded, children collapsed initially
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")]),
+            "b": .array([.number(1), .number(2)])
+        ]), defaultFoldDepth: 1)
+        vm.parseResult = .success(root)
+
+        vm.expandAllNodes()
+
+        // After expandAll, keyboard nav should reach deep nested nodes.
+        // expandAllNodes() rebuilds stale caches inline and pre-sets cachedVisibleNodes.
+        vm.selectedNodeId = root.id
+        var iterations = 0
+        var lastId = root.id
+        while iterations < 20 {
+            vm.moveSelectionDown()
+            guard let current = vm.selectedNodeId else { break }
+            if current == lastId { break }
+            lastId = current
+            iterations += 1
+        }
+        // Should reach nested nodes (root, "a", nested, "b", [0], [1] = 5 moves minimum)
+        #expect(iterations >= 2)
+        #expect(vm.lastTreeOperation == .expandAll)
+        #expect(vm.treeStructureVersion > 0)
+    }
+
+    @Test("collapseAllNodes sets keyboard nav cache to root only")
+    func collapseAllNodesSetsVisibleCache() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        vm.collapseAllNodes()
+
+        // After collapseAll, cachedVisibleNodes = [root], so keyboard nav stays at root
+        vm.selectedNodeId = nil
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == root.id)  // first (and only) visible node
+
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == root.id)  // still root (no more visible)
+        #expect(vm.lastTreeOperation == .collapseAll)
+    }
+
+    @Test("expandOrMoveRight resets lastTreeOperation to normal")
+    func expandOrMoveRightResetsTreeOperation() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        // Use expandAllNodes() to set lastTreeOperation = .expandAll via public API
+        vm.expandAllNodes()
+        #expect(vm.lastTreeOperation == .expandAll)
+
+        // Collapse "a" so expandOrMoveRight has something to expand
+        let containerNode = root.children[0]
+        containerNode.isExpanded = false
+        vm.selectedNodeId = containerNode.id
+        vm.updateNodeCache(root.allNodes())  // [root, containerNode]
+
+        let versionBefore = vm.treeStructureVersion
+        vm.expandOrMoveRight()
+
+        // lastTreeOperation should be reset to .normal before treeStructureVersion increments
+        #expect(vm.lastTreeOperation == .normal)
+        #expect(vm.treeStructureVersion == versionBefore + 1)
+    }
+
+    @Test("collapseOrMoveLeft resets lastTreeOperation to normal")
+    func collapseOrMoveLeftResetsTreeOperation() {
+        let (vm, _, _, _, _) = makeSUT()
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")])
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+
+        // Use collapseAllNodes() to set lastTreeOperation = .collapseAll via public API
+        vm.collapseAllNodes()
+        #expect(vm.lastTreeOperation == .collapseAll)
+
+        // Re-expand root and "a" so collapseOrMoveLeft has something to collapse
+        root.isExpanded = true
+        let containerNode = root.children[0]
+        containerNode.isExpanded = true
+        vm.selectedNodeId = containerNode.id
+        vm.updateNodeCache(root.allNodes())  // [root, containerNode, nested]
+
+        let versionBefore = vm.treeStructureVersion
+        vm.collapseOrMoveLeft()
+
+        // lastTreeOperation should be reset to .normal
+        #expect(vm.lastTreeOperation == .normal)
+        #expect(vm.treeStructureVersion == versionBefore + 1)
+    }
+
     // MARK: - handleTextChange (debounced path)
 
     @MainActor @Test("handleTextChange with new JSON replaces parseResult and resets selection")

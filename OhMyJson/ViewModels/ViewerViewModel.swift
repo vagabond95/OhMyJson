@@ -74,6 +74,16 @@ class ViewerViewModel {
 
     var treeStructureVersion: Int = 0
 
+    // MARK: - Tree Operation Tracking (non-reactive — drives O(1) fast path in TreeView)
+
+    enum TreeOperation {
+        case expandAll, collapseAll, normal
+    }
+
+    /// Tracks the most recent bulk tree operation so TreeView can take the O(1) fast path.
+    /// @ObservationIgnored — must NOT trigger SwiftUI body re-evaluation on its own.
+    @ObservationIgnored private(set) var lastTreeOperation: TreeOperation = .normal
+
     // MARK: - Confetti
 
     var confettiCounter: Int = 0
@@ -143,6 +153,19 @@ class ViewerViewModel {
 
     @ObservationIgnored private var cachedVisibleNodes: [JSONNode] = []
     @ObservationIgnored private var nodeIndexMap: [UUID: Int] = [:]
+
+    // MARK: - Parse-time Pre-computed Caches (built on background thread)
+
+    /// Full flat list of ALL nodes (including collapsed subtrees), built at parse time.
+    @ObservationIgnored private(set) var cachedAllNodes: [JSONNode] = []
+    /// Ancestor isLastChild map for ALL nodes (regardless of expand state), built at parse time.
+    @ObservationIgnored private(set) var cachedAllAncestorMap: [UUID: [Bool]] = [:]
+    /// Index map into cachedAllNodes, built at parse time.
+    @ObservationIgnored private(set) var cachedAllNodeIndexMap: [UUID: Int] = [:]
+    /// Max estimated content width across ALL nodes, built at parse time.
+    @ObservationIgnored private(set) var cachedMaxContentWidth: CGFloat = 0
+    /// Root node ID at the time the all-nodes caches were built. Used to detect stale caches.
+    @ObservationIgnored private var cachedAllNodesRootId: UUID?
 
     /// Callback for when ViewModel needs to show the window (set by AppDelegate)
     @ObservationIgnored var onNeedShowWindow: (() -> Void)?
@@ -529,7 +552,7 @@ class ViewerViewModel {
         parseInBackground(json: text, tabId: activeTabId, resetScrollState: true)
     }
 
-    /// Shared background parsing: runs parse + formatJSON off the main thread,
+    /// Shared background parsing: runs parse + formatJSON + cache pre-computation off the main thread,
     /// then applies results on MainActor.
     private func parseInBackground(json: String, tabId: UUID, resetScrollState: Bool = false) {
         parseTask?.cancel()
@@ -540,6 +563,28 @@ class ViewerViewModel {
 
         parseTask = Task.detached { [weak self] in
             let result = parser.parse(json)
+            guard !Task.isCancelled else { return }
+
+            // Pre-materialize all JSONNode objects on a background thread before
+            // SwiftUI starts observing the tree. This eliminates main-thread JSONNode
+            // creation during expandAll() / collapseAll() on large JSON.
+            var allNodesList: [JSONNode] = []
+            var ancestorMap: [UUID: [Bool]] = [:]
+            var indexMap: [UUID: Int] = [:]
+            var maxWidth: CGFloat = 0
+            var rootNodeId: UUID?
+
+            if case .success(let rootNode) = result {
+                rootNode.materializeAllChildren()
+                guard !Task.isCancelled else { return }
+
+                // Pre-compute all-nodes caches on background thread (O(N), but free from main thread)
+                allNodesList = rootNode.allNodesIncludingCollapsed()
+                ancestorMap = ViewerViewModel.buildAllAncestorMap(rootNode)
+                indexMap = Dictionary(uniqueKeysWithValues: allNodesList.enumerated().map { ($1.id, $0) })
+                maxWidth = ViewerViewModel.computeMaxContentWidth(allNodesList)
+                rootNodeId = rootNode.id
+            }
             guard !Task.isCancelled else { return }
 
             let formatted: String?
@@ -565,6 +610,15 @@ class ViewerViewModel {
 
                 switch result {
                 case .success(let node):
+                    // Apply pre-computed all-nodes caches BEFORE setting parseResult
+                    // (rebuildNodeCache fires in parseResult.didSet — caches must be fresh by then)
+                    self.cachedAllNodes = allNodesList
+                    self.cachedAllAncestorMap = ancestorMap
+                    self.cachedAllNodeIndexMap = indexMap
+                    self.cachedMaxContentWidth = maxWidth
+                    self.cachedAllNodesRootId = rootNodeId
+                    self.lastTreeOperation = .normal
+
                     let wasEmpty = self.parseResult == nil
                     self.parseResult = .success(node)
                     self.suppressFormatOnSet = true
@@ -896,6 +950,14 @@ class ViewerViewModel {
         isParsing = false
         isBeautifyRendering = false
 
+        // Clear all-nodes caches
+        cachedAllNodes = []
+        cachedAllAncestorMap = [:]
+        cachedAllNodeIndexMap = [:]
+        cachedMaxContentWidth = 0
+        cachedAllNodesRootId = nil
+        lastTreeOperation = .normal
+
         setFullInputText(nil)
         tabManager.updateTabFullInput(id: activeTabId, fullText: nil)
         tabManager.updateTabInput(id: activeTabId, text: "")
@@ -992,10 +1054,19 @@ class ViewerViewModel {
         guard case .success(let rootNode) = parseResult else {
             cachedVisibleNodes = []
             nodeIndexMap = [:]
+            // Also clear all-nodes caches — will be rebuilt on next background parse
+            cachedAllNodes = []
+            cachedAllAncestorMap = [:]
+            cachedAllNodeIndexMap = [:]
+            cachedMaxContentWidth = 0
+            cachedAllNodesRootId = nil
+            lastTreeOperation = .normal
             return
         }
         cachedVisibleNodes = rootNode.allNodes()
         nodeIndexMap = Dictionary(uniqueKeysWithValues: cachedVisibleNodes.enumerated().map { ($1.id, $0) })
+        // NOTE: cachedAllNodes etc. are pre-set by parseInBackground before parseResult is assigned.
+        // No rebuild needed here for the normal parse path.
     }
 
     /// Update the node cache from externally computed visible nodes.
@@ -1003,6 +1074,66 @@ class ViewerViewModel {
     func updateNodeCache(_ nodes: [JSONNode]) {
         cachedVisibleNodes = nodes
         nodeIndexMap = Dictionary(uniqueKeysWithValues: nodes.enumerated().map { ($1.id, $0) })
+    }
+
+    // MARK: - All-Nodes Cache Helpers (static — safe to call on background thread)
+
+    /// Build a UUID→ancestorIsLast map for ALL nodes in the tree (regardless of expand state).
+    static func buildAllAncestorMap(_ root: JSONNode) -> [UUID: [Bool]] {
+        var result: [UUID: [Bool]] = [:]
+        var stack: [Bool] = []
+        buildAncestorMapHelper(root, stack: &stack, result: &result)
+        return result
+    }
+
+    private static func buildAncestorMapHelper(
+        _ node: JSONNode,
+        stack: inout [Bool],
+        result: inout [UUID: [Bool]]
+    ) {
+        result[node.id] = stack
+        stack.append(node.isLastChild)
+        for child in node.children {
+            buildAncestorMapHelper(child, stack: &stack, result: &result)
+        }
+        stack.removeLast()
+    }
+
+    /// Compute the maximum estimated content width across all nodes in the list.
+    /// Mirrors the logic in TreeView.updateEstimatedContentWidth (now deleted from hot path).
+    static func computeMaxContentWidth(_ nodes: [JSONNode]) -> CGFloat {
+        var maxWidth: CGFloat = 0
+        for node in nodes {
+            let indentWidth = CGFloat(node.depth) * 2 * TreeLayout.charWidth
+            let expandWidth: CGFloat = 16
+            let keyWidth = CGFloat(node.key?.count ?? 0) * TreeLayout.charWidth
+            let separatorWidth: CGFloat = node.key != nil ? 2 * TreeLayout.charWidth : 0
+
+            let valueLen: Int
+            switch node.value {
+            case .string(let s):
+                var escapedLen = 2  // quotes
+                for c in s.unicodeScalars {
+                    switch c {
+                    case "\n", "\r", "\t", "\\": escapedLen += 2
+                    default: escapedLen += 1
+                    }
+                }
+                valueLen = escapedLen
+            case .number(let n):
+                valueLen = n.truncatingRemainder(dividingBy: 1) == 0
+                    ? String(format: "%.0f", n).count
+                    : String(n).count
+            case .bool(let b): valueLen = b ? 4 : 5
+            case .null: valueLen = 4
+            case .object(let d): valueLen = String(d.count).count + 4
+            case .array(let a): valueLen = String(a.count).count + 4
+            }
+            let valueWidth = CGFloat(valueLen) * TreeLayout.charWidth
+            let totalWidth = indentWidth + expandWidth + keyWidth + separatorWidth + valueWidth + 18
+            maxWidth = max(maxWidth, totalWidth)
+        }
+        return maxWidth
     }
 
     // MARK: - Tree Keyboard Navigation
@@ -1047,6 +1178,9 @@ class ViewerViewModel {
         if node.value.isContainer && node.value.childCount > 0 {
             if !node.isExpanded {
                 node.isExpanded = true
+                // Single-node toggle: reset to .normal before treeStructureVersion increment
+                // so onChange(of: treeStructureVersion) uses the standard updateVisibleNodes() path.
+                lastTreeOperation = .normal
                 treeStructureVersion += 1
             } else if let firstChild = node.children.first {
                 selectedNodeId = firstChild.id
@@ -1063,6 +1197,8 @@ class ViewerViewModel {
 
         if node.value.isContainer && node.isExpanded {
             node.isExpanded = false
+            // Single-node toggle: reset to .normal so onChange uses the standard path.
+            lastTreeOperation = .normal
             treeStructureVersion += 1
         } else if let parentNode = node.parent {
             selectedNodeId = parentNode.id
@@ -1076,6 +1212,22 @@ class ViewerViewModel {
         rootNode.expandAll()
         selectedNodeId = nil
         treeScrollAnchorId = nil
+
+        // Rebuild all-nodes caches on-demand if stale (e.g. after tab switch without re-parse).
+        // Normally they're pre-built on background thread in parseInBackground.
+        if cachedAllNodesRootId != rootNode.id {
+            let allNodes = rootNode.allNodesIncludingCollapsed()
+            cachedAllNodes = allNodes
+            cachedAllAncestorMap = ViewerViewModel.buildAllAncestorMap(rootNode)
+            cachedAllNodeIndexMap = Dictionary(uniqueKeysWithValues: allNodes.enumerated().map { ($1.id, $0) })
+            cachedMaxContentWidth = ViewerViewModel.computeMaxContentWidth(allNodes)
+            cachedAllNodesRootId = rootNode.id
+        }
+
+        // Pre-set visible node cache (O(1) swap) — TreeView reads this via fast path
+        cachedVisibleNodes = cachedAllNodes
+        nodeIndexMap = cachedAllNodeIndexMap
+        lastTreeOperation = .expandAll
         treeStructureVersion += 1
     }
 
@@ -1084,6 +1236,11 @@ class ViewerViewModel {
         rootNode.collapseAll()
         selectedNodeId = nil
         treeScrollAnchorId = nil
+
+        // Pre-set visible node cache (O(1)) — only root is visible after collapseAll
+        cachedVisibleNodes = [rootNode]
+        nodeIndexMap = [rootNode.id: 0]
+        lastTreeOperation = .collapseAll
         treeStructureVersion += 1
     }
 
