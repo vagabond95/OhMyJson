@@ -215,6 +215,50 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
         return attrs?[.size] as? Int64
     }
 
+    func saveAllWithContent(tabs: [JSONTab], activeTabId: UUID?, contentId: UUID, fullText: String?) {
+        guard let db else { return }
+        do {
+            _ = try db.write { db in
+                // 1. Save all tabs (same logic as saveAll)
+                try TabRecord.deleteAll(db)
+                for (index, tab) in tabs.enumerated() {
+                    let record = TabRecord(
+                        from: tab,
+                        sortOrder: index,
+                        isActive: tab.id == activeTabId
+                    )
+                    try record.insert(db)
+                }
+                // Clean up orphaned tab_content rows
+                let liveIds = tabs.map { $0.id.uuidString }
+                if liveIds.isEmpty {
+                    try db.execute(sql: "DELETE FROM tab_content")
+                } else {
+                    let placeholders = liveIds.map { _ in "?" }.joined(separator: ",")
+                    try db.execute(
+                        sql: "DELETE FROM tab_content WHERE id NOT IN (\(placeholders))",
+                        arguments: StatementArguments(liveIds)
+                    )
+                }
+
+                // 2. Save tab_content atomically within the same transaction
+                if let text = fullText {
+                    try db.execute(
+                        sql: "INSERT OR REPLACE INTO tab_content (id, fullInputText) VALUES (?, ?)",
+                        arguments: [contentId.uuidString, text]
+                    )
+                } else {
+                    try db.execute(
+                        sql: "DELETE FROM tab_content WHERE id = ?",
+                        arguments: [contentId.uuidString]
+                    )
+                }
+            }
+        } catch {
+            print("[TabPersistenceService] saveAllWithContent error: \(error)")
+        }
+    }
+
     func saveTabContent(id: UUID, fullText: String?) {
         guard let db else { return }
         do {

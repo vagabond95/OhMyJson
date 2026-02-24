@@ -75,6 +75,10 @@ enum InputSize {
     /// Text larger than this threshold is replaced with a notice in InputView to prevent
     /// TextKit's synchronous glyph generation causing SBBOD on the main thread.
     static let displayThreshold = 512 * 1024  // 512KB
+
+    /// Prefix of the notice text that replaces large JSON in InputView.
+    /// Used to detect lost `tab_content` during hydration.
+    static let largeInputNoticePrefix = "// JSON too large"
 }
 
 // MARK: - Beautify Display Limits

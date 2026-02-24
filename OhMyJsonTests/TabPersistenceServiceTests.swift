@@ -317,6 +317,65 @@ struct TabPersistenceServiceTests {
         #expect(content2 == nil)
     }
 
+    // MARK: - saveAllWithContent (atomic)
+
+    @Test("saveAllWithContent saves tab and content atomically")
+    func saveAllWithContentAtomic() throws {
+        let service = try makeService()
+
+        let tab = makeTab(title: "BigTab", inputText: "notice text", isParseSuccess: true)
+        let fullText = String(repeating: "x", count: 100_000)
+
+        service.saveAllWithContent(tabs: [tab], activeTabId: tab.id, contentId: tab.id, fullText: fullText)
+
+        // Verify tab was saved
+        let (loaded, activeId) = service.loadTabs()
+        #expect(loaded.count == 1)
+        #expect(loaded[0].id == tab.id)
+        #expect(activeId == tab.id)
+
+        // Verify content was saved atomically
+        let content = service.loadTabContent(id: tab.id)
+        #expect(content?.fullInputText == fullText)
+    }
+
+    @Test("saveAllWithContent with nil fullText deletes content")
+    func saveAllWithContentDeletesContent() throws {
+        let service = try makeService()
+
+        let tab = makeTab(title: "Tab1", inputText: "text", isParseSuccess: true)
+        // First save with content
+        service.saveAllWithContent(tabs: [tab], activeTabId: tab.id, contentId: tab.id, fullText: "some content")
+        // Then save with nil to delete
+        service.saveAllWithContent(tabs: [tab], activeTabId: tab.id, contentId: tab.id, fullText: nil)
+
+        let content = service.loadTabContent(id: tab.id)
+        #expect(content?.fullInputText == nil)
+    }
+
+    @Test("saveAllWithContent cleans up orphaned tab_content")
+    func saveAllWithContentCleansOrphans() throws {
+        let service = try makeService()
+
+        let tab1 = makeTab(title: "Tab1")
+        let tab2 = makeTab(title: "Tab2")
+
+        // Save two tabs with content
+        service.saveAll(tabs: [tab1, tab2], activeTabId: tab1.id)
+        service.saveTabContent(id: tab1.id, fullText: "content1")
+        service.saveTabContent(id: tab2.id, fullText: "content2")
+
+        // Now save with only tab2 + new content for tab2
+        service.saveAllWithContent(tabs: [tab2], activeTabId: tab2.id, contentId: tab2.id, fullText: "updated2")
+
+        // tab1's content should be orphaned and cleaned up
+        let content1 = service.loadTabContent(id: tab1.id)
+        #expect(content1 == nil)
+
+        let content2 = service.loadTabContent(id: tab2.id)
+        #expect(content2?.fullInputText == "updated2")
+    }
+
     // MARK: - databaseSize
 
     @Test("databaseSize does not throw for in-memory database")

@@ -183,10 +183,11 @@ class TabManager: TabManagerProtocol {
     }
 
     /// Update the full (untruncated) input text of a specific tab.
+    /// Uses atomic save to ensure `tab` and `tab_content` are written in a single transaction.
     func updateTabFullInput(id: UUID, fullText: String?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].fullInputText = fullText
-        persistence?.saveTabContent(id: id, fullText: fullText)
+        persistence?.saveAllWithContent(tabs: tabs, activeTabId: activeTabId, contentId: id, fullText: fullText)
     }
 
     /// Update the parse result of a specific tab.
@@ -275,11 +276,21 @@ class TabManager: TabManagerProtocol {
     }
 
     /// Load `fullInputText` from DB for a dehydrated tab and mark it hydrated in memory.
+    /// Detects lost `tab_content` for large JSON tabs (notice text stored as inputText) and resets to empty.
     func hydrateTabContent(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }),
               !tabs[index].isHydrated,
               let content = persistence?.loadTabContent(id: id) else { return }
         tabs[index].fullInputText = content.fullInputText
+
+        // Detect lost tab_content for large JSON tabs: reset to empty instead of parsing notice text
+        if content.fullInputText == nil
+            && tabs[index].isParseSuccess
+            && tabs[index].inputText.hasPrefix(InputSize.largeInputNoticePrefix) {
+            tabs[index].inputText = ""
+            tabs[index].isParseSuccess = false
+        }
+
         tabs[index].isHydrated = true
     }
 

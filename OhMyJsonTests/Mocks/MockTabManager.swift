@@ -189,6 +189,13 @@ final class MockTabManager: TabManagerProtocol {
     func hydrateTabContent(id: UUID) {
         hydrateTabContentCallCount += 1
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        // Detect lost tab_content for large JSON tabs (mirrors real TabManager logic)
+        if tabs[index].fullInputText == nil
+            && tabs[index].isParseSuccess
+            && tabs[index].inputText.hasPrefix(InputSize.largeInputNoticePrefix) {
+            tabs[index].inputText = ""
+            tabs[index].isParseSuccess = false
+        }
         tabs[index].isHydrated = true
     }
 }

@@ -528,6 +528,78 @@ struct TabManagerTests {
         #expect(sut.tabs[2].id == idA)
     }
 
+    // MARK: - hydrateTabContent (lost tab_content detection)
+
+    @Test("hydrateTabContent resets tab when tab_content is lost for large JSON")
+    func hydrateTabContentResetsOnLostContent() {
+        let persistence = MockTabPersistenceService()
+        let sut = TabManager(persistence: persistence)
+
+        // Simulate a large JSON tab whose tab_content was lost:
+        // - inputText contains the notice prefix
+        // - isParseSuccess is true (was successfully parsed before)
+        // - fullInputText is nil in DB (lost)
+        let noticeText = "\(InputSize.largeInputNoticePrefix) to display (600 KB)\n// ..."
+        var tab = JSONTab(
+            id: UUID(), inputText: noticeText, createdAt: Date(),
+            lastAccessedAt: Date(), title: "Lost", isParseSuccess: true
+        )
+        tab.isHydrated = false
+        sut.tabs.append(tab)
+
+        // Persistence returns the tab but no fullInputText
+        persistence.savedTabs = [tab]
+
+        sut.hydrateTabContent(id: tab.id)
+
+        let restored = sut.tabs.first(where: { $0.id == tab.id })
+        #expect(restored?.inputText == "")
+        #expect(restored?.isParseSuccess == false)
+        #expect(restored?.isHydrated == true)
+    }
+
+    @Test("hydrateTabContent restores normally when fullInputText exists")
+    func hydrateTabContentRestoresNormally() {
+        let persistence = MockTabPersistenceService()
+        let sut = TabManager(persistence: persistence)
+
+        let noticeText = "\(InputSize.largeInputNoticePrefix) to display (600 KB)\n// ..."
+        var tab = JSONTab(
+            id: UUID(), inputText: noticeText, createdAt: Date(),
+            lastAccessedAt: Date(), title: "OK", isParseSuccess: true
+        )
+        tab.isHydrated = false
+        sut.tabs.append(tab)
+
+        // Persistence returns fullInputText — no reset should happen
+        let fullJSON = String(repeating: "{}", count: 100_000)
+        persistence.savedTabs = [tab]
+        persistence.savedContent[tab.id] = fullJSON
+
+        sut.hydrateTabContent(id: tab.id)
+
+        let restored = sut.tabs.first(where: { $0.id == tab.id })
+        #expect(restored?.fullInputText == fullJSON)
+        #expect(restored?.isParseSuccess == true)
+        #expect(restored?.isHydrated == true)
+    }
+
+    // MARK: - updateTabFullInput (atomic save)
+
+    @Test("updateTabFullInput calls saveAllWithContent")
+    func updateTabFullInputCallsSaveAllWithContent() {
+        let persistence = MockTabPersistenceService()
+        let sut = TabManager(persistence: persistence)
+
+        let id = sut.createTab(with: "test")
+        persistence.saveAllWithContentCallCount = 0
+
+        sut.updateTabFullInput(id: id, fullText: "full content here")
+
+        #expect(persistence.saveAllWithContentCallCount == 1)
+        #expect(persistence.savedContent[id] == "full content here")
+    }
+
     @Test("selectNextTab respects reordered tabs")
     func selectNextTabRespectsReorderedTabs() {
         let sut = makeSUT()

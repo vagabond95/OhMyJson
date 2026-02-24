@@ -27,6 +27,10 @@ protocol TabPersistenceServiceProtocol: AnyObject {
     /// Save or delete fullInputText for a tab in the separate content table.
     func saveTabContent(id: UUID, fullText: String?)
 
+    /// Atomically save all tabs and a single tab's content in one transaction.
+    /// Prevents `tab` and `tab_content` from diverging on crash/termination.
+    func saveAllWithContent(tabs: [JSONTab], activeTabId: UUID?, contentId: UUID, fullText: String?)
+
     /// Load only `inputText` and `fullInputText` for a single tab (used during hydration).
     /// Returns nil if the tab does not exist in the database.
     func loadTabContent(id: UUID) -> (inputText: String, fullInputText: String?)?

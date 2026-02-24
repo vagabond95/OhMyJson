@@ -17,6 +17,7 @@ final class MockTabPersistenceService: TabPersistenceServiceProtocol {
     var flushCallCount = 0
     var loadTabsCallCount = 0
     var saveTabContentCallCount = 0
+    var saveAllWithContentCallCount = 0
 
     func loadTabs() -> (tabs: [JSONTab], activeTabId: UUID?) {
         loadTabsCallCount += 1
@@ -57,6 +58,19 @@ final class MockTabPersistenceService: TabPersistenceServiceProtocol {
             savedContent[id] = text
         } else {
             savedContent.removeValue(forKey: id)
+        }
+    }
+
+    func saveAllWithContent(tabs: [JSONTab], activeTabId: UUID?, contentId: UUID, fullText: String?) {
+        saveAllWithContentCallCount += 1
+        // saveAll logic
+        savedTabs = tabs
+        savedActiveId = activeTabId
+        // saveTabContent logic
+        if let text = fullText {
+            savedContent[contentId] = text
+        } else {
+            savedContent.removeValue(forKey: contentId)
         }
     }
 
