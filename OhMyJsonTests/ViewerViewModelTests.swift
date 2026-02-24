@@ -1939,6 +1939,52 @@ struct ViewerViewModelTests {
         #expect(observed == true)
     }
 
+    // MARK: - isTreeRendering
+
+    @Test("isTreeRendering defaults to false")
+    func isTreeRenderingDefaultsFalse() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.isTreeRendering == false)
+    }
+
+    @Test("clearAll resets isTreeRendering")
+    func clearAllResetsIsTreeRendering() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.isTreeRendering = true
+
+        vm.clearAll()
+
+        #expect(vm.isTreeRendering == false)
+    }
+
+    @Test("isTreeRendering clears isInitialLoading when set to false")
+    func isTreeRenderingClearsIsInitialLoading() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.isTreeRendering = true
+        vm.isInitialLoading = true
+
+        vm.isTreeRendering = false
+
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @Test("isTreeRendering observation triggers view update")
+    func isTreeRenderingObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isTreeRendering
+        } onChange: {
+            observed = true
+        }
+
+        vm.isTreeRendering = true
+        #expect(observed == true)
+    }
+
     // MARK: - isRenamingTab
 
     @Test("isRenamingTab defaults to false")
@@ -2067,6 +2113,101 @@ struct ViewerViewModelTests {
         vm.onActiveTabChanged(oldId: id1, newId: id2)
 
         #expect(vm.tabGeneration == genBefore + 1)
+    }
+
+    @Test("onActiveTabChanged immediately clears parseResult, sets isParsing, and clears currentJSON")
+    func onActiveTabChangedClearsContentImmediately() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        let id1 = tabManager.createTab(with: #"{"a":1}"#)
+        let id2 = tabManager.createTab(with: #"{"b":2}"#)
+        tabManager.activeTabId = id1
+        vm.loadInitialContent()
+
+        // Verify state before tab switch
+        vm.parseResult = .success(JSONNode(value: .object(["a": .number(1)])))
+        vm.currentJSON = #"{"a":1}"#
+
+        vm.onActiveTabChanged(oldId: id1, newId: id2)
+
+        #expect(vm.parseResult == nil)
+        #expect(vm.isParsing == true)
+        #expect(vm.currentJSON == nil)
+        #expect(vm.isTreeRendering == false)
+        #expect(vm.isBeautifyRendering == false)
+    }
+
+    @Test("restoreTabState clears isParsing for hydrated tab with parseResult")
+    func restoreTabStateClearsIsParsingForHydratedTab() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let node = JSONNode(value: .object(["key": .string("val")]))
+        let id = tabManager.createTab(with: #"{"key":"val"}"#)
+        tabManager.activeTabId = id
+        tabManager.tabs[0].parseResult = .success(node)
+
+        // Simulate state after onActiveTabChanged
+        vm.isParsing = true
+        vm.parseResult = nil
+
+        vm.restoreTabState()
+
+        #expect(vm.isParsing == false)
+        #expect(vm.parseResult != nil)
+    }
+
+    @Test("restoreTabState clears isParsing when no active tab")
+    func restoreTabStateClearsIsParsingNoTab() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        // Simulate state after onActiveTabChanged
+        vm.isParsing = true
+
+        vm.restoreTabState()
+
+        #expect(vm.isParsing == false)
+    }
+
+    @Test("restoreTabState sets isInitialLoading for large JSON in tree mode")
+    func restoreTabStateSetsIsInitialLoadingForLargeJSONTree() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let largeText = String(repeating: "x", count: InputSize.displayThreshold + 1)
+        let truncated = ViewerViewModel.buildLargeInputNotice(largeText)
+        let node = JSONNode(value: .object(["key": .string("val")]))
+
+        let id = tabManager.createTab(with: truncated)
+        tabManager.activeTabId = id
+        tabManager.updateTabFullInput(id: id, fullText: largeText)
+        tabManager.updateTabViewMode(id: id, viewMode: .tree)
+        tabManager.tabs[0].parseResult = .success(node)
+
+        // Simulate state after onActiveTabChanged
+        vm.isParsing = true
+        vm.parseResult = nil
+
+        vm.restoreTabState()
+
+        #expect(vm.isTreeRendering == true)
+        #expect(vm.isInitialLoading == true)
+        #expect(vm.isParsing == false)
+    }
+
+    @Test("restoreTabState keeps isParsing true for dehydrated tab with content")
+    func restoreTabStateKeepsIsParsingForDehydratedTab() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+
+        let id = tabManager.createTab(with: #"{"key":"val"}"#)
+        tabManager.activeTabId = id
+        tabManager.tabs[0].isHydrated = false
+        tabManager.tabs[0].parseResult = nil
+
+        // Simulate state after onActiveTabChanged
+        vm.isParsing = true
+
+        vm.restoreTabState()
+
+        // parseInBackground should keep isParsing true
+        #expect(vm.isParsing == true)
     }
 
     @Test("multiple createNewTab calls monotonically increase tabGeneration")

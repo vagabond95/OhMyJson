@@ -113,6 +113,13 @@ class ViewerViewModel {
             }
         }
     }
+    var isTreeRendering: Bool = false {
+        didSet {
+            if !isTreeRendering {
+                isInitialLoading = false
+            }
+        }
+    }
     /// True while the very first Beautify render of a new parse result is in progress.
     /// Used to keep the center spinner visible until content is ready (instead of jumping to top).
     var isInitialLoading: Bool = false
@@ -677,6 +684,13 @@ class ViewerViewModel {
         }
         hasRestoredCurrentTab = false
 
+        // Immediately clear old content and show centered progress
+        isTreeRendering = false
+        isBeautifyRendering = false
+        isParsing = true
+        parseResult = nil
+        currentJSON = nil
+
         restoreTask?.cancel()
 
         let task = DispatchWorkItem { [weak self] in
@@ -709,6 +723,7 @@ class ViewerViewModel {
         isRestoringTabState = true
 
         guard let initialActiveTab = tabManager.activeTab else {
+            isParsing = false
             inputText = ""
             parseResult = nil
             currentJSON = nil
@@ -735,6 +750,7 @@ class ViewerViewModel {
         if !activeTab.isHydrated {
             tabManager.hydrateTabContent(id: activeTab.id)
             guard let hydratedTab = tabManager.activeTab else {
+                isParsing = false
                 isRestoringTabState = false
                 return
             }
@@ -765,6 +781,12 @@ class ViewerViewModel {
             }
         }
 
+        // Show tree rendering progress for cached large JSON tabs
+        if parseResult != nil && isLargeJSON && viewMode == .tree {
+            isTreeRendering = true
+            isInitialLoading = true
+        }
+
         inputScrollPosition = activeTab.inputScrollPosition
         beautifyScrollPosition = activeTab.beautifyScrollPosition
         treeHorizontalScrollOffset = activeTab.treeHorizontalScrollOffset
@@ -787,7 +809,12 @@ class ViewerViewModel {
             if !textToParse.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                let activeId = tabManager.activeTabId {
                 parseInBackground(json: textToParse, tabId: activeId)
+                // parseInBackground sets isParsing = true internally — keep it
+            } else {
+                isParsing = false
             }
+        } else {
+            isParsing = false
         }
 
         DispatchQueue.main.async { [weak self] in
@@ -949,6 +976,7 @@ class ViewerViewModel {
         parseTask?.cancel()
         isParsing = false
         isBeautifyRendering = false
+        isTreeRendering = false
 
         // Clear all-nodes caches
         cachedAllNodes = []
