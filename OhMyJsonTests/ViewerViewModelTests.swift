@@ -1506,6 +1506,110 @@ struct ViewerViewModelTests {
         #expect(notice.count < text.count)
     }
 
+    @Test("buildLargeInputNotice contains Input editing and Beautify mentions")
+    func buildLargeInputNoticeContainsKeywords() {
+        let text = String(repeating: "x", count: InputSize.displayThreshold + 1)
+        let notice = ViewerViewModel.buildLargeInputNotice(text)
+
+        #expect(notice.contains("Input editing"))
+        #expect(notice.contains("Beautify"))
+        #expect(notice.contains("Tree view"))
+    }
+
+    // MARK: - isLargeJSON
+
+    @Test("isLargeJSON is false initially")
+    func isLargeJSONDefaultsFalse() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.isLargeJSON == false)
+    }
+
+    @Test("isLargeJSON becomes true after handleLargeTextPaste")
+    func isLargeJSONTrueAfterLargeTextPaste() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let largeText = makeLargeText()
+        vm.handleLargeTextPaste(largeText)
+
+        #expect(vm.isLargeJSON == true)
+    }
+
+    @Test("isLargeJSON becomes false after clearAll")
+    func isLargeJSONFalseAfterClearAll() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let largeText = makeLargeText()
+        vm.handleLargeTextPaste(largeText)
+        #expect(vm.isLargeJSON == true)
+
+        vm.clearAll()
+        #expect(vm.isLargeJSON == false)
+    }
+
+    @Test("isLargeJSON observation triggers view update")
+    func isLargeJSONObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isLargeJSON
+        } onChange: {
+            observed = true
+        }
+
+        vm.isLargeJSON = true
+        #expect(observed == true)
+    }
+
+    @Test("createNewTab with large JSON forces Tree viewMode")
+    func createNewTabLargeJSONForcesTreeMode() {
+        let largeText = makeLargeText()
+        let (vm, _, _, _, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        vm.createNewTab(with: largeText)
+
+        #expect(vm.viewMode == .tree)
+        #expect(vm.isLargeJSON == true)
+    }
+
+    @Test("handleLargeTextPaste forces Tree viewMode")
+    func handleLargeTextPasteForcesTreeMode() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        // Start in beautify mode
+        vm.viewMode = .beautify
+
+        let largeText = makeLargeText()
+        vm.handleLargeTextPaste(largeText)
+
+        #expect(vm.viewMode == .tree)
+    }
+
+    @Test("restoreTabState forces Tree mode for large JSON tab saved in Beautify mode")
+    func restoreTabStateForcesTreeModeForLargeJSON() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let largeText = makeLargeText()
+        let truncated = ViewerViewModel.buildLargeInputNotice(largeText)
+
+        // Create a tab that simulates a large JSON tab saved in Beautify mode
+        let id = tabManager.createTab(with: truncated)
+        tabManager.activeTabId = id
+        tabManager.updateTabFullInput(id: id, fullText: largeText)
+        tabManager.updateTabViewMode(id: id, viewMode: .beautify)
+
+        vm.restoreTabState()
+
+        #expect(vm.viewMode == .tree)
+        #expect(vm.isLargeJSON == true)
+    }
+
     @Test("createNewTab with large JSON stores truncated display and full text")
     func createNewTabLargeJSONStoresTruncated() {
         let largeText = makeLargeText()

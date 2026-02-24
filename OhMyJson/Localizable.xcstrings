@@ -1373,6 +1373,17 @@
         }
       }
     },
+    "tooltip.beautify_unavailable_large" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beautify is unavailable for large JSON"
+          }
+        }
+      }
+    },
     "tooltip.clear" : {
       "localizations" : {
         "en" : {

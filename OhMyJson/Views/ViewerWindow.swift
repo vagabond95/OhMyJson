@@ -78,7 +78,8 @@ struct ViewerWindow: View {
                                 onClear: viewModel.clearAll,
                                 scrollPosition: $viewModel.inputScrollPosition,
                                 isRestoringTabState: viewModel.isRestoringTabState,
-                                onLargeTextPaste: viewModel.handleLargeTextPaste
+                                onLargeTextPaste: viewModel.handleLargeTextPaste,
+                                isLargeJSON: viewModel.isLargeJSON
                             )
                             .frame(width: inputWidth)
                             .allowsHitTesting(!isDraggingDivider)
@@ -322,23 +323,30 @@ struct ViewerWindow: View {
     private var viewModeSegmentedControl: some View {
         HStack(spacing: 0) {
             ForEach(ViewMode.allCases, id: \.self) { mode in
+                let isDisabled = mode == .beautify && viewModel.isLargeJSON
                 Button(action: {
                     viewModel.switchViewMode(to: mode)
                 }) {
                     Text(mode.displayName)
                         .font(.system(size: 11, weight: .medium))
-                        .toolbarIconHover(isActive: viewModel.viewMode == mode)
+                        .toolbarIconHover(isActive: viewModel.viewMode == mode && !isDisabled)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(
-                            viewModel.viewMode == mode
+                            viewModel.viewMode == mode && !isDisabled
                                 ? theme.panelBackground
                                 : Color.clear
                         )
                         .cornerRadius(4)
                         .contentShape(Rectangle())
+                        .opacity(isDisabled ? 0.35 : 1.0)
                 }
                 .buttonStyle(.plain)
+                .disabled(isDisabled)
+                .instantTooltip(
+                    isDisabled ? String(localized: "tooltip.beautify_unavailable_large") : "",
+                    position: .bottom
+                )
             }
         }
         .padding(2)

@@ -256,5 +256,22 @@ struct EditableTextViewTests {
 
         #expect(result == false)
     }
+
+    // MARK: - isEditable = false: paste is blocked
+
+    @Test("paste() does not trigger onLargeTextPaste when isEditable is false")
+    func paste_blockedWhenNotEditable() {
+        let textView = EditableTextView()
+        textView.isEditable = false
+        makeFirstResponder(textView)
+
+        var largePasteCalled = false
+        textView.onLargeTextPaste = { _ in largePasteCalled = true }
+
+        // Even if large text is on the clipboard, paste() must be a no-op
+        textView.paste(nil)
+
+        #expect(largePasteCalled == false)
+    }
 }
 #endif

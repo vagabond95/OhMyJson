@@ -121,6 +121,10 @@ class ViewerViewModel {
     /// nil means inputText is the complete content.
     @ObservationIgnored var fullInputText: String?
 
+    /// True when the active tab's JSON exceeds InputSize.displayThreshold (512KB).
+    /// Drives Beautify button disabling and Input View read-only mode.
+    var isLargeJSON: Bool = false
+
     @ObservationIgnored private var restoreTask: DispatchWorkItem?
     @ObservationIgnored private var hasRestoredCurrentTab: Bool = false
     @ObservationIgnored private let restoreDebounceInterval: TimeInterval = Timing.tabRestoreDebounce
@@ -208,7 +212,15 @@ class ViewerViewModel {
     static func buildLargeInputNotice(_ text: String) -> String {
         let sizeKB = text.utf8.count / 1024
         return "// JSON too large to display (\(sizeKB) KB)\n"
-            + "// View in Beautify or Tree mode."
+            + "// Input editing and Beautify view are disabled.\n"
+            + "// Use Tree view to explore the JSON."
+    }
+
+    /// Sets fullInputText and synchronizes the isLargeJSON flag.
+    /// Use this instead of directly assigning fullInputText.
+    private func setFullInputText(_ text: String?) {
+        fullInputText = text
+        isLargeJSON = text != nil
     }
 
     // MARK: - Large Text Paste Handling
@@ -219,7 +231,7 @@ class ViewerViewModel {
     func handleLargeTextPaste(_ text: String) {
         guard let activeTabId = tabManager.activeTabId else { return }
 
-        fullInputText = text
+        setFullInputText(text)
         let truncated = ViewerViewModel.buildLargeInputNotice(text)
 
         tabManager.updateTabInput(id: activeTabId, text: truncated)
@@ -227,6 +239,10 @@ class ViewerViewModel {
 
         // Trigger SwiftUI → updateNSView with truncated text (fast — avoids SBBOD)
         inputText = truncated
+
+        // Force Tree mode — Beautify is disabled for large JSON
+        viewMode = .tree
+        tabManager.updateTabViewMode(id: activeTabId, viewMode: .tree)
 
         // Parse full text immediately, skipping debounce
         debounceTask?.cancel()
@@ -324,9 +340,12 @@ class ViewerViewModel {
         // Store full text reference if large
         if isLarge, let full = jsonString {
             tabManager.updateTabFullInput(id: tabId, fullText: full)
-            fullInputText = full
+            setFullInputText(full)
+            // Force Tree mode — Beautify is disabled for large JSON
+            viewMode = .tree
+            tabManager.updateTabViewMode(id: tabId, viewMode: .tree)
         } else {
-            fullInputText = nil
+            setFullInputText(nil)
         }
 
         // Show / bring window to front
@@ -358,13 +377,16 @@ class ViewerViewModel {
             tabManager.updateTabInput(id: tab.id, text: displayText)
             if isLarge {
                 tabManager.updateTabFullInput(id: tab.id, fullText: json)
-                fullInputText = json
+                setFullInputText(json)
+                // Force Tree mode — Beautify is disabled for large JSON
+                viewMode = .tree
+                tabManager.updateTabViewMode(id: tab.id, viewMode: .tree)
             } else {
                 tabManager.updateTabFullInput(id: tab.id, fullText: nil)
-                fullInputText = nil
+                setFullInputText(nil)
             }
         } else {
-            fullInputText = nil
+            setFullInputText(nil)
         }
 
         // Select the tab (marks as accessed, triggers tab change if needed)
@@ -461,7 +483,7 @@ class ViewerViewModel {
 
         // User edited the text directly — invalidate stored full text
         if fullInputText != nil {
-            fullInputText = nil
+            setFullInputText(nil)
             tabManager.updateTabFullInput(id: activeTabId, fullText: nil)
         }
 
@@ -650,7 +672,7 @@ class ViewerViewModel {
 
         isInitialLoading = false
         inputText = activeTab.inputText
-        fullInputText = activeTab.fullInputText
+        setFullInputText(activeTab.fullInputText)
         parseResult = activeTab.parseResult
         // Use full text for currentJSON (parsing / copy-all), display text for inputText
         let jsonForParse = activeTab.fullInputText ?? activeTab.inputText
@@ -662,6 +684,15 @@ class ViewerViewModel {
 
         isSearchVisible = activeTab.isSearchVisible
         viewMode = activeTab.viewMode
+
+        // Safety net: if this is a large-JSON tab that was saved in Beautify mode,
+        // force it back to Tree (Beautify is disabled for large JSON).
+        if isLargeJSON && viewMode == .beautify {
+            viewMode = .tree
+            if let id = tabManager.activeTabId {
+                tabManager.updateTabViewMode(id: id, viewMode: .tree)
+            }
+        }
 
         inputScrollPosition = activeTab.inputScrollPosition
         beautifyScrollPosition = activeTab.beautifyScrollPosition
@@ -846,7 +877,7 @@ class ViewerViewModel {
         isParsing = false
         isBeautifyRendering = false
 
-        fullInputText = nil
+        setFullInputText(nil)
         tabManager.updateTabFullInput(id: activeTabId, fullText: nil)
         tabManager.updateTabInput(id: activeTabId, text: "")
         tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))

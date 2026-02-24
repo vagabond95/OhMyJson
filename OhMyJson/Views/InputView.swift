@@ -13,6 +13,7 @@ class EditableTextView: NSTextView {
     var onLargeTextPaste: ((String) -> Void)?
 
     override func paste(_ sender: Any?) {
+        guard isEditable else { return }
         guard let text = NSPasteboard.general.string(forType: .string),
               text.utf8.count > InputSize.displayThreshold else {
             super.paste(sender)
@@ -103,6 +104,7 @@ struct UndoableTextView: NSViewRepresentable {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
+    var isEditable: Bool = true
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -134,6 +136,8 @@ struct UndoableTextView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
 
         // Configure text view
+        textView.isEditable = isEditable
+        textView.isSelectable = isEditable
         textView.font = font
         textView.isRichText = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -200,6 +204,17 @@ struct UndoableTextView: NSViewRepresentable {
             ]
         }
 
+        // Update editable state only when it changes (prevents layout loops)
+        if context.coordinator.lastAppliedIsEditable != isEditable {
+            context.coordinator.lastAppliedIsEditable = isEditable
+            textView.isEditable = isEditable
+            textView.isSelectable = isEditable
+            // Visually dim the background to indicate disabled state
+            textView.backgroundColor = isEditable
+                ? currentTheme.nsBackground
+                : currentTheme.nsBackground.withAlphaComponent(0.6)
+        }
+
         // Only update if text is different to avoid breaking undo
         if textView.string != text {
             context.coordinator.isProgrammaticUpdate = true
@@ -260,6 +275,7 @@ struct UndoableTextView: NSViewRepresentable {
         weak var scrollView: NSScrollView?
         var isProgrammaticUpdate = false
         var lastAppliedColorScheme: ColorScheme?
+        var lastAppliedIsEditable: Bool?
 
         init(_ parent: UndoableTextView) {
             self.parent = parent
@@ -307,6 +323,7 @@ struct InputView: View {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
+    var isLargeJSON: Bool = false
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -330,7 +347,8 @@ struct InputView: View {
                     onTextChange: onTextChange,
                     scrollPosition: $scrollPosition,
                     isRestoringTabState: isRestoringTabState,
-                    onLargeTextPaste: onLargeTextPaste
+                    onLargeTextPaste: onLargeTextPaste,
+                    isEditable: !isLargeJSON
                 )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -347,6 +365,7 @@ struct InputPanel: View {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
+    var isLargeJSON: Bool = false
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -387,7 +406,8 @@ struct InputPanel: View {
                 onTextChange: onTextChange,
                 scrollPosition: $scrollPosition,
                 isRestoringTabState: isRestoringTabState,
-                onLargeTextPaste: onLargeTextPaste
+                onLargeTextPaste: onLargeTextPaste,
+                isLargeJSON: isLargeJSON
             )
             .padding(8)
         }
