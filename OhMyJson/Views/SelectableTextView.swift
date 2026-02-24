@@ -9,6 +9,19 @@ import SwiftUI
 import AppKit
 
 #if os(macOS)
+// MARK: - HighlightPatch
+
+/// A single attribute change for incremental search highlight updates.
+/// Passed from BeautifyView to SelectableTextView to update only 2 ranges
+/// (previous current match → other; new current match → current) instead of
+/// replacing the entire attributed string on every Cmd+G navigation.
+struct HighlightPatch {
+    let range: NSRange
+    let backgroundColor: NSColor
+    let foregroundColor: NSColor
+    let font: NSFont
+}
+
 // MARK: - NSTextView that clears selection on focus loss
 class DeselectOnResignTextView: NSTextView {
     var onMouseDown: (() -> Void)?
@@ -68,6 +81,12 @@ struct SelectableTextView: NSViewRepresentable {
     var contentId: Int
     /// O(1) identity token for the line-number gutter attributed string.
     var gutterContentId: Int
+    /// Incremental attribute patches for the current search match transition.
+    /// When non-nil and `highlightVersion` changes without a `contentId` change,
+    /// updateNSView applies only these 2 ranges instead of replacing the full string.
+    var highlightPatches: [HighlightPatch]?
+    /// Monotonically increasing version for highlight patches.
+    var highlightVersion: Int
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -82,7 +101,9 @@ struct SelectableTextView: NSViewRepresentable {
         isRestoringTabState: Bool = false,
         onMouseDown: (() -> Void)? = nil,
         contentId: Int = 0,
-        gutterContentId: Int = 0
+        gutterContentId: Int = 0,
+        highlightPatches: [HighlightPatch]? = nil,
+        highlightVersion: Int = 0
     ) {
         self.attributedString = attributedString
         self.lineNumberString = lineNumberString
@@ -95,6 +116,8 @@ struct SelectableTextView: NSViewRepresentable {
         self.onMouseDown = onMouseDown
         self.contentId = contentId
         self.gutterContentId = gutterContentId
+        self.highlightPatches = highlightPatches
+        self.highlightVersion = highlightVersion
     }
 
     func makeCoordinator() -> Coordinator {
@@ -302,6 +325,8 @@ struct SelectableTextView: NSViewRepresentable {
         let contentChanged = contentId != context.coordinator.lastContentId
         if contentChanged {
             context.coordinator.lastContentId = contentId
+            // Sync highlight version so the incremental patch path doesn't re-fire
+            context.coordinator.lastHighlightVersion = highlightVersion
             // Preserve selection if possible
             let selectedRange = contentTextView.selectedRange()
 
@@ -313,6 +338,28 @@ struct SelectableTextView: NSViewRepresentable {
                 let validLength = min(selectedRange.length, maxLocation - selectedRange.location)
                 contentTextView.setSelectedRange(NSRange(location: selectedRange.location, length: validLength))
             }
+        }
+
+        // Incremental highlight patch: apply only changed ranges for search index navigation.
+        // Skipped when the full content was just replaced (contentChanged), since the
+        // full attributed string already contains correct highlights.
+        if !contentChanged,
+           highlightVersion != context.coordinator.lastHighlightVersion,
+           let patches = highlightPatches, !patches.isEmpty,
+           let textStorage = contentTextView.textStorage {
+            context.coordinator.lastHighlightVersion = highlightVersion
+            textStorage.beginEditing()
+            for patch in patches {
+                let maxLen = textStorage.length
+                guard maxLen > 0, patch.range.location < maxLen else { continue }
+                let safeLength = min(patch.range.length, maxLen - patch.range.location)
+                guard safeLength > 0 else { continue }
+                let safeRange = NSRange(location: patch.range.location, length: safeLength)
+                textStorage.addAttribute(.backgroundColor, value: patch.backgroundColor, range: safeRange)
+                textStorage.addAttribute(.foregroundColor, value: patch.foregroundColor, range: safeRange)
+                textStorage.addAttribute(.font, value: patch.font, range: safeRange)
+            }
+            textStorage.endEditing()
         }
 
         // Update line numbers if present
@@ -416,6 +463,8 @@ struct SelectableTextView: NSViewRepresentable {
         var lastContentId: Int = -1
         /// Last seen gutterContentId — used for O(1) gutter-change detection in updateNSView
         var lastGutterContentId: Int = -1
+        /// Last seen highlightVersion — used for O(1) incremental patch detection
+        var lastHighlightVersion: Int = -1
 
         init(_ parent: SelectableTextView) {
             self.parent = parent

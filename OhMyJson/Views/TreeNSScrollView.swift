@@ -244,6 +244,11 @@ struct TreeNSScrollView: NSViewRepresentable {
                 }
             }
 
+            // Update topVisibleIndex immediately before animation starts so that
+            // virtualized nodes are rendered at the destination before the viewport arrives.
+            let targetTopIndex = max(0, Int(scrollY / TreeLayout.rowHeight))
+            parent.topVisibleIndex = targetTopIndex
+
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = Animation.quick
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -251,6 +256,10 @@ struct TreeNSScrollView: NSViewRepresentable {
             } completionHandler: { [weak self] in
                 self?.isExecutingScrollCommand = false
                 scrollView.reflectScrolledClipView(clipView)
+                // Re-sync topVisibleIndex to the actual final scroll position
+                let finalY = clipView.bounds.origin.y
+                let finalTopIndex = max(0, Int(finalY / TreeLayout.rowHeight))
+                self?.parent.topVisibleIndex = finalTopIndex
             }
         }
 

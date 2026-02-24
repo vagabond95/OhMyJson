@@ -46,6 +46,16 @@ struct BeautifyView: View {
     @State private var cachedContentString: NSAttributedString = NSAttributedString()
     @State private var cachedLineNumberString: NSAttributedString = NSAttributedString()
 
+    /// Cached NSRange positions of all search matches in the current content string.
+    /// Built once per searchText change; reused on every currentSearchIndex change.
+    @State private var cachedMatchRanges: [NSRange] = []
+    /// The search index that was last fully highlighted (used to revert it on next navigation).
+    @State private var lastHighlightedIndex: Int = -1
+    /// Pending incremental attribute patches for SelectableTextView (nil = full rebuild).
+    @State private var highlightPatches: [HighlightPatch]? = nil
+    /// Monotonically increasing version for highlight patches.
+    @State private var highlightVersion: Int = 0
+
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
 
@@ -61,7 +71,9 @@ struct BeautifyView: View {
             isRestoringTabState: isRestoringTabState,
             onMouseDown: onMouseDown,
             contentId: contentVersion,
-            gutterContentId: gutterVersion
+            gutterContentId: gutterVersion,
+            highlightPatches: highlightPatches,
+            highlightVersion: highlightVersion
         )
         .onChange(of: searchText) { _, newValue in
             guard isActive else { isSearchDirty = true; return }
@@ -79,7 +91,13 @@ struct BeautifyView: View {
             if !searchResults.isEmpty {
                 updateCurrentSearchLocation(index: newIndex)
             }
-            applySearchHighlights()
+            // Use incremental patch when match positions are cached — avoids full string rebuild
+            if !cachedMatchRanges.isEmpty && !searchText.isEmpty && !isSearchDismissed {
+                updateCurrentHighlight(from: lastHighlightedIndex, to: newIndex)
+            } else {
+                applySearchHighlights()
+            }
+            lastHighlightedIndex = newIndex
         }
         .onAppear {
             guard isActive else {
@@ -252,9 +270,12 @@ struct BeautifyView: View {
 
     /// Stage 2 only: Overlays search highlights onto the cached base string.
     /// Called when searchText or currentSearchIndex changes (skips Stage 1).
+    /// Also rebuilds `cachedMatchRanges` for subsequent incremental updates.
     private func applySearchHighlights() {
         guard !searchText.isEmpty, !isSearchDismissed else {
             cachedContentString = cachedBaseContentString
+            cachedMatchRanges = []
+            highlightPatches = nil
             contentVersion &+= 1
             return
         }
@@ -265,6 +286,7 @@ struct BeautifyView: View {
 
         guard totalLength > 0 else {
             cachedContentString = cachedBaseContentString
+            cachedMatchRanges = []
             return
         }
 
@@ -275,11 +297,14 @@ struct BeautifyView: View {
         let boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
 
         var searchRange = NSRange(location: 0, length: totalLength)
+        var matchRanges: [NSRange] = []
         var matchIndex = 0
 
         while searchRange.length > 0 {
             let foundRange = nsString.range(of: searchText, options: .caseInsensitive, range: searchRange)
             guard foundRange.location != NSNotFound else { break }
+
+            matchRanges.append(foundRange)
 
             let isCurrent = matchIndex == currentSearchIndex
             highlighted.addAttribute(.backgroundColor, value: isCurrent ? currentMatchBg : otherMatchBg, range: foundRange)
@@ -291,8 +316,61 @@ struct BeautifyView: View {
             searchRange = NSRange(location: nextLocation, length: totalLength - nextLocation)
         }
 
+        cachedMatchRanges = matchRanges
         cachedContentString = highlighted
+        highlightPatches = nil
+        lastHighlightedIndex = currentSearchIndex
         contentVersion &+= 1
+    }
+
+    /// Incremental variant: updates only the 2 ranges that change on Cmd+G navigation.
+    /// Avoids copying + re-scanning the full string; only touches 1–2 NSRange patches.
+    private func updateCurrentHighlight(from oldIndex: Int, to newIndex: Int) {
+        guard newIndex >= 0 && newIndex < cachedMatchRanges.count else { return }
+
+        let otherMatchBg = NSColor(theme.searchOtherMatchBg)
+        let currentMatchBg = NSColor(theme.searchCurrentMatchBg)
+        let otherMatchFg = NSColor(theme.searchOtherMatchFg)
+        let currentMatchFg = NSColor(theme.searchCurrentMatchFg)
+        let boldFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .bold)
+
+        var patches: [HighlightPatch] = []
+
+        // Revert previous current match → other match color
+        if oldIndex >= 0 && oldIndex < cachedMatchRanges.count && oldIndex != newIndex {
+            patches.append(HighlightPatch(
+                range: cachedMatchRanges[oldIndex],
+                backgroundColor: otherMatchBg,
+                foregroundColor: otherMatchFg,
+                font: boldFont
+            ))
+        }
+
+        // Promote new current match → current match color
+        patches.append(HighlightPatch(
+            range: cachedMatchRanges[newIndex],
+            backgroundColor: currentMatchBg,
+            foregroundColor: currentMatchFg,
+            font: boldFont
+        ))
+
+        // Apply patches to cachedContentString to keep it consistent with textStorage
+        let mutable = cachedContentString.mutableCopy() as! NSMutableAttributedString
+        for patch in patches {
+            let maxLen = mutable.length
+            guard maxLen > 0, patch.range.location < maxLen else { continue }
+            let safeLength = min(patch.range.length, maxLen - patch.range.location)
+            guard safeLength > 0 else { continue }
+            let safeRange = NSRange(location: patch.range.location, length: safeLength)
+            mutable.addAttribute(.backgroundColor, value: patch.backgroundColor, range: safeRange)
+            mutable.addAttribute(.foregroundColor, value: patch.foregroundColor, range: safeRange)
+            mutable.addAttribute(.font, value: patch.font, range: safeRange)
+        }
+        cachedContentString = mutable
+        // Do NOT increment contentVersion — SelectableTextView uses highlightVersion instead
+
+        highlightPatches = patches
+        highlightVersion &+= 1
     }
 
     // MARK: - NSAttributedString Building
