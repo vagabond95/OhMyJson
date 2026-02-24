@@ -122,27 +122,29 @@ struct JSONParserTests {
 
     // MARK: - Error Handling
 
-    @Test("Empty input returns failure")
+    @Test("Empty input returns failure with emptyInput category")
     func emptyInput() {
         let result = parser.parse("")
         guard case .failure(let error) = result else {
             Issue.record("Expected failure for empty input")
             return
         }
-        #expect(error.message == "Empty input")
+        #expect(error.message == "")
+        #expect(error.category == .emptyInput)
     }
 
-    @Test("Whitespace-only input returns failure")
+    @Test("Whitespace-only input returns failure with emptyInput category")
     func whitespaceOnlyInput() {
         let result = parser.parse("   \n\t  ")
         guard case .failure(let error) = result else {
             Issue.record("Expected failure for whitespace-only input")
             return
         }
-        #expect(error.message == "Empty input")
+        #expect(error.message == "")
+        #expect(error.category == .emptyInput)
     }
 
-    @Test("Invalid JSON returns failure with position info")
+    @Test("Invalid JSON returns failure with syntaxError category")
     func invalidJSON() {
         let json = #"{"key": value}"#
         let result = parser.parse(json)
@@ -151,17 +153,38 @@ struct JSONParserTests {
             return
         }
         #expect(!error.message.isEmpty)
+        #expect(error.category == .syntaxError)
     }
 
-    @Test("Error includes preview of original text")
-    func errorPreview() {
-        let json = "not json at all"
+    @Test("Syntax error has specific message without position info")
+    func syntaxErrorMessage() {
+        let json = #"{"key": }"#
         let result = parser.parse(json)
         guard case .failure(let error) = result else {
             Issue.record("Expected failure")
             return
         }
-        #expect(error.preview != nil)
+        #expect(error.category == .syntaxError)
+        // Message should not contain "around line/column" (stripped by extractMessage)
+        #expect(!error.message.lowercased().contains("around line"))
+        #expect(!error.message.lowercased().contains("around character"))
+    }
+
+    @Test("Category localizedHeader returns non-empty strings")
+    func categoryHeaders() {
+        let categories: [JSONParseError.Category] = [
+            .emptyInput, .encodingError, .syntaxError, .parsingError, .unknownError
+        ]
+        for cat in categories {
+            #expect(!cat.localizedHeader.isEmpty)
+            #expect(!cat.iconName.isEmpty)
+        }
+    }
+
+    @Test("Default category is unknownError")
+    func defaultCategory() {
+        let error = JSONParseError(message: "test")
+        #expect(error.category == .unknownError)
     }
 
     // MARK: - Unicode Sanitization

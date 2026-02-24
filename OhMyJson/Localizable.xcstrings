@@ -1480,12 +1480,52 @@
     "v%@ available" : {
 
     },
-    "viewer.invalid_json" : {
+    "error.header.empty_input" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Invalid JSON Format"
+            "value" : "Empty Input"
+          }
+        }
+      }
+    },
+    "error.header.encoding_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encoding Error"
+          }
+        }
+      }
+    },
+    "error.header.parsing_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON Parsing Error"
+          }
+        }
+      }
+    },
+    "error.header.syntax_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON Syntax Error"
+          }
+        }
+      }
+    },
+    "error.header.unknown_error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid JSON"
           }
         }
       }

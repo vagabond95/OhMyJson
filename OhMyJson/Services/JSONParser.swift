@@ -6,10 +6,39 @@
 import Foundation
 
 struct JSONParseError: Error, LocalizedError {
+
+    enum Category {
+        case emptyInput       // 빈/공백 입력
+        case encodingError    // UTF-8 인코딩 실패
+        case syntaxError      // JSON 구문 규칙 위반
+        case parsingError     // 구문은 맞지만 파싱 문제 (깊은 중첩 등)
+        case unknownError     // 기타
+
+        var localizedHeader: String {
+            switch self {
+            case .emptyInput:    return String(localized: "error.header.empty_input")
+            case .encodingError: return String(localized: "error.header.encoding_error")
+            case .syntaxError:   return String(localized: "error.header.syntax_error")
+            case .parsingError:  return String(localized: "error.header.parsing_error")
+            case .unknownError:  return String(localized: "error.header.unknown_error")
+            }
+        }
+
+        var iconName: String {
+            switch self {
+            case .emptyInput:    return "doc"
+            case .encodingError: return "textformat.characters.dottedunderline"
+            case .syntaxError:   return "curlybraces"
+            case .parsingError:  return "exclamationmark.triangle"
+            case .unknownError:  return "questionmark.circle"
+            }
+        }
+    }
+
     let message: String
     let line: Int?
     let column: Int?
-    let preview: String?
+    let category: Category
 
     var errorDescription: String? {
         var desc = message
@@ -19,22 +48,11 @@ struct JSONParseError: Error, LocalizedError {
         return desc
     }
 
-    init(message: String, line: Int? = nil, column: Int? = nil, originalText: String? = nil) {
+    init(message: String, line: Int? = nil, column: Int? = nil, category: Category = .unknownError) {
         self.message = message
         self.line = line
         self.column = column
-        if let text = originalText {
-            // Scan first 5 lines without splitting the entire string (avoids O(n) alloc for large inputs)
-            var lineCount = 0
-            var endIndex = text.startIndex
-            while endIndex < text.endIndex && lineCount < 5 {
-                if text[endIndex] == "\n" { lineCount += 1 }
-                endIndex = text.index(after: endIndex)
-            }
-            self.preview = String(text[text.startIndex..<endIndex])
-        } else {
-            self.preview = nil
-        }
+        self.category = category
     }
 }
 
@@ -262,15 +280,15 @@ class JSONParser: JSONParserProtocol {
 
         guard !trimmed.isEmpty else {
             return .failure(JSONParseError(
-                message: "Empty input",
-                originalText: jsonString
+                message: "",
+                category: .emptyInput
             ))
         }
 
         guard let data = trimmed.data(using: .utf8) else {
             return .failure(JSONParseError(
                 message: "Invalid UTF-8 encoding",
-                originalText: jsonString
+                category: .encodingError
             ))
         }
 
@@ -285,7 +303,7 @@ class JSONParser: JSONParserProtocol {
                 message: extractMessage(from: error),
                 line: line,
                 column: column,
-                originalText: jsonString
+                category: classifyNSError(error)
             ))
         }
     }
@@ -320,7 +338,8 @@ class JSONParser: JSONParserProtocol {
     }
 
     private func extractPosition(from error: NSError, text: String) -> (line: Int?, column: Int?) {
-        let errorDesc = error.localizedDescription
+        // Use NSDebugDescription which contains position info; fall back to localizedDescription
+        let errorDesc = (error.userInfo["NSDebugDescription"] as? String) ?? error.localizedDescription
 
         let patterns = [
             "line (\\d+), column (\\d+)",
@@ -373,12 +392,44 @@ class JSONParser: JSONParserProtocol {
         return (currentLine, currentColumn)
     }
 
+    private func classifyNSError(_ error: NSError) -> JSONParseError.Category {
+        let desc = ((error.userInfo["NSDebugDescription"] as? String) ?? error.localizedDescription).lowercased()
+
+        // Syntax errors: structural JSON violations
+        let syntaxKeywords = [
+            "invalid value", "badly formed", "unexpected character",
+            "unterminated string", "invalid escape", "no value",
+            "unescaped control", "number is not representable",
+            "did not start with"
+        ]
+        for keyword in syntaxKeywords {
+            if desc.contains(keyword) { return .syntaxError }
+        }
+
+        // Parsing errors: valid structure but too complex
+        let parsingKeywords = ["too deeply nested", "too large", "too many keys"]
+        for keyword in parsingKeywords {
+            if desc.contains(keyword) { return .parsingError }
+        }
+
+        // Fallback: NSCocoaErrorDomain is almost always a syntax issue
+        if error.domain == NSCocoaErrorDomain {
+            return .syntaxError
+        }
+
+        return .unknownError
+    }
+
     private func extractMessage(from error: NSError) -> String {
-        var message = error.localizedDescription
+        // Prefer NSDebugDescription (contains the actual diagnostic) over localizedDescription
+        // (which is often just "The data couldn't be read because it isn't in the correct format.")
+        var message = (error.userInfo["NSDebugDescription"] as? String) ?? error.localizedDescription
 
         let cleanupPatterns = [
             "The data couldn.t be read because it isn.t in the correct format\\.",
-            "JSON text did not start with array or object and option to allow fragments not set\\."
+            "JSON text did not start with array or object and option to allow fragments not set\\.",
+            "around line \\d+, column \\d+\\.?",
+            "around character \\d+\\.?"
         ]
 
         for pattern in cleanupPatterns {
@@ -392,8 +443,9 @@ class JSONParser: JSONParserProtocol {
             }
         }
 
-        if message.isEmpty {
-            message = "Invalid JSON format"
+        // Remove trailing period if present
+        if message.hasSuffix(".") {
+            message = String(message.dropLast()).trimmingCharacters(in: .whitespaces)
         }
 
         return message

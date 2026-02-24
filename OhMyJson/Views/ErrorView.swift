@@ -14,9 +14,11 @@ struct ErrorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("viewer.invalid_json")
-                .font(.system(.body, design: .monospaced).weight(.semibold))
-                .foregroundColor(theme.primaryText)
+            HStack(spacing: 6) {
+                Text(error.category.localizedHeader)
+                    .font(.system(.body, design: .monospaced).weight(.semibold))
+                    .foregroundColor(theme.accent)
+            }
 
             if !error.message.isEmpty {
                 Text(error.message)
@@ -28,16 +30,6 @@ struct ErrorView: View {
                 Text("Line \(line), Column \(column)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(theme.secondaryText)
-            }
-
-            if let preview = error.preview {
-                Text(preview)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(theme.secondaryText)
-                    .lineLimit(5)
-                    .padding(6)
-                    .background(theme.panelBackground)
-                    .cornerRadius(4)
             }
 
             Spacer()
@@ -53,13 +45,7 @@ struct ErrorView_Previews: PreviewProvider {
         ErrorView(error: JSONParseError(
             message: "Unexpected token '}' at position 42",
             line: 3,
-            column: 15,
-            originalText: """
-            {
-                "name": "test",
-                "value": }
-            }
-            """
+            column: 15
         ))
         .frame(width: 500, height: 300)
         .preferredColorScheme(.dark)
