@@ -1014,6 +1014,7 @@ class ViewerViewModel {
         tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
         tabManager.updateTabSearchState(id: activeTabId, searchText: "", beautifySearchIndex: 0, treeSearchIndex: 0)
 
+        tabGeneration += 1
         inputText = ""
         parseResult = nil
         currentJSON = nil
