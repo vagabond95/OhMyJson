@@ -32,8 +32,11 @@ class DeselectOnResignTextView: NSTextView {
     }
 
     override func resignFirstResponder() -> Bool {
-        setSelectedRange(NSRange(location: selectedRange().location, length: 0))
-        return super.resignFirstResponder()
+        let result = super.resignFirstResponder()
+        if result {
+            setSelectedRange(NSRange(location: selectedRange().location, length: 0))
+        }
+        return result
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {

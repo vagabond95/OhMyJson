@@ -24,8 +24,11 @@ class EditableTextView: NSTextView {
     }
 
     override func resignFirstResponder() -> Bool {
-        setSelectedRange(NSRange(location: selectedRange().location, length: 0))
-        return super.resignFirstResponder()
+        let result = super.resignFirstResponder()
+        if result {
+            setSelectedRange(NSRange(location: selectedRange().location, length: 0))
+        }
+        return result
     }
 
     override func keyDown(with event: NSEvent) {
@@ -221,12 +224,19 @@ struct UndoableTextView: NSViewRepresentable {
         if textView.string != text {
             context.coordinator.isProgrammaticUpdate = true
 
-            // Discard active IME composition (e.g. Korean Hangul) before replacing
-            // text storage. The input method server holds references to character
-            // positions in the current storage — replacing it without finalizing
-            // composition causes EXC_BAD_ACCESS.
+            // Finalize active IME composition (e.g. Korean Hangul) before replacing
+            // text storage. Resigning first responder synchronously ends the IME
+            // session through AppKit's internal path, unlike discardMarkedText()
+            // which sends async IPC to the input method server and may not complete
+            // before the text storage is replaced — causing EXC_BAD_ACCESS.
+            var needsRestoreFirstResponder = false
             if textView.hasMarkedText() {
-                textView.inputContext?.discardMarkedText()
+                if let window = textView.window, window.firstResponder === textView {
+                    needsRestoreFirstResponder = true
+                    window.makeFirstResponder(nil)
+                } else {
+                    textView.unmarkText()
+                }
             }
 
             if text.isEmpty {
@@ -262,6 +272,10 @@ struct UndoableTextView: NSViewRepresentable {
                     // Restore selection if valid
                     textView.setSelectedRange(selectedRange)
                 }
+            }
+
+            if needsRestoreFirstResponder {
+                textView.window?.makeFirstResponder(textView)
             }
 
             context.coordinator.isProgrammaticUpdate = false
