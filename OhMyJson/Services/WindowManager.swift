@@ -144,21 +144,24 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     /// Flag to allow programmatic close without interception
     private var allowClose = false
 
-    /// Intercept window close (Command+W or red button) to close tab instead
+    /// Intercept window close (red traffic light button) to quit app instead of closing a tab
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        // If programmatic close is requested, allow it
-        if allowClose {
-            allowClose = false
-            return true
-        }
-
-        // Delegate tab close to ViewModel (mediator)
-        if let activeTabId = viewModel?.activeTabId {
-            viewModel?.closeTab(id: activeTabId)
-        }
-
-        // Prevent default window close - ViewModel will call closeViewer if last tab
+        if allowClose { allowClose = false; return true }
+        showQuitConfirmation()
         return false
+    }
+
+    private func showQuitConfirmation() {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "alert.quit_app.title")
+        alert.informativeText = String(localized: "alert.quit_app.message")
+        alert.addButton(withTitle: String(localized: "alert.quit_app.quit"))
+        alert.addButton(withTitle: String(localized: "alert.quit_app.cancel"))
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+        }
     }
 
     func windowWillClose(_ notification: Notification) {

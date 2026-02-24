@@ -180,6 +180,46 @@
         }
       }
     },
+    "alert.quit_app.cancel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "alert.quit_app.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app will quit. Your tabs will be restored next time."
+          }
+        }
+      }
+    },
+    "alert.quit_app.quit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        }
+      }
+    },
+    "alert.quit_app.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit OhMyJson?"
+          }
+        }
+      }
+    },
     "app.macos_only" : {
       "localizations" : {
         "en" : {
