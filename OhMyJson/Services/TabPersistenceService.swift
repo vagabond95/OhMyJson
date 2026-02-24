@@ -111,6 +111,20 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
             }
         }
 
+        migrator.registerMigration("v2-separate-content") { db in
+            try db.create(table: "tab_content") { t in
+                t.column("id", .text).primaryKey().notNull()
+                t.column("fullInputText", .text).notNull()
+            }
+            // Migrate existing data
+            try db.execute(sql: """
+                INSERT INTO tab_content (id, fullInputText)
+                SELECT id, fullInputText FROM tab WHERE fullInputText IS NOT NULL
+            """)
+            // Drop column from tab table (SQLite 3.35+, macOS 14+)
+            try db.execute(sql: "ALTER TABLE tab DROP COLUMN fullInputText")
+        }
+
         try migrator.migrate(queue)
     }
 
@@ -149,6 +163,17 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
                     )
                     try record.insert(db)
                 }
+                // Clean up orphaned tab_content rows (closed tabs)
+                let liveIds = tabs.map { $0.id.uuidString }
+                if liveIds.isEmpty {
+                    try db.execute(sql: "DELETE FROM tab_content")
+                } else {
+                    let placeholders = liveIds.map { _ in "?" }.joined(separator: ",")
+                    try db.execute(
+                        sql: "DELETE FROM tab_content WHERE id NOT IN (\(placeholders))",
+                        arguments: StatementArguments(liveIds)
+                    )
+                }
             }
         } catch {
             print("[TabPersistenceService] saveAll error: \(error)")
@@ -160,6 +185,7 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
         do {
             _ = try db.write { db in
                 try db.execute(sql: "DELETE FROM tab WHERE id = ?", arguments: [id.uuidString])
+                try db.execute(sql: "DELETE FROM tab_content WHERE id = ?", arguments: [id.uuidString])
             }
         } catch {
             print("[TabPersistenceService] deleteTab error: \(error)")
@@ -171,6 +197,7 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
         do {
             _ = try db.write { db in
                 try TabRecord.deleteAll(db)
+                try db.execute(sql: "DELETE FROM tab_content")
             }
         } catch {
             print("[TabPersistenceService] deleteAllTabs error: \(error)")
@@ -188,14 +215,38 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
         return attrs?[.size] as? Int64
     }
 
+    func saveTabContent(id: UUID, fullText: String?) {
+        guard let db else { return }
+        do {
+            _ = try db.write { db in
+                if let text = fullText {
+                    try db.execute(
+                        sql: "INSERT OR REPLACE INTO tab_content (id, fullInputText) VALUES (?, ?)",
+                        arguments: [id.uuidString, text]
+                    )
+                } else {
+                    try db.execute(
+                        sql: "DELETE FROM tab_content WHERE id = ?",
+                        arguments: [id.uuidString]
+                    )
+                }
+            }
+        } catch {
+            print("[TabPersistenceService] saveTabContent error: \(error)")
+        }
+    }
+
     func loadTabContent(id: UUID) -> (inputText: String, fullInputText: String?)? {
         guard let db else { return nil }
         do {
             return try db.read { db in
-                let record = try TabRecord
+                guard let record = try TabRecord
                     .filter(Column("id") == id.uuidString)
-                    .fetchOne(db)
-                return record.map { ($0.inputText, $0.fullInputText) }
+                    .fetchOne(db) else { return nil }
+                let fullText = try String.fetchOne(db,
+                    sql: "SELECT fullInputText FROM tab_content WHERE id = ?",
+                    arguments: [id.uuidString])
+                return (record.inputText, fullText)
             }
         } catch {
             print("[TabPersistenceService] loadTabContent error: \(error)")

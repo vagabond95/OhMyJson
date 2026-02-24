@@ -96,15 +96,15 @@ struct TabPersistenceServiceTests {
 
     // MARK: - Large Text
 
-    @Test("saves and loads large fullInputText (1MB+) via loadTabContent")
+    @Test("saves and loads large fullInputText (1MB+) via saveTabContent + loadTabContent")
     func testLargeFullInputText() throws {
         let service = try makeService()
 
         let largeText = String(repeating: "x", count: 1_200_000)
-        var tab = makeTab(title: "BigTab", isParseSuccess: true)
-        tab.fullInputText = largeText
+        let tab = makeTab(title: "BigTab", isParseSuccess: true)
 
         service.saveAll(tabs: [tab], activeTabId: tab.id)
+        service.saveTabContent(id: tab.id, fullText: largeText)
 
         // loadTabs() returns dehydrated tabs (fullInputText == nil); use loadTabContent for full text.
         let (loaded, _) = service.loadTabs()
@@ -182,9 +182,9 @@ struct TabPersistenceServiceTests {
     @Test("loadTabContent returns correct inputText and fullInputText for a saved tab")
     func loadTabContentReturnsCorrectContent() throws {
         let service = try makeService()
-        var tab = makeTab(title: "T1", inputText: "hello")
-        tab.fullInputText = "full content"
+        let tab = makeTab(title: "T1", inputText: "hello")
         service.saveAll(tabs: [tab], activeTabId: tab.id)
+        service.saveTabContent(id: tab.id, fullText: "full content")
 
         let content = service.loadTabContent(id: tab.id)
 
@@ -212,6 +212,109 @@ struct TabPersistenceServiceTests {
 
         #expect(content?.inputText == "content")
         #expect(content?.fullInputText == nil)
+    }
+
+    // MARK: - tab_content separation
+
+    @Test("saveAll does not affect tab_content — dehydrated tabs preserve content")
+    func saveAllDoesNotAffectTabContent() throws {
+        let service = try makeService()
+
+        let tab1 = makeTab(title: "Tab1", inputText: "short")
+        let tab2 = makeTab(title: "Tab2", inputText: "other")
+
+        // Save tabs and content separately
+        service.saveAll(tabs: [tab1, tab2], activeTabId: tab1.id)
+        service.saveTabContent(id: tab1.id, fullText: "very large content here")
+
+        // Simulate dehydrated saveAll (tabs without fullInputText in memory)
+        // This is what happens when TabManager.saveImmediately() is called after dehydration
+        service.saveAll(tabs: [tab1, tab2], activeTabId: tab2.id)
+
+        // Content must still be intact
+        let content = service.loadTabContent(id: tab1.id)
+        #expect(content?.fullInputText == "very large content here")
+    }
+
+    @Test("saveAll cleans up orphaned tab_content rows")
+    func saveAllCleansUpOrphanedContent() throws {
+        let service = try makeService()
+
+        let tab1 = makeTab(title: "Tab1")
+        let tab2 = makeTab(title: "Tab2")
+
+        service.saveAll(tabs: [tab1, tab2], activeTabId: tab1.id)
+        service.saveTabContent(id: tab1.id, fullText: "content1")
+        service.saveTabContent(id: tab2.id, fullText: "content2")
+
+        // Close tab1 — saveAll with only tab2
+        service.saveAll(tabs: [tab2], activeTabId: tab2.id)
+
+        // tab1's content should be cleaned up
+        let content1 = service.loadTabContent(id: tab1.id)
+        #expect(content1 == nil)  // tab record gone, so loadTabContent returns nil
+
+        // tab2's content should remain
+        let content2 = service.loadTabContent(id: tab2.id)
+        #expect(content2?.fullInputText == "content2")
+    }
+
+    @Test("saveTabContent insert and delete")
+    func saveTabContentInsertAndDelete() throws {
+        let service = try makeService()
+
+        let tab = makeTab(title: "Tab1", inputText: "text")
+        service.saveAll(tabs: [tab], activeTabId: tab.id)
+
+        // Insert content
+        service.saveTabContent(id: tab.id, fullText: "full text")
+        var content = service.loadTabContent(id: tab.id)
+        #expect(content?.fullInputText == "full text")
+
+        // Update content
+        service.saveTabContent(id: tab.id, fullText: "updated text")
+        content = service.loadTabContent(id: tab.id)
+        #expect(content?.fullInputText == "updated text")
+
+        // Delete content (nil)
+        service.saveTabContent(id: tab.id, fullText: nil)
+        content = service.loadTabContent(id: tab.id)
+        #expect(content?.fullInputText == nil)
+    }
+
+    // MARK: - deleteTab with content
+
+    @Test("deleteTab also removes tab_content")
+    func deleteTabAlsoRemovesContent() throws {
+        let service = try makeService()
+
+        let tab = makeTab(title: "Tab1", inputText: "text")
+        service.saveAll(tabs: [tab], activeTabId: tab.id)
+        service.saveTabContent(id: tab.id, fullText: "full content")
+
+        service.deleteTab(id: tab.id)
+
+        let content = service.loadTabContent(id: tab.id)
+        #expect(content == nil)
+    }
+
+    @Test("deleteAllTabs also clears tab_content")
+    func deleteAllTabsAlsoClearsContent() throws {
+        let service = try makeService()
+
+        let tab1 = makeTab(title: "Tab1")
+        let tab2 = makeTab(title: "Tab2")
+        service.saveAll(tabs: [tab1, tab2], activeTabId: tab1.id)
+        service.saveTabContent(id: tab1.id, fullText: "content1")
+        service.saveTabContent(id: tab2.id, fullText: "content2")
+
+        service.deleteAllTabs()
+
+        // Verify content is also gone (loadTabContent returns nil because tab record is gone)
+        let content1 = service.loadTabContent(id: tab1.id)
+        let content2 = service.loadTabContent(id: tab2.id)
+        #expect(content1 == nil)
+        #expect(content2 == nil)
     }
 
     // MARK: - databaseSize

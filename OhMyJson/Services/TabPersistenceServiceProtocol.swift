@@ -24,6 +24,9 @@ protocol TabPersistenceServiceProtocol: AnyObject {
     /// Returns the current database file size in bytes, or nil on error.
     func databaseSize() -> Int64?
 
+    /// Save or delete fullInputText for a tab in the separate content table.
+    func saveTabContent(id: UUID, fullText: String?)
+
     /// Load only `inputText` and `fullInputText` for a single tab (used during hydration).
     /// Returns nil if the tab does not exist in the database.
     func loadTabContent(id: UUID) -> (inputText: String, fullInputText: String?)?

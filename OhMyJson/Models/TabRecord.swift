@@ -14,7 +14,6 @@ struct TabRecord: Codable, FetchableRecord, PersistableRecord {
     var id: String
     var sortOrder: Int
     var inputText: String
-    var fullInputText: String?
     var title: String
     var customTitle: String?
     var viewMode: String

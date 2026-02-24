@@ -186,6 +186,7 @@ class TabManager: TabManagerProtocol {
     func updateTabFullInput(id: UUID, fullText: String?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].fullInputText = fullText
+        persistence?.saveTabContent(id: id, fullText: fullText)
     }
 
     /// Update the parse result of a specific tab.

@@ -196,7 +196,6 @@ extension TabRecord {
         self.id = tab.id.uuidString
         self.sortOrder = sortOrder
         self.inputText = tab.inputText
-        self.fullInputText = tab.fullInputText
         self.title = tab.title
         self.customTitle = tab.customTitle
         self.viewMode = tab.viewMode.rawValue

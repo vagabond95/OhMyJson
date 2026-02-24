@@ -9,12 +9,14 @@ import Foundation
 final class MockTabPersistenceService: TabPersistenceServiceProtocol {
     var savedTabs: [JSONTab] = []
     var savedActiveId: UUID?
+    var savedContent: [UUID: String] = [:]
 
     var saveAllCallCount = 0
     var deleteTabCallCount = 0
     var deleteAllTabsCallCount = 0
     var flushCallCount = 0
     var loadTabsCallCount = 0
+    var saveTabContentCallCount = 0
 
     func loadTabs() -> (tabs: [JSONTab], activeTabId: UUID?) {
         loadTabsCallCount += 1
@@ -30,12 +32,14 @@ final class MockTabPersistenceService: TabPersistenceServiceProtocol {
     func deleteTab(id: UUID) {
         deleteTabCallCount += 1
         savedTabs.removeAll { $0.id == id }
+        savedContent.removeValue(forKey: id)
         if savedActiveId == id { savedActiveId = nil }
     }
 
     func deleteAllTabs() {
         deleteAllTabsCallCount += 1
         savedTabs = []
+        savedContent = [:]
         savedActiveId = nil
     }
 
@@ -47,7 +51,17 @@ final class MockTabPersistenceService: TabPersistenceServiceProtocol {
         return nil
     }
 
+    func saveTabContent(id: UUID, fullText: String?) {
+        saveTabContentCallCount += 1
+        if let text = fullText {
+            savedContent[id] = text
+        } else {
+            savedContent.removeValue(forKey: id)
+        }
+    }
+
     func loadTabContent(id: UUID) -> (inputText: String, fullInputText: String?)? {
-        return savedTabs.first(where: { $0.id == id }).map { ($0.inputText, $0.fullInputText) }
+        guard let tab = savedTabs.first(where: { $0.id == id }) else { return nil }
+        return (tab.inputText, savedContent[id])
     }
 }
