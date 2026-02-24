@@ -2133,8 +2133,21 @@ struct ViewerViewModelTests {
         #expect(vm.parseResult == nil)
         #expect(vm.isParsing == true)
         #expect(vm.currentJSON == nil)
+        #expect(vm.inputText == "")
         #expect(vm.isTreeRendering == false)
         #expect(vm.isBeautifyRendering == false)
+    }
+
+    @Test("restoreTabState increments tabGeneration so updateNSView applies restored inputText")
+    func restoreTabStateIncrementsTabGeneration() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: #"{"a":1}"#)
+        tabManager.activeTabId = id
+
+        let genBefore = vm.tabGeneration
+        vm.restoreTabState()
+
+        #expect(vm.tabGeneration == genBefore + 1)
     }
 
     @Test("restoreTabState clears isParsing for hydrated tab with parseResult")

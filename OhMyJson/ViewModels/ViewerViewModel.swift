@@ -732,6 +732,7 @@ class ViewerViewModel {
 
     func restoreTabState() {
         isRestoringTabState = true
+        tabGeneration += 1
 
         guard let initialActiveTab = tabManager.activeTab else {
             isParsing = false
