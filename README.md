@@ -14,6 +14,13 @@
   <img src="Resources/preview.gif" width="720" alt="OhMyJson demo" />
 </p>
 
+## Features
+
+- **Beautify** — One-click pretty-print with syntax highlighting
+- **Tree View** — Collapsible tree to explore deeply nested JSON at a glance
+- **Global Hotkey** — Press `Ctrl+Option+J` anywhere to instantly format clipboard JSON
+- **Tab Persistence** — Your tabs and contents are saved across app restarts
+
 ## Installation
 
 ### Homebrew
@@ -38,31 +45,6 @@ OhMyJson is signed and notarized with Apple Developer ID — no Gatekeeper warni
 Select any JSON text on a chrome → right-click → **Open in OhMyJson**.  — just instant viewing.
 
 <img src="Resources/chrome_extension.png" width="200" alt="OhMyJson Chrome Extension demo" />
-
-
-
-## Permissions
-
-> Requires **Accessibility** permission for the global hotkey.
-> macOS will prompt on first launch, or enable manually: **System Settings → Privacy & Security → Accessibility**.
-
-
-
-## Development
-
-```bash
-git clone https://github.com/vagabond95/OhMyJson.git
-cd OhMyJson
-open OhMyJson.xcodeproj
-```
-
-Build and run with **⌘R** in Xcode, or from the command line:
-
-```bash
-xcodebuild -project OhMyJson.xcodeproj -scheme OhMyJson -configuration Release
-```
-
-**Requirements:** Xcode 15+, Swift 5.9+
 
 
 
