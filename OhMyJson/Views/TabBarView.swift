@@ -327,7 +327,7 @@ struct TabItemView: View {
                         .font(.system(size: 12, design: .monospaced))
                         .fontWeight(isActive ? .semibold : .regular)
                         .foregroundColor(theme.primaryText)
-                        .multilineTextAlignment(.center)
+                        .multilineTextAlignment(.leading)
                         .focused($isTextFieldFocused)
                         .lineLimit(1)
                         .onChange(of: editingText) { _, newValue in
