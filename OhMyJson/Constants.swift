@@ -103,3 +103,13 @@ enum TreeLayout {
 extension Notification.Name {
     static let checkForUpdates = Notification.Name("checkForUpdates")
 }
+
+// MARK: - Persistence
+
+enum Persistence {
+    static let databaseFileName = "tabs.sqlite"
+    static let directoryName = "OhMyJson"
+    static let saveDebounceInterval: TimeInterval = 0.5
+    /// Number of most-recently-accessed tabs to keep fully hydrated in memory.
+    static let hydratedTabCount = 3
+}

@@ -38,6 +38,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
 
         terminateOldInstances()
 
+        // Restore tabs from DB before ViewModel is created so tabs are ready
+        TabManager.shared.restoreSession()
+
         // Create ViewModel with real service dependencies
         viewModel = ViewerViewModel(
             tabManager: TabManager.shared,
@@ -85,11 +88,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
                 NSApp.activate()
             }
 
-        // Show onboarding on first launch, otherwise open window immediately
+        // Show onboarding on first launch; otherwise restore session or open fresh
         if !AppSettings.shared.hasSeenOnboarding {
             showOnboarding()
-        } else {
+        } else if TabManager.shared.tabs.isEmpty {
             openWindowWithNewTab(json: nil)
+        } else {
+            // Restored tabs exist — just show the window
+            ensureWindowShown()
         }
     }
 
@@ -476,6 +482,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: any Error) {}
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Flush tabs to DB before terminating (⌘Q = session restore on next launch)
+        TabManager.shared.flush()
         HotKeyManager.shared.stop()
         hotKeyCancellable = nil
         updateCheckCancellable = nil

@@ -44,4 +44,11 @@ protocol TabManagerProtocol: AnyObject {
     func updateTabSearchDismissState(id: UUID, beautifyDismissed: Bool, treeDismissed: Bool)
     func updateTabTitle(id: UUID, customTitle: String?)
     func moveTab(fromIndex: Int, toIndex: Int)
+
+    /// Persist current state to DB, then dehydrate tabs outside the LRU keep window.
+    /// Call after `saveTabState` so the outgoing tab's latest content is preserved in DB.
+    func dehydrateAfterTabSwitch(keepCount: Int)
+
+    /// Load `fullInputText` from DB for a dehydrated tab and mark it hydrated.
+    func hydrateTabContent(id: UUID)
 }

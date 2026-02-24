@@ -140,6 +140,46 @@
         }
       }
     },
+    "alert.last_tab_close.cancel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "alert.last_tab_close.close" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "alert.last_tab_close.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All tabs will be cleared. The window will close and the app will continue running in the menu bar."
+          }
+        }
+      }
+    },
+    "alert.last_tab_close.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close last tab?"
+          }
+        }
+      }
+    },
     "app.macos_only" : {
       "localizations" : {
         "en" : {
@@ -171,6 +211,12 @@
           }
         }
       }
+    },
+    "Cache Usage" : {
+
+    },
+    "Clear" : {
+
     },
     "Ignore escape sequences on view" : {
 

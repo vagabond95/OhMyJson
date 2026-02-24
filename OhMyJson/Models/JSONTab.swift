@@ -74,6 +74,13 @@ struct JSONTab: Identifiable, Equatable {
     /// Whether search highlights are dismissed in Tree view
     var treeSearchDismissed: Bool
 
+    /// Whether the last parse attempt succeeded — used to decide what to restore from DB
+    var isParseSuccess: Bool
+
+    /// Whether this tab's `fullInputText` and `parseResult` are currently held in memory.
+    /// `false` (dehydrated) means content was offloaded to DB; `true` means content is in memory.
+    var isHydrated: Bool
+
     init(
         id: UUID = UUID(),
         inputText: String = "",
@@ -94,7 +101,9 @@ struct JSONTab: Identifiable, Equatable {
         treeScrollAnchorId: UUID? = nil,
         treeHorizontalScrollOffset: CGFloat = 0,
         beautifySearchDismissed: Bool = false,
-        treeSearchDismissed: Bool = false
+        treeSearchDismissed: Bool = false,
+        isParseSuccess: Bool = false,
+        isHydrated: Bool = true
     ) {
         self.id = id
         self.inputText = inputText
@@ -116,6 +125,8 @@ struct JSONTab: Identifiable, Equatable {
         self.treeHorizontalScrollOffset = treeHorizontalScrollOffset
         self.beautifySearchDismissed = beautifySearchDismissed
         self.treeSearchDismissed = treeSearchDismissed
+        self.isParseSuccess = isParseSuccess
+        self.isHydrated = isHydrated
     }
 
     /// Update last accessed time to current
@@ -138,5 +149,62 @@ struct JSONTab: Identifiable, Equatable {
 
     static func == (lhs: JSONTab, rhs: JSONTab) -> Bool {
         return lhs.id == rhs.id
+    }
+}
+
+// MARK: - TabRecord Conversion
+
+extension JSONTab {
+    /// Restore a JSONTab from a persisted TabRecord.
+    /// `parseResult` is always nil and `isHydrated` is `false` —
+    /// content is loaded on-demand when the tab becomes active.
+    init(from record: TabRecord) {
+        self.init(
+            id: UUID(uuidString: record.id) ?? UUID(),
+            inputText: record.inputText,
+            fullInputText: nil,
+            parseResult: nil,
+            createdAt: Date(timeIntervalSinceReferenceDate: record.createdAt),
+            lastAccessedAt: Date(timeIntervalSinceReferenceDate: record.lastAccessedAt),
+            title: record.title,
+            customTitle: record.customTitle,
+            searchText: record.searchText,
+            beautifySearchIndex: record.beautifySearchIndex,
+            treeSearchIndex: record.treeSearchIndex,
+            viewMode: ViewMode(rawValue: record.viewMode) ?? .beautify,
+            isSearchVisible: record.isSearchVisible,
+            inputScrollPosition: CGFloat(record.inputScrollPosition),
+            beautifyScrollPosition: CGFloat(record.beautifyScrollPosition),
+            treeHorizontalScrollOffset: CGFloat(record.treeHorizontalScrollOffset),
+            beautifySearchDismissed: record.beautifySearchDismissed,
+            treeSearchDismissed: record.treeSearchDismissed,
+            isParseSuccess: record.isParseSuccess,
+            isHydrated: false
+        )
+    }
+}
+
+extension TabRecord {
+    init(from tab: JSONTab, sortOrder: Int, isActive: Bool) {
+        self.id = tab.id.uuidString
+        self.sortOrder = sortOrder
+        self.inputText = tab.inputText
+        self.fullInputText = tab.fullInputText
+        self.title = tab.title
+        self.customTitle = tab.customTitle
+        self.viewMode = tab.viewMode.rawValue
+        self.searchText = tab.searchText
+        self.beautifySearchIndex = tab.beautifySearchIndex
+        self.treeSearchIndex = tab.treeSearchIndex
+        self.isSearchVisible = tab.isSearchVisible
+        self.inputScrollPosition = Double(tab.inputScrollPosition)
+        self.beautifyScrollPosition = Double(tab.beautifyScrollPosition)
+        self.treeHorizontalScrollOffset = Double(tab.treeHorizontalScrollOffset)
+        self.beautifySearchDismissed = tab.beautifySearchDismissed
+        self.treeSearchDismissed = tab.treeSearchDismissed
+        self.createdAt = tab.createdAt.timeIntervalSinceReferenceDate
+        self.lastAccessedAt = tab.lastAccessedAt.timeIntervalSinceReferenceDate
+        self.isActive = isActive
+        self.isParseSuccess = tab.isParseSuccess
     }
 }

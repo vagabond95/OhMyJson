@@ -78,6 +78,7 @@ struct SettingsWindowView: View {
     @State private var lastUpdateCheckDate: Date? = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
     @State private var isCheckUpdateHovered = false
     @State private var isHotKeyHovered = false
+    @State private var dbSizeString: String = "–"
 
     private var theme: AppTheme { settings.currentTheme }
 
@@ -213,6 +214,13 @@ struct SettingsWindowView: View {
 
             divider
 
+            // Cache Usage section
+            cacheUsageSection
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+
+            divider
+
             // Footer
             footerSection
                 .padding(.horizontal, 20)
@@ -222,6 +230,7 @@ struct SettingsWindowView: View {
         .fixedSize(horizontal: true, vertical: true)
         .background(theme.secondaryBackground)
         .preferredColorScheme(theme.colorScheme)
+        .onAppear { refreshDbSize() }
         .onChange(of: isRecordingHotKey) { oldValue, newValue in
             if newValue {
                 HotKeyManager.shared.suspend()
@@ -371,6 +380,76 @@ struct SettingsWindowView: View {
         }
     }
  
+    // MARK: - Cache Usage Section
+
+    private var cacheUsageSection: some View {
+        settingsCard {
+            HStack {
+                Text("Cache Usage")
+                    .font(.system(size: 13))
+                    .foregroundColor(theme.primaryText)
+
+                Text(dbSizeString)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundColor(theme.secondaryText)
+
+                Spacer()
+
+                Button {
+                    confirmClearCache()
+                } label: {
+                    Text("Clear")
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.primaryText)
+                        .frame(minWidth: 48)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(theme.panelBackground)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(theme.border, lineWidth: 1)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func refreshDbSize() {
+        let bytes = TabPersistenceService.shared.databaseSize() ?? 0
+        dbSizeString = formatBytes(bytes)
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        if bytes < 1024 {
+            return "\(bytes) B"
+        } else if bytes < 1024 * 1024 {
+            let kb = Double(bytes) / 1024.0
+            return String(format: "%.1f KB", kb)
+        } else {
+            let mb = Double(bytes) / (1024.0 * 1024.0)
+            return String(format: "%.1f MB", mb)
+        }
+    }
+
+    private func confirmClearCache() {
+        let alert = NSAlert()
+        alert.messageText = "Clear all tab data?"
+        alert.informativeText = "All tab information will be deleted. This cannot be undone."
+        alert.addButton(withTitle: "Clear")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            TabManager.shared.closeAllTabs()
+            refreshDbSize()
+        }
+    }
+
     // MARK: - Footer
 
     private var footerSection: some View {

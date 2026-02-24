@@ -10,6 +10,8 @@
 		CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00012F345C0000000001 /* ConfettiSwiftUI */; };
 		CE0A00042F345C0000000002 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00032F345C0000000002 /* Sparkle */; };
 		CE0A00062F345C0000000003 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00052F345C0000000003 /* Sentry */; };
+		CE0A00082F345C0000000004 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00072F345C0000000004 /* GRDB */; };
+		CE0A000A2F345C0000000004 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = CE0A00092F345C0000000004 /* GRDB */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +76,7 @@
 				CE0A00022F345C0000000001 /* ConfettiSwiftUI in Frameworks */,
 				CE0A00042F345C0000000002 /* Sparkle in Frameworks */,
 				CE0A00062F345C0000000003 /* Sentry in Frameworks */,
+				CE0A00082F345C0000000004 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,6 +84,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE0A000A2F345C0000000004 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +142,7 @@
 				CE0A00012F345C0000000001 /* ConfettiSwiftUI */,
 				CE0A00032F345C0000000002 /* Sparkle */,
 				CE0A00052F345C0000000003 /* Sentry */,
+				CE0A00072F345C0000000004 /* GRDB */,
 			);
 			productName = OhMyJson;
 			productReference = CED10E552F345B5400363B5C /* OhMyJson.app */;
@@ -161,6 +166,7 @@
 			);
 			name = OhMyJsonTests;
 			packageProductDependencies = (
+				CE0A00092F345C0000000004 /* GRDB */,
 			);
 			productName = OhMyJsonTests;
 			productReference = CED10E632F345B5500363B5C /* OhMyJsonTests.xctest */;
@@ -222,6 +228,7 @@
 				CE0A00002F345C0000000001 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 				CE0A00022F345C0000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				CE0A00042F345C0000000003 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				CE0A00062F345C0000000004 /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CED10E562F345B5400363B5C /* Products */;
@@ -649,6 +656,14 @@
 				minimumVersion = 9.5.0;
 			};
 		};
+		CE0A00062F345C0000000004 /* XCRemoteSwiftPackageReference "GRDB" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -666,6 +681,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CE0A00042F345C0000000003 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		CE0A00072F345C0000000004 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE0A00062F345C0000000004 /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
+		};
+		CE0A00092F345C0000000004 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE0A00062F345C0000000004 /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

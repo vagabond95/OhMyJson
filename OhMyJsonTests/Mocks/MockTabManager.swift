@@ -166,4 +166,29 @@ final class MockTabManager: TabManagerProtocol {
     func flush() {
         // no-op in mock
     }
+
+    // MARK: - Memory Offload
+
+    var dehydrateAfterTabSwitchCallCount = 0
+    var hydrateTabContentCallCount = 0
+
+    func dehydrateAfterTabSwitch(keepCount: Int) {
+        dehydrateAfterTabSwitchCallCount += 1
+        let keepSet = Set(
+            tabs.sorted { $0.lastAccessedAt > $1.lastAccessedAt }
+                .prefix(keepCount)
+                .map { $0.id }
+        )
+        for i in tabs.indices where !keepSet.contains(tabs[i].id) {
+            tabs[i].parseResult = nil
+            tabs[i].fullInputText = nil
+            tabs[i].isHydrated = false
+        }
+    }
+
+    func hydrateTabContent(id: UUID) {
+        hydrateTabContentCallCount += 1
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].isHydrated = true
+    }
 }

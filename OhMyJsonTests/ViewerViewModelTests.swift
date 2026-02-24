@@ -895,7 +895,7 @@ struct ViewerViewModelTests {
 
     // MARK: - onWindowWillClose
 
-    @Test("onWindowWillClose clears state and tabs")
+    @Test("onWindowWillClose clears parse state but preserves tabs for session restore")
     func onWindowWillClose() {
         let (vm, tabManager, _, parser, _) = makeSUT()
         parser.parseResult = .success(JSONNode(value: .null))
@@ -906,7 +906,8 @@ struct ViewerViewModelTests {
 
         #expect(vm.currentJSON == nil)
         #expect(vm.parseResult == nil)
-        #expect(tabManager.tabs.isEmpty)
+        // Tabs are preserved — ⌘Q triggers flush() via AppDelegate, not closeAllTabs()
+        #expect(!tabManager.tabs.isEmpty)
     }
 
     // MARK: - Node Cache
@@ -1295,6 +1296,68 @@ struct ViewerViewModelTests {
         // Next move should stay at "a" (no more visible nodes)
         vm.moveSelectionDown()
         #expect(vm.selectedNodeId == containerNode.id)
+    }
+
+    // MARK: - Memory Offload (Dehydration / Hydration)
+
+    @Test("dehydrateAfterTabSwitch is called when switching tabs after initial restore")
+    func dehydrateAfterTabSwitchCalledOnTabChange() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id1 = tabManager.createTab(with: "tab1")
+        let id2 = tabManager.createTab(with: "tab2")
+        tabManager.activeTabId = id1
+
+        // Simulate initial load so hasRestoredCurrentTab becomes true
+        vm.loadInitialContent()
+
+        // Switch to the second tab
+        vm.onActiveTabChanged(oldId: id1, newId: id2)
+
+        #expect(tabManager.dehydrateAfterTabSwitchCallCount == 1)
+    }
+
+    @Test("restoreTabState calls hydrateTabContent when active tab is dehydrated")
+    func restoreTabStateHydratesDehydratedTab() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: "some json")
+        tabManager.activeTabId = id
+        // Mark as dehydrated
+        tabManager.tabs[0].isHydrated = false
+
+        vm.restoreTabState()
+
+        #expect(tabManager.hydrateTabContentCallCount == 1)
+    }
+
+    @Test("restoreTabState skips hydrateTabContent when active tab is already hydrated")
+    func restoreTabStateSkipsHydrationForHydratedTab() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: "some json")
+        tabManager.activeTabId = id
+        // Tab is hydrated by default
+
+        vm.restoreTabState()
+
+        #expect(tabManager.hydrateTabContentCallCount == 0)
+    }
+
+    @Test("restoreTabState triggers background parse for dehydrated tab with prior parse success")
+    func restoreTabStateParsesAfterHydration() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let node = JSONNode(value: .null)
+        parser.parseResult = .success(node)
+
+        let id = tabManager.createTab(with: "{}")
+        tabManager.activeTabId = id
+        // Simulate dehydrated state: no parseResult, but previously succeeded
+        tabManager.tabs[0].isHydrated = false
+        tabManager.tabs[0].isParseSuccess = true
+        tabManager.tabs[0].parseResult = nil
+
+        vm.restoreTabState()
+
+        // Background parse should have started
+        #expect(vm.isParsing == true)
     }
 
     // MARK: - Large Text Paste Handling

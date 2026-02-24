@@ -255,6 +255,33 @@ class TabManager: TabManagerProtocol {
         tabs[index].customTitle = customTitle
     }
 
+    // MARK: - Memory Offload (LRU Dehydration)
+
+    /// Flush current state to DB, then dehydrate all tabs outside the LRU `keepCount` window.
+    /// Dehydrated tabs release `fullInputText` and `parseResult` from memory (`isHydrated = false`).
+    func dehydrateAfterTabSwitch(keepCount: Int = Persistence.hydratedTabCount) {
+        saveImmediately()
+        let keepSet = Set(
+            tabs.sorted { $0.lastAccessedAt > $1.lastAccessedAt }
+                .prefix(keepCount)
+                .map { $0.id }
+        )
+        for i in tabs.indices where !keepSet.contains(tabs[i].id) && tabs[i].isHydrated {
+            tabs[i].parseResult = nil
+            tabs[i].fullInputText = nil
+            tabs[i].isHydrated = false
+        }
+    }
+
+    /// Load `fullInputText` from DB for a dehydrated tab and mark it hydrated in memory.
+    func hydrateTabContent(id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }),
+              !tabs[index].isHydrated,
+              let content = persistence?.loadTabContent(id: id) else { return }
+        tabs[index].fullInputText = content.fullInputText
+        tabs[index].isHydrated = true
+    }
+
     // MARK: - Bulk Operations
 
     /// Close all tabs and clear persistent storage.

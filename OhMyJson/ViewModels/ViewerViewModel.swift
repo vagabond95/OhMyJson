@@ -238,13 +238,22 @@ class ViewerViewModel {
 
     func handleHotKey() {
         guard let clipboardText = clipboardService.readText(), !clipboardText.isEmpty else {
-            createNewTab(with: nil)
+            // No clipboard content — focus existing tabs or create a blank one
+            if !tabManager.tabs.isEmpty {
+                showExistingTabs()
+            } else {
+                createNewTab(with: nil)
+            }
             return
         }
 
         let trimmed = clipboardText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            createNewTab(with: nil)
+            if !tabManager.tabs.isEmpty {
+                showExistingTabs()
+            } else {
+                createNewTab(with: nil)
+            }
             return
         }
 
@@ -259,6 +268,15 @@ class ViewerViewModel {
 
         // Always create tab — if JSON is invalid, ErrorView will show the parse error details
         createNewTab(with: trimmed)
+    }
+
+    /// Bring existing tabs to the front without creating a new tab.
+    private func showExistingTabs() {
+        if !windowManager.isViewerOpen {
+            onNeedShowWindow?()
+        } else {
+            windowManager.bringToFront()
+        }
     }
 
     private func showSizeConfirmationDialog(size: Double, text: String) {
@@ -400,13 +418,16 @@ class ViewerViewModel {
 
     private func showQuitConfirmation() {
         let alert = NSAlert()
-        alert.messageText = "Do you want to quit OhMyJson?"
-        alert.addButton(withTitle: "Quit")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = String(localized: "alert.last_tab_close.title")
+        alert.informativeText = String(localized: "alert.last_tab_close.message")
+        alert.addButton(withTitle: String(localized: "alert.last_tab_close.close"))
+        alert.addButton(withTitle: String(localized: "alert.last_tab_close.cancel"))
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            NSApp.terminate(nil)
+            // Clear all tabs + DB, then close the window. App stays alive as menu bar app.
+            tabManager.closeAllTabs()
+            windowManager.closeViewer()
         }
     }
 
@@ -552,11 +573,14 @@ class ViewerViewModel {
     func loadInitialContent() {
         restoreTabState()
         hasRestoredCurrentTab = true
+        // Re-parsing is triggered inside restoreTabState() when parseResult == nil && isParseSuccess.
     }
 
     func onActiveTabChanged(oldId: UUID?, newId: UUID?) {
         if let oldId = oldId, hasRestoredCurrentTab {
             saveTabState(for: oldId)
+            // Persist to DB and dehydrate tabs outside the LRU keep window.
+            tabManager.dehydrateAfterTabSwitch(keepCount: Persistence.hydratedTabCount)
         }
         hasRestoredCurrentTab = false
 
@@ -591,7 +615,7 @@ class ViewerViewModel {
     func restoreTabState() {
         isRestoringTabState = true
 
-        guard let activeTab = tabManager.activeTab else {
+        guard let initialActiveTab = tabManager.activeTab else {
             inputText = ""
             parseResult = nil
             currentJSON = nil
@@ -611,6 +635,17 @@ class ViewerViewModel {
             isInitialLoading = false
             isRestoringTabState = false
             return
+        }
+
+        // Hydrate if the tab was offloaded from memory — load fullInputText from DB.
+        var activeTab = initialActiveTab
+        if !activeTab.isHydrated {
+            tabManager.hydrateTabContent(id: activeTab.id)
+            guard let hydratedTab = tabManager.activeTab else {
+                isRestoringTabState = false
+                return
+            }
+            activeTab = hydratedTab
         }
 
         isInitialLoading = false
@@ -640,6 +675,15 @@ class ViewerViewModel {
             updateSearchResultCountForBeautify()
         } else {
             updateSearchResultCount()
+        }
+
+        // Re-parse if content was dehydrated (parseResult == nil) but previously succeeded.
+        if parseResult == nil, activeTab.isParseSuccess {
+            let textToParse = activeTab.fullInputText ?? activeTab.inputText
+            if !textToParse.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               let activeId = tabManager.activeTabId {
+                parseInBackground(json: textToParse, tabId: activeId)
+            }
         }
 
         DispatchQueue.main.async { [weak self] in
@@ -1003,12 +1047,16 @@ class ViewerViewModel {
 
     /// Called by WindowManager.windowWillClose
     func onWindowWillClose() {
+        if let activeId = tabManager.activeTabId {
+            saveTabState(for: activeId)
+        }
         parseTask?.cancel()
         isParsing = false
         isInitialLoading = false
         currentJSON = nil
         parseResult = nil
-        tabManager.closeAllTabs()
+        // Do NOT call closeAllTabs() here — ⌘Q will flush tabs to DB via AppDelegate.
+        // Tabs are only cleared when the user explicitly closes the last tab (⌘W).
     }
 }
 #endif
