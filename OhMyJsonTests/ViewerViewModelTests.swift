@@ -2223,6 +2223,86 @@ struct ViewerViewModelTests {
         #expect(vm.isParsing == true)
     }
 
+    // MARK: - isLargeJSONContentLost
+
+    @Test("isLargeJSONContentLost defaults to false")
+    func isLargeJSONContentLostDefaultsFalse() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.isLargeJSONContentLost == false)
+    }
+
+    @Test("restoreTabState sets isLargeJSONContentLost from tab when content is lost")
+    func restoreTabStateSetsContentLostFlag() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let largeText = makeLargeText()
+        let truncated = ViewerViewModel.buildLargeInputNotice(largeText)
+
+        // Create a tab that simulates lost content: inputText is notice prefix, but no fullInputText
+        let id = tabManager.createTab(with: truncated)
+        tabManager.activeTabId = id
+        tabManager.tabs[0].isParseSuccess = true
+        tabManager.tabs[0].isHydrated = false
+        // fullInputText is nil — content was lost
+
+        vm.restoreTabState()
+
+        // hydrateTabContent detects lost content and sets isLargeJSONContentLost
+        #expect(vm.isLargeJSONContentLost == true)
+        #expect(vm.inputText == "")
+    }
+
+    @Test("restoreTabState does not set isLargeJSONContentLost for normal tabs")
+    func restoreTabStateNoContentLostForNormalTab() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: #"{"key":"val"}"#)
+        tabManager.activeTabId = id
+
+        vm.restoreTabState()
+
+        #expect(vm.isLargeJSONContentLost == false)
+    }
+
+    @Test("isLargeJSONContentLost resets to false when restoring tab without content loss")
+    func isLargeJSONContentLostResetsOnNormalRestore() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+
+        // Set up content-lost state
+        vm.isLargeJSONContentLost = true
+
+        let id = tabManager.createTab(with: #"{"key":"val"}"#)
+        tabManager.activeTabId = id
+
+        vm.restoreTabState()
+
+        // Normal tab restore should clear the flag
+        #expect(vm.isLargeJSONContentLost == false)
+    }
+
+    @Test("isLargeJSONContentLost resets when no active tab")
+    func isLargeJSONContentLostResetsWhenNoTab() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.isLargeJSONContentLost = true
+
+        vm.restoreTabState()
+
+        #expect(vm.isLargeJSONContentLost == false)
+    }
+
+    @Test("isLargeJSONContentLost observation triggers view update")
+    func isLargeJSONContentLostObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.isLargeJSONContentLost
+        } onChange: {
+            observed = true
+        }
+
+        vm.isLargeJSONContentLost = true
+        #expect(observed == true)
+    }
+
     @Test("multiple createNewTab calls monotonically increase tabGeneration")
     func multipleCreateNewTabIncrementsGeneration() {
         let (vm, _, _, parser, _) = makeSUT()

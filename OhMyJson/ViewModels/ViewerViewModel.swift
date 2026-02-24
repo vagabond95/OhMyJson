@@ -142,6 +142,11 @@ class ViewerViewModel {
     /// Drives Beautify button disabling and Input View read-only mode.
     var isLargeJSON: Bool = false
 
+    /// True when a large-JSON tab's full content was not found in DB at hydration time.
+    /// Set in restoreTabState() from the tab's isLargeJSONContentLost flag.
+    /// Drives a "content lost" notice in InputView instead of a blank screen.
+    var isLargeJSONContentLost: Bool = false
+
     /// Monotonically increasing counter, incremented on tab creation/switch.
     /// Used by textDidChange to detect stale async callbacks.
     @ObservationIgnored private(set) var tabGeneration: Int = 0
@@ -753,6 +758,7 @@ class ViewerViewModel {
             beautifySearchDismissed = false
             treeSearchDismissed = false
             isInitialLoading = false
+            isLargeJSONContentLost = false
             isRestoringTabState = false
             return
         }
@@ -772,6 +778,7 @@ class ViewerViewModel {
         isInitialLoading = false
         inputText = activeTab.inputText
         setFullInputText(activeTab.fullInputText)
+        isLargeJSONContentLost = activeTab.isLargeJSONContentLost
         parseResult = activeTab.parseResult
         // Use full text for currentJSON (parsing / copy-all), display text for inputText
         let jsonForParse = activeTab.fullInputText ?? activeTab.inputText

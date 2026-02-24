@@ -283,12 +283,14 @@ class TabManager: TabManagerProtocol {
               let content = persistence?.loadTabContent(id: id) else { return }
         tabs[index].fullInputText = content.fullInputText
 
-        // Detect lost tab_content for large JSON tabs: reset to empty instead of parsing notice text
+        // Detect lost tab_content for large JSON tabs: reset to empty and flag content as lost
+        // so InputView can show an informative message instead of a blank screen.
         if content.fullInputText == nil
             && tabs[index].isParseSuccess
             && tabs[index].inputText.hasPrefix(InputSize.largeInputNoticePrefix) {
             tabs[index].inputText = ""
             tabs[index].isParseSuccess = false
+            tabs[index].isLargeJSONContentLost = true
         }
 
         tabs[index].isHydrated = true

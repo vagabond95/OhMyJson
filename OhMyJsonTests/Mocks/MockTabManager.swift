@@ -195,6 +195,7 @@ final class MockTabManager: TabManagerProtocol {
             && tabs[index].inputText.hasPrefix(InputSize.largeInputNoticePrefix) {
             tabs[index].inputText = ""
             tabs[index].isParseSuccess = false
+            tabs[index].isLargeJSONContentLost = true
         }
         tabs[index].isHydrated = true
     }

@@ -25,6 +25,10 @@ struct HighlightPatch {
 // MARK: - NSTextView that clears selection on focus loss
 class DeselectOnResignTextView: NSTextView {
     var onMouseDown: (() -> Void)?
+    /// When true, selection is not cleared on resignFirstResponder.
+    /// Set to true while the search bar is visible so a drag selection survives
+    /// ⌘F opening the search bar without losing first-responder.
+    var preserveSelection: Bool = false
 
     override func mouseDown(with event: NSEvent) {
         onMouseDown?()
@@ -33,7 +37,7 @@ class DeselectOnResignTextView: NSTextView {
 
     override func resignFirstResponder() -> Bool {
         let result = super.resignFirstResponder()
-        if result {
+        if result && !preserveSelection {
             setSelectedRange(NSRange(location: selectedRange().location, length: 0))
         }
         return result
@@ -90,6 +94,9 @@ struct SelectableTextView: NSViewRepresentable {
     var highlightPatches: [HighlightPatch]?
     /// Monotonically increasing version for highlight patches.
     var highlightVersion: Int
+    /// When true, selection is preserved when the text view loses focus.
+    /// Pass `isSearchVisible` from BeautifyView so a drag selection survives ⌘F.
+    var preserveSelection: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -106,7 +113,8 @@ struct SelectableTextView: NSViewRepresentable {
         contentId: Int = 0,
         gutterContentId: Int = 0,
         highlightPatches: [HighlightPatch]? = nil,
-        highlightVersion: Int = 0
+        highlightVersion: Int = 0,
+        preserveSelection: Bool = false
     ) {
         self.attributedString = attributedString
         self.lineNumberString = lineNumberString
@@ -121,6 +129,7 @@ struct SelectableTextView: NSViewRepresentable {
         self.gutterContentId = gutterContentId
         self.highlightPatches = highlightPatches
         self.highlightVersion = highlightVersion
+        self.preserveSelection = preserveSelection
     }
 
     func makeCoordinator() -> Coordinator {
@@ -329,6 +338,9 @@ struct SelectableTextView: NSViewRepresentable {
 
         guard let contentTextView = context.coordinator.contentTextView,
               let contentScrollView = context.coordinator.contentScrollView else { return }
+
+        // Sync preserveSelection flag so resignFirstResponder knows whether to clear
+        (contentTextView as? DeselectOnResignTextView)?.preserveSelection = preserveSelection
 
         // Update content if changed (O(1) id check avoids O(n) NSAttributedString comparison)
         let contentChanged = contentId != context.coordinator.lastContentId

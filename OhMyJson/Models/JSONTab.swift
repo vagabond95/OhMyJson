@@ -88,6 +88,10 @@ struct JSONTab: Identifiable, Equatable {
     /// `false` (dehydrated) means content was offloaded to DB; `true` means content is in memory.
     var isHydrated: Bool
 
+    /// Set to `true` during hydration when `fullInputText` is missing for a large-JSON tab.
+    /// Not persisted — set only at app launch by `hydrateTabContent()`.
+    var isLargeJSONContentLost: Bool
+
     init(
         id: UUID = UUID(),
         inputText: String = "",
@@ -110,7 +114,8 @@ struct JSONTab: Identifiable, Equatable {
         beautifySearchDismissed: Bool = false,
         treeSearchDismissed: Bool = false,
         isParseSuccess: Bool = false,
-        isHydrated: Bool = true
+        isHydrated: Bool = true,
+        isLargeJSONContentLost: Bool = false
     ) {
         self.id = id
         self.inputText = inputText
@@ -134,6 +139,7 @@ struct JSONTab: Identifiable, Equatable {
         self.treeSearchDismissed = treeSearchDismissed
         self.isParseSuccess = isParseSuccess
         self.isHydrated = isHydrated
+        self.isLargeJSONContentLost = isLargeJSONContentLost
     }
 
     /// Update last accessed time to current

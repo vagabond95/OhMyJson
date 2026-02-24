@@ -80,6 +80,7 @@ struct ViewerWindow: View {
                                 isRestoringTabState: viewModel.isRestoringTabState,
                                 onLargeTextPaste: viewModel.handleLargeTextPaste,
                                 isLargeJSON: viewModel.isLargeJSON,
+                                isLargeJSONContentLost: viewModel.isLargeJSONContentLost,
                                 tabGeneration: viewModel.tabGeneration
                             )
                             .frame(width: inputWidth)
@@ -381,6 +382,7 @@ struct ViewerWindow: View {
                             scrollPosition: Bindable(viewModel).beautifyScrollPosition,
                             isRestoringTabState: viewModel.isRestoringTabState,
                             isSearchDismissed: viewModel.beautifySearchDismissed,
+                            isSearchVisible: viewModel.isSearchVisible,
                             onMouseDown: { viewModel.dismissBeautifySearchHighlights() },
                             isRendering: Bindable(viewModel).isBeautifyRendering
                         )
@@ -412,6 +414,7 @@ struct ViewerWindow: View {
                         allNodesCache: viewModel.cachedAllNodes,
                         allAncestorMapCache: viewModel.cachedAllAncestorMap,
                         maxContentWidth: viewModel.cachedMaxContentWidth,
+                        isRendering: Bindable(viewModel).isTreeRendering,
                         onVisibleNodesChanged: { nodes in
                             viewModel.updateNodeCache(nodes)
                         }
@@ -441,7 +444,7 @@ struct ViewerWindow: View {
                 }
             }
 
-            if (viewModel.isParsing || (viewModel.isBeautifyRendering && viewModel.viewMode == .beautify)), viewModel.parseResult != nil {
+            if (viewModel.isParsing || (viewModel.isBeautifyRendering && viewModel.viewMode == .beautify) || (viewModel.isTreeRendering && viewModel.viewMode == .tree)), viewModel.parseResult != nil {
                 if viewModel.isInitialLoading {
                     ProgressView()
                         .controlSize(.small)

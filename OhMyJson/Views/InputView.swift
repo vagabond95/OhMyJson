@@ -358,6 +358,7 @@ struct InputView: View {
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
     var isLargeJSON: Bool = false
+    var isLargeJSONContentLost: Bool = false
     var tabGeneration: Int = 0
 
     @Environment(AppSettings.self) var settings
@@ -367,15 +368,6 @@ struct InputView: View {
         VStack(spacing: 0) {
             // Text Editor with placeholder
             ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text("input.placeholder")
-                        .foregroundColor(theme.secondaryText)
-                        .font(.system(.body, design: .monospaced))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 8)
-                        .allowsHitTesting(false)
-                }
-
                 UndoableTextView(
                     text: $text,
                     font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
@@ -383,9 +375,30 @@ struct InputView: View {
                     scrollPosition: $scrollPosition,
                     isRestoringTabState: isRestoringTabState,
                     onLargeTextPaste: onLargeTextPaste,
-                    isEditable: !isLargeJSON,
+                    isEditable: !isLargeJSON && !isLargeJSONContentLost,
                     tabGeneration: tabGeneration
                 )
+
+                if text.isEmpty && isLargeJSONContentLost {
+                    // Large JSON content could not be restored from DB
+                    VStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 16))
+                            .foregroundColor(theme.secondaryText)
+                        Text("input.largeJSON.contentLost")
+                            .foregroundColor(theme.secondaryText)
+                            .font(.system(.body, design: .monospaced))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+                } else if text.isEmpty {
+                    Text("input.placeholder")
+                        .foregroundColor(theme.secondaryText)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(.horizontal, 5)
+                        .allowsHitTesting(false)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -402,6 +415,7 @@ struct InputPanel: View {
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
     var isLargeJSON: Bool = false
+    var isLargeJSONContentLost: Bool = false
     var tabGeneration: Int = 0
 
     @Environment(AppSettings.self) var settings
@@ -445,6 +459,7 @@ struct InputPanel: View {
                 isRestoringTabState: isRestoringTabState,
                 onLargeTextPaste: onLargeTextPaste,
                 isLargeJSON: isLargeJSON,
+                isLargeJSONContentLost: isLargeJSONContentLost,
                 tabGeneration: tabGeneration
             )
             .padding(8)

@@ -216,5 +216,33 @@ struct SelectableTextViewTests {
 
         #expect(result == false)
     }
+
+    // MARK: - preserveSelection
+
+    @Test("resignFirstResponder clears selection when preserveSelection is false")
+    func resignFirstResponder_clearsSelection_whenPreserveSelectionFalse() {
+        let textView = DeselectOnResignTextView()
+        let window = makeFirstResponder(textView)
+        textView.string = "Hello World"
+        textView.setSelectedRange(NSRange(location: 0, length: 5))
+
+        textView.preserveSelection = false
+        window.makeFirstResponder(nil) // triggers resignFirstResponder
+
+        #expect(textView.selectedRange().length == 0)
+    }
+
+    @Test("resignFirstResponder preserves selection when preserveSelection is true")
+    func resignFirstResponder_preservesSelection_whenPreserveSelectionTrue() {
+        let textView = DeselectOnResignTextView()
+        let window = makeFirstResponder(textView)
+        textView.string = "Hello World"
+        textView.setSelectedRange(NSRange(location: 0, length: 5))
+
+        textView.preserveSelection = true
+        window.makeFirstResponder(nil) // triggers resignFirstResponder
+
+        #expect(textView.selectedRange().length == 5)
+    }
 }
 #endif

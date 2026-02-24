@@ -17,6 +17,7 @@ struct BeautifyView: View {
     @Binding var scrollPosition: CGFloat
     var isRestoringTabState: Bool = false
     var isSearchDismissed: Bool = false
+    var isSearchVisible: Bool = false
     var onMouseDown: (() -> Void)?
     @Binding var isRendering: Bool
 
@@ -73,7 +74,8 @@ struct BeautifyView: View {
             contentId: contentVersion,
             gutterContentId: gutterVersion,
             highlightPatches: highlightPatches,
-            highlightVersion: highlightVersion
+            highlightVersion: highlightVersion,
+            preserveSelection: isSearchVisible
         )
         .onChange(of: searchText) { _, newValue in
             guard isActive else { isSearchDirty = true; return }
