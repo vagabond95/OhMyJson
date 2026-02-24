@@ -153,13 +153,31 @@ struct TreeNSScrollView: NSViewRepresentable {
             documentView.frame = NSRect(x: 0, y: 0, width: documentWidth, height: documentHeight)
         }
 
-        // Handle tab restoration
+        // Handle tab restoration — restore both horizontal and vertical scroll immediately
         if isRestoringTabState {
             let clipView = scrollView.contentView
-            clipView.scroll(to: NSPoint(x: horizontalScrollOffset, y: clipView.bounds.origin.y))
-            scrollView.reflectScrolledClipView(clipView)
+
             if let cmd = scrollCommand {
                 context.coordinator.lastScrollCommandVersion = cmd.version
+
+                let targetY = CGFloat(cmd.targetIndex) * TreeLayout.rowHeight + 4
+                let documentHeight = scrollView.documentView?.frame.height ?? 0
+                let visibleHeight = clipView.bounds.height
+                let maxY = max(0, documentHeight - visibleHeight)
+                let scrollY = min(targetY, maxY)
+
+                clipView.scroll(to: NSPoint(x: horizontalScrollOffset, y: scrollY))
+                scrollView.reflectScrolledClipView(clipView)
+
+                // Update topVisibleIndex async (binding can't be set in updateNSView directly)
+                let targetTopIndex = max(0, Int(scrollY / TreeLayout.rowHeight))
+                let coord = context.coordinator
+                DispatchQueue.main.async {
+                    coord.parent.topVisibleIndex = targetTopIndex
+                }
+            } else {
+                clipView.scroll(to: NSPoint(x: horizontalScrollOffset, y: clipView.bounds.origin.y))
+                scrollView.reflectScrolledClipView(clipView)
             }
             return
         }

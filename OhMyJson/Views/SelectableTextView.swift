@@ -197,6 +197,11 @@ struct SelectableTextView: NSViewRepresentable {
         // Set initial content
         contentTextView.textStorage?.setAttributedString(attributedString)
 
+        // Force TextKit 2 layout so document height is correct for scroll restoration
+        if let tlm = contentTextView.textLayoutManager {
+            tlm.ensureLayout(for: tlm.documentRange)
+        }
+
         // Wire mouseDown callback via coordinator
         let coordinator = context.coordinator
         coordinator.onMouseDown = onMouseDown
@@ -247,6 +252,11 @@ struct SelectableTextView: NSViewRepresentable {
 
             // Set line numbers content
             gutterTextView.textStorage?.setAttributedString(lineNumbers)
+
+            // Force TextKit 2 layout so document height is correct for scroll restoration
+            if let gutterTlm = gutterTextView.textLayoutManager {
+                gutterTlm.ensureLayout(for: gutterTlm.documentRange)
+            }
 
             // Calculate gutter width based on content
             let gutterWidth = calculateGutterWidth(for: lineNumbers)
@@ -444,8 +454,12 @@ struct SelectableTextView: NSViewRepresentable {
             }
         }
 
-        // During tab restoration: restore saved scroll position, skip search-to-range
+        // During tab restoration: ensure layout is complete, then restore saved scroll position
         if isRestoringTabState {
+            // Force TextKit 2 layout so document height is correct before scrolling
+            if let tlm = contentTextView.textLayoutManager {
+                tlm.ensureLayout(for: tlm.documentRange)
+            }
             let clipView = contentScrollView.contentView
             clipView.scroll(to: NSPoint(x: 0, y: scrollPosition))
             contentScrollView.reflectScrolledClipView(clipView)
