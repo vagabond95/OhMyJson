@@ -78,6 +78,7 @@ struct SettingsWindowView: View {
     @State private var lastUpdateCheckDate: Date? = UserDefaults.standard.object(forKey: "SULastCheckTime") as? Date
     @State private var isCheckUpdateHovered = false
     @State private var isHotKeyHovered = false
+    @State private var isClearCacheHovered = false
     @State private var dbSizeString: String = "–"
 
     private var theme: AppTheme { settings.currentTheme }
@@ -390,7 +391,7 @@ struct SettingsWindowView: View {
                     .foregroundColor(theme.primaryText)
 
                 Text(dbSizeString)
-                    .font(.system(size: 13, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(theme.secondaryText)
 
                 Spacer()
@@ -398,21 +399,47 @@ struct SettingsWindowView: View {
                 Button {
                     confirmClearCache()
                 } label: {
-                    Text("Clear")
-                        .font(.system(size: 12))
-                        .foregroundColor(theme.primaryText)
-                        .frame(minWidth: 48)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(theme.panelBackground)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(theme.border, lineWidth: 1)
-                        )
-                        .contentShape(Rectangle())
+                    HStack(spacing: 5) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                        Text("Clear")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(theme.primaryText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(theme.panelBackground)
+                            .shadow(
+                                color: .black.opacity(theme.colorScheme == .dark ? 0.4 : 0.1),
+                                radius: theme.colorScheme == .dark ? 2 : 1,
+                                x: 0, y: 1
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isClearCacheHovered ? theme.toggleHoverBg : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: theme.colorScheme == .dark
+                                        ? [.white.opacity(0.12), .white.opacity(0.04)]
+                                        : [.white.opacity(0.6), .white.opacity(0.1)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
+                    .onHover { isClearCacheHovered = $0 }
                 }
                 .buttonStyle(.plain)
             }
