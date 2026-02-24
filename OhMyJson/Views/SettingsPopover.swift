@@ -385,14 +385,16 @@ struct SettingsWindowView: View {
 
     private var cacheUsageSection: some View {
         settingsCard {
-            HStack {
-                Text("Cache Usage")
-                    .font(.system(size: 13))
-                    .foregroundColor(theme.primaryText)
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Cache Usage")
+                        .font(.system(size: 13))
+                        .foregroundColor(theme.primaryText)
 
-                Text(dbSizeString)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(theme.secondaryText)
+                    Text(dbSizeString)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(theme.secondaryText)
+                }
 
                 Spacer()
 
