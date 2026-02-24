@@ -147,6 +147,12 @@ struct TabBarView: View {
         }
         .frame(height: 40)
         .background(theme.tabBarBackground)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if viewModel.isRenamingTab {
+                viewModel.requestCommitTabRename()
+            }
+        }
     }
 }
 
