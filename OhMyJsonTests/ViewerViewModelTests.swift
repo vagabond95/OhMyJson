@@ -273,14 +273,19 @@ struct ViewerViewModelTests {
 
     // MARK: - closeTab
 
-    @Test("closeTab with last tab closes viewer")
+    @Test("closeTab with last tab shows quit confirmation instead of closing viewer")
     func closeTabLastTab() {
         let (vm, tabManager, _, _, windowManager) = makeSUT()
         let id = tabManager.createTab(with: nil)
 
+        var quitConfirmationShown = false
+        vm.quitConfirmationHandler = { quitConfirmationShown = true }
+
         vm.closeTab(id: id)
 
-        #expect(windowManager.closeViewerCallCount == 1)
+        #expect(quitConfirmationShown == true)
+        #expect(windowManager.closeViewerCallCount == 0)
+        #expect(tabManager.closeTabCallCount == 0)
     }
 
     @Test("closeTab with multiple tabs removes tab")
@@ -1623,6 +1628,50 @@ struct ViewerViewModelTests {
         #expect(vm.isRenamingTab == true)
         vm.isRenamingTab = false
         #expect(vm.isRenamingTab == false)
+    }
+
+    // MARK: - tabRenameCommitSignal
+
+    @Test("tabRenameCommitSignal defaults to 0")
+    func tabRenameCommitSignalDefault() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.tabRenameCommitSignal == 0)
+    }
+
+    @Test("requestCommitTabRename increments signal when renaming")
+    func requestCommitTabRenameIncrementsSignal() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.isRenamingTab = true
+
+        vm.requestCommitTabRename()
+
+        #expect(vm.tabRenameCommitSignal == 1)
+    }
+
+    @Test("requestCommitTabRename is noop when not renaming")
+    func requestCommitTabRenameNoopWhenNotRenaming() {
+        let (vm, _, _, _, _) = makeSUT()
+        // isRenamingTab is false by default
+
+        vm.requestCommitTabRename()
+
+        #expect(vm.tabRenameCommitSignal == 0)
+    }
+
+    @Test("tabRenameCommitSignal observation triggers view update")
+    func tabRenameCommitSignalObservation() {
+        let (vm, _, _, _, _) = makeSUT()
+        vm.isRenamingTab = true
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.tabRenameCommitSignal
+        } onChange: {
+            observed = true
+        }
+
+        vm.requestCommitTabRename()
+        #expect(observed == true)
     }
 }
 

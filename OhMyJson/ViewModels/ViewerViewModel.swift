@@ -48,6 +48,14 @@ class ViewerViewModel {
     /// Whether a tab is currently being renamed (for key monitor protection)
     var isRenamingTab: Bool = false
 
+    /// Incremented each time an external tap requests commit of the active tab rename.
+    var tabRenameCommitSignal: Int = 0
+
+    func requestCommitTabRename() {
+        guard isRenamingTab else { return }
+        tabRenameCommitSignal += 1
+    }
+
     // MARK: - Update Banner State
 
     var availableVersion: String? = nil
@@ -120,6 +128,9 @@ class ViewerViewModel {
     @ObservationIgnored private var indentCancellable: AnyCancellable?
     @ObservationIgnored private var searchCountTask: Task<Void, Never>?
 
+    /// Override in tests to avoid showing NSAlert modal when closing the last tab.
+    @ObservationIgnored var quitConfirmationHandler: (() -> Void)?
+
     // MARK: - Node Cache (for O(1) keyboard navigation)
 
     @ObservationIgnored private var cachedVisibleNodes: [JSONNode] = []
@@ -135,6 +146,7 @@ class ViewerViewModel {
         searchCountTask?.cancel()
         indentCancellable = nil
         onNeedShowWindow = nil
+        quitConfirmationHandler = nil
     }
 
     // MARK: - Computed
@@ -377,13 +389,25 @@ class ViewerViewModel {
     // MARK: - Tab Close (mediator: TabManager + WindowManager)
 
     func closeTab(id: UUID) {
-        // If this is the last tab, close the window
         if tabManager.tabs.count == 1 {
-            windowManager.closeViewer()
+            let handler = quitConfirmationHandler ?? { [weak self] in self?.showQuitConfirmation() }
+            handler()
             return
         }
 
         tabManager.closeTab(id: id)
+    }
+
+    private func showQuitConfirmation() {
+        let alert = NSAlert()
+        alert.messageText = "Do you want to quit OhMyJson?"
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+        }
     }
 
     // MARK: - Tab Navigation

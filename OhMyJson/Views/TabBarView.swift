@@ -24,7 +24,7 @@ struct TabBarView: View {
     }
 
     private enum Layout {
-        static let fixedTabWidth: CGFloat = 150
+        static let fixedTabWidth: CGFloat = 160
         static let tabSpacing: CGFloat = 6
         static let elementPadding: CGFloat = 10
         static let themeButtonWidth: CGFloat = 30
@@ -104,11 +104,12 @@ struct TabBarView: View {
                                 isActive: isActive,
                                 isHovered: isHovered
                             ),
+                            commitSignal: viewModel.tabRenameCommitSignal,
                             onSelect: {
                                 tabManager.selectTab(id: tab.id)
                             },
                             onClose: {
-                                tabManager.closeTab(id: tab.id)
+                                viewModel.closeTab(id: tab.id)
                             },
                             onHover: { isHovering in
                                 hoveredTabId = isHovering ? tab.id : nil
@@ -163,6 +164,7 @@ struct TabItemView: View {
     let tabWidth: CGFloat
     let showGradient: Bool
     let backgroundColor: Color
+    let commitSignal: Int
     let onSelect: () -> Void
     let onClose: () -> Void
     let onHover: (Bool) -> Void
@@ -200,8 +202,8 @@ struct TabItemView: View {
                         .focused($isTextFieldFocused)
                         .lineLimit(1)
                         .onChange(of: editingText) { _, newValue in
-                            if newValue.count > 20 {
-                                editingText = String(newValue.prefix(20))
+                            if newValue.count > 16 {
+                                editingText = String(newValue.prefix(16))
                             }
                         }
                         .onSubmit { commitRename() }
@@ -213,6 +215,9 @@ struct TabItemView: View {
                             if !focused && isEditing {
                                 commitRename()
                             }
+                        }
+                        .onChange(of: commitSignal) { _, _ in
+                            if isEditing { commitRename() }
                         }
                         .overlay(alignment: .bottom) {
                             Rectangle()
@@ -253,22 +258,15 @@ struct TabItemView: View {
     var body: some View {
         HStack(spacing: Layout.spacing) {
             textWithGradient
-
-            // Close button — hidden during editing but space preserved
-            if !isEditing {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
-                    .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
-                    .contentShape(Rectangle())
-                    .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
-                    .onTapGesture {
-                        onClose()
-                    }
-            } else {
-                Color.clear
-                    .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
-            }
+            Image(systemName: "xmark")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
+                .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
+                .contentShape(Rectangle())
+                .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
+                .onTapGesture {
+                    onClose()
+                }
         }
         .padding(.horizontal, Layout.horizontalPadding)
         .padding(.vertical, 6)
