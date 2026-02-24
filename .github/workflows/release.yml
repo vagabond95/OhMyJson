@@ -176,6 +176,11 @@ jobs:
           APP_PATH="./build/Build/Products/Release/$APP_NAME.app"
           DMG_NAME="${APP_NAME}_v${{ steps.version.outputs.version }}.dmg"
 
+          # Stage .app in a clean directory so create-dmg places it at DMG root
+          STAGING_DIR="./build/dmg-staging"
+          mkdir -p "$STAGING_DIR"
+          cp -R "$APP_PATH" "$STAGING_DIR/"
+
           create-dmg \
             --volname "$APP_NAME" \
             --window-pos 200 120 \
@@ -183,7 +188,7 @@ jobs:
             --icon-size 100 \
             --icon "${APP_NAME}.app" 150 190 \
             --app-drop-link 450 190 \
-            "$DMG_NAME" "$APP_PATH"
+            "$DMG_NAME" "$STAGING_DIR"
 
           echo "dmg_name=$DMG_NAME" >> "$GITHUB_OUTPUT"
 
