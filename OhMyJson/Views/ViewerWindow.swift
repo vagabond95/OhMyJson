@@ -261,9 +261,14 @@ struct ViewerWindow: View {
                             .toolbarIconHover()
                     }
                     .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "tooltip.expand_all"), position: .bottom)
-                    .opacity(viewModel.viewMode == .tree ? 1 : 0)
-                    .disabled(viewModel.viewMode != .tree)
+                    .opacity(viewModel.viewMode != .tree ? 0 : (viewModel.isLargeJSON ? 0.35 : 1))
+                    .disabled(viewModel.viewMode != .tree || viewModel.isLargeJSON)
+                    .instantTooltip(
+                        viewModel.isLargeJSON && viewModel.viewMode == .tree
+                            ? String(localized: "tooltip.expand_all_unavailable_large")
+                            : String(localized: "tooltip.expand_all"),
+                        position: .bottom
+                    )
 
                     Button { viewModel.collapseAllNodes() } label: {
                         Image(systemName: "chevron.up.2")
@@ -345,7 +350,9 @@ struct ViewerWindow: View {
                 .buttonStyle(.plain)
                 .disabled(isDisabled)
                 .instantTooltip(
-                    isDisabled ? String(localized: "tooltip.beautify_unavailable_large") : "",
+                    isDisabled
+                        ? String(localized: "tooltip.beautify_unavailable_large")
+                        : mode.tooltipText,
                     position: .bottom
                 )
             }

@@ -18,6 +18,13 @@ enum ViewMode: String, CaseIterable {
         case .tree: return String(localized: "viewer.mode.tree")
         }
     }
+
+    var tooltipText: String {
+        switch self {
+        case .beautify: return String(localized: "tooltip.beautify_mode")
+        case .tree: return String(localized: "tooltip.tree_mode")
+        }
+    }
 }
 
 struct JSONTab: Identifiable, Equatable {

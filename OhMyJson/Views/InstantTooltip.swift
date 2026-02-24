@@ -200,7 +200,7 @@ struct InstantTooltip: ViewModifier {
         content
             .background(FrameCapture { anchorFrame = $0 })
             .onHover { hovering in
-                if hovering {
+                if hovering, !text.isEmpty {
                     TooltipWindowController.shared.show(
                         anyView: AnyView(TooltipLabel(text: text)),
                         anchorFrame: anchorFrame,

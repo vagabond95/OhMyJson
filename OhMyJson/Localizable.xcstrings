@@ -1373,6 +1373,16 @@
         }
       }
     },
+    "tooltip.beautify_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beautify (⌘1)"
+          }
+        }
+      }
+    },
     "tooltip.beautify_unavailable_large" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1380,6 +1390,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Beautify is unavailable for large JSON"
+          }
+        }
+      }
+    },
+    "tooltip.expand_all_unavailable_large" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All is unavailable for large JSON"
           }
         }
       }
@@ -1490,6 +1511,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toggle Theme"
+          }
+        }
+      }
+    },
+    "tooltip.tree_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tree (⌘2)"
           }
         }
       }
