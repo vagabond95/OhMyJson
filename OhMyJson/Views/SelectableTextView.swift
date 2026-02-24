@@ -135,7 +135,7 @@ struct SelectableTextView: NSViewRepresentable {
 
         // Create the main content scroll view with 1.5x scroll speed
         let contentScrollView = FastScrollView()
-        let contentTextView = DeselectOnResignTextView()
+        let contentTextView = DeselectOnResignTextView(usingTextLayoutManager: true)
 
         // Configure text view sizing
         contentTextView.minSize = NSSize(width: 0, height: 0)
@@ -195,13 +195,16 @@ struct SelectableTextView: NSViewRepresentable {
         context.coordinator.contentScrollView = contentScrollView
         context.coordinator.contentTextView = contentTextView
 
+        // Verify TextKit 2 is active — init(usingTextLayoutManager: true) must not silently downgrade
+        assert(contentTextView.textLayoutManager != nil, "SelectableTextView: TextKit 2 not active for contentTextView")
+
         // Create line number gutter if needed
         if let lineNumbers = lineNumberString {
             // Use EventForwardingScrollView for gutter - forwards scroll events to content
             // This ensures scrolling over gutter area uses content's FastScrollView (1.5x speed)
             let gutterScrollView = EventForwardingScrollView()
             gutterScrollView.targetScrollView = contentScrollView
-            let gutterTextView = NSTextView()
+            let gutterTextView = NSTextView(usingTextLayoutManager: true)
 
             // Configure gutter text view sizing
             gutterTextView.minSize = NSSize(width: 0, height: 0)
@@ -234,6 +237,9 @@ struct SelectableTextView: NSViewRepresentable {
 
             // Calculate gutter width based on content
             let gutterWidth = calculateGutterWidth(for: lineNumbers)
+
+            // Verify gutter TextKit 2 is active
+            assert(gutterTextView.textLayoutManager != nil, "SelectableTextView: TextKit 2 not active for gutterTextView")
 
             // Store gutter references
             context.coordinator.gutterScrollView = gutterScrollView
@@ -494,66 +500,84 @@ struct SelectableTextView: NSViewRepresentable {
         // Gutter sync is now handled directly in FastScrollView.scrollWheel()
         // No Notification-based sync needed - eliminates feedback loops and timing issues
 
-        /// Scrolls to a specific character range with center alignment and animation
+        /// Scrolls to a specific character range with center alignment and animation.
+        /// Uses TextKit 2 (NSTextLayoutManager) to compute the target rect,
+        /// avoiding a forced downgrade to TextKit 1 that would occur if layoutManager were accessed.
         func scrollToCharacterRange(_ range: NSRange, animated: Bool = true) {
             guard let scrollView = contentScrollView,
                   let textView = contentTextView else { return }
 
-            // Fallback if layoutManager is nil (TextKit 2)
-            guard let layoutManager = textView.layoutManager,
-                  let textContainer = textView.textContainer else {
+            guard range.location < textView.string.count else { return }
+
+            // TextKit 2: compute rect via textLayoutManager — never touches layoutManager
+            guard let tlm = textView.textLayoutManager,
+                  let tcm = tlm.textContentManager else {
+                // Defensive fallback — should not be reached when usingTextLayoutManager: true
                 textView.scrollRangeToVisible(range)
                 return
             }
 
-            // Ensure range is valid
-            guard range.location < textView.string.count else { return }
+            // Convert NSRange → NSTextRange via document-relative offsets
+            guard let startLoc = tcm.location(tcm.documentRange.location, offsetBy: range.location),
+                  let endLoc = tcm.location(startLoc, offsetBy: max(range.length, 1)),
+                  let textRange = NSTextRange(location: startLoc, end: endLoc) else {
+                textView.scrollRangeToVisible(range)
+                return
+            }
 
-            // Get the glyph range and bounding rect for the character range
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-            let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+            // Ensure TextKit 2 has performed layout for this (possibly off-screen) range
+            tlm.ensureLayout(for: textRange)
 
-            // Add text container origin offset
-            let textContainerOrigin = textView.textContainerOrigin
-            let adjustedRect = NSRect(
-                x: rect.origin.x + textContainerOrigin.x,
-                y: rect.origin.y + textContainerOrigin.y,
-                width: rect.width,
-                height: rect.height
+            // Extract the segment frame in the text view's coordinate space
+            var targetRect: CGRect = .zero
+            tlm.enumerateTextSegments(in: textRange, type: .standard, options: []) { (_, segmentFrame, _, _) in
+                targetRect = segmentFrame
+                return false  // first segment is sufficient
+            }
+
+            guard targetRect != .zero else {
+                textView.scrollRangeToVisible(range)
+                return
+            }
+
+            // Apply textContainerOrigin offset (mirrors TextKit 1 behaviour)
+            let origin = textView.textContainerOrigin
+            let adjustedRect = CGRect(
+                x: targetRect.origin.x + origin.x,
+                y: targetRect.origin.y + origin.y,
+                width: targetRect.width,
+                height: targetRect.height
             )
 
-            // Calculate scroll position to center the target in the visible area
+            // Center the target in the visible area
             let visibleHeight = scrollView.contentView.bounds.height
             let targetY = adjustedRect.origin.y - (visibleHeight / 2) + (adjustedRect.height / 2)
-
-            // Clamp to valid scroll range
-            let maxY = max(0, (textView.frame.height - visibleHeight))
+            let maxY = max(0, textView.frame.height - visibleHeight)
             let clampedY = max(0, min(targetY, maxY))
 
             isScrollingToRange = true
 
             if animated {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = Animation.quick
-                    context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = Animation.quick
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                     scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: clampedY))
-                    // Animate gutter scroll too
                     if let gutterScrollView = self.gutterScrollView {
                         gutterScrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: clampedY))
                     }
                 } completionHandler: { [weak self] in
                     self?.isScrollingToRange = false
                     scrollView.reflectScrolledClipView(scrollView.contentView)
-                    if let gutterScrollView = self?.gutterScrollView {
-                        gutterScrollView.reflectScrolledClipView(gutterScrollView.contentView)
+                    if let g = self?.gutterScrollView {
+                        g.reflectScrolledClipView(g.contentView)
                     }
                 }
             } else {
                 scrollView.contentView.scroll(to: NSPoint(x: 0, y: clampedY))
                 scrollView.reflectScrolledClipView(scrollView.contentView)
-                if let gutterScrollView = gutterScrollView {
-                    gutterScrollView.contentView.scroll(to: NSPoint(x: 0, y: clampedY))
-                    gutterScrollView.reflectScrolledClipView(gutterScrollView.contentView)
+                if let g = gutterScrollView {
+                    g.contentView.scroll(to: NSPoint(x: 0, y: clampedY))
+                    g.reflectScrolledClipView(g.contentView)
                 }
                 isScrollingToRange = false
             }

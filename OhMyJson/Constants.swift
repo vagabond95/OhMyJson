@@ -58,8 +58,8 @@ enum WindowSize {
     static let defaultHeight: CGFloat = 900
     static let minWidth: CGFloat      = 800
     static let minHeight: CGFloat     = 400
-    static let onboardingWidth: CGFloat  = 400
-    static let onboardingHeight: CGFloat = 500
+    static let onboardingWidth: CGFloat  = 330
+    static let onboardingHeight: CGFloat = 310
 }
 
 // MARK: - File Size Thresholds
@@ -80,9 +80,10 @@ enum InputSize {
 // MARK: - Beautify Display Limits
 
 enum BeautifyLimit {
-    /// Maximum lines displayed in BeautifyView's NSTextView.
-    /// Lines beyond this are truncated to prevent TextKit SBBOD.
-    static let maxDisplayLines = 5_000
+    /// Maximum lines rendered in BeautifyView's NSAttributedString.
+    /// TextKit 2 lazy layout prevents SBBOD; this limit guards against
+    /// excessive memory usage (~50MB NSAttributedString at 50K lines).
+    static let maxDisplayLines = 50_000
 }
 
 // MARK: - Tree Layout
