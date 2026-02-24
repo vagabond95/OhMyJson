@@ -125,6 +125,10 @@ class ViewerViewModel {
     /// Drives Beautify button disabling and Input View read-only mode.
     var isLargeJSON: Bool = false
 
+    /// Monotonically increasing counter, incremented on tab creation/switch.
+    /// Used by textDidChange to detect stale async callbacks.
+    @ObservationIgnored private(set) var tabGeneration: Int = 0
+
     @ObservationIgnored private var restoreTask: DispatchWorkItem?
     @ObservationIgnored private var hasRestoredCurrentTab: Bool = false
     @ObservationIgnored private let restoreDebounceInterval: TimeInterval = Timing.tabRestoreDebounce
@@ -313,6 +317,15 @@ class ViewerViewModel {
     // MARK: - Tab Creation (mediator: TabManager + WindowManager + Toast)
 
     func createNewTab(with jsonString: String?) {
+        // Cancel pending work from the previous tab
+        debounceTask?.cancel()
+        debounceTask = nil
+        parseTask?.cancel()
+        parseTask = nil
+        isParsing = false
+        isInitialLoading = false
+        tabGeneration += 1
+
         // If the last tab has an empty input, reuse it instead of creating a new tab
         if let lastTab = tabManager.tabs.last,
            lastTab.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -368,6 +381,9 @@ class ViewerViewModel {
     }
 
     private func reuseEmptyTab(_ tab: JSONTab, with jsonString: String?) {
+        // Note: debounce/parse cancellation and tabGeneration increment
+        // are already performed by the caller (createNewTab).
+
         let wasAlreadyActive = (activeTabId == tab.id)
 
         // Update tab input — truncate display if large
@@ -599,6 +615,7 @@ class ViewerViewModel {
     }
 
     func onActiveTabChanged(oldId: UUID?, newId: UUID?) {
+        tabGeneration += 1
         if let oldId = oldId, hasRestoredCurrentTab {
             saveTabState(for: oldId)
             // Persist to DB and dehydrate tabs outside the LRU keep window.
@@ -708,8 +725,10 @@ class ViewerViewModel {
             updateSearchResultCount()
         }
 
-        // Re-parse if content was dehydrated (parseResult == nil) but previously succeeded.
-        if parseResult == nil, activeTab.isParseSuccess {
+        // Re-parse if content was dehydrated (parseResult == nil) and there is input text.
+        // This covers both previously-succeeded tabs and previously-failed tabs
+        // (e.g. ErrorView should be restored, not fall back to PlaceholderView).
+        if parseResult == nil {
             let textToParse = activeTab.fullInputText ?? activeTab.inputText
             if !textToParse.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                let activeId = tabManager.activeTabId {

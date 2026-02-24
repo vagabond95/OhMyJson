@@ -39,9 +39,8 @@ struct TabBarView: View {
 
     private func maxTabAreaWidth(totalWidth: CGFloat) -> CGFloat {
         let fixedElements = Layout.trafficLightWidth + Layout.themeButtonWidth + Layout.addTabButtonWidth
-        let gaps = Layout.elementPadding * 3          // 3 gaps between 4 elements
-        let edgePadding = Layout.elementPadding * 2   // .padding(.horizontal)
-        return max(totalWidth - fixedElements - gaps - edgePadding, 0)
+        let spacers = Layout.elementPadding * 5   // 5 draggable spacers between/around elements
+        return max(totalWidth - fixedElements - spacers, 0)
     }
 
     private func calculatedTabWidth(tabCount: Int, availableWidth: CGFloat) -> CGFloat {
@@ -75,10 +74,18 @@ struct TabBarView: View {
                         maxTabWidth
                     )
 
-            HStack(spacing: Layout.elementPadding) {
+            HStack(spacing: 0) {
+                // Left edge padding (draggable)
+                WindowDraggableArea()
+                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+
                 // Traffic light area
                 Color.clear
                     .frame(width: Layout.trafficLightWidth, height: Layout.buttonHeight)
+
+                // Draggable gap between traffic light and theme button
+                WindowDraggableArea()
+                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
 
                 // Theme toggle button
                 Button(action: {
@@ -93,6 +100,10 @@ struct TabBarView: View {
                 }
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
+
+                // Draggable gap between theme button and tabs
+                WindowDraggableArea()
+                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
 
                 // Tab container (weight(1f) equivalent)
                 HStack(spacing: Layout.tabSpacing) {
@@ -159,6 +170,10 @@ struct TabBarView: View {
                 .frame(width: actualTabsWidth, alignment: .leading)
                 .clipped()
 
+                // Draggable gap between tabs and add button
+                WindowDraggableArea()
+                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+
                 // Add Tab Button
                 Button {
                     tabManager.createTab(with: nil)
@@ -173,11 +188,14 @@ struct TabBarView: View {
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
 
-                // Empty space — allows window dragging from the tab bar gap
+                // Draggable gap between add button and remaining space
+                WindowDraggableArea()
+                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+
+                // Remaining space — allows window dragging from the tab bar gap
                 WindowDraggableArea()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, Layout.elementPadding)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
         }
         .frame(height: 40)

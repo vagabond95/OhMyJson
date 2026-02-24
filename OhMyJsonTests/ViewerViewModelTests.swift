@@ -1360,6 +1360,39 @@ struct ViewerViewModelTests {
         #expect(vm.isParsing == true)
     }
 
+    @Test("restoreTabState triggers background parse for failed tab with non-empty content")
+    func restoreTabStateParsesFailedTabWithContent() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .failure(JSONParseError(message: "bad json"))
+
+        let id = tabManager.createTab(with: "{invalid")
+        tabManager.activeTabId = id
+        // Simulate previously-failed tab (isParseSuccess == false, no runtime parseResult)
+        tabManager.tabs[0].isParseSuccess = false
+        tabManager.tabs[0].parseResult = nil
+
+        vm.restoreTabState()
+
+        // Background parse must be triggered so ErrorView is shown (not PlaceholderView).
+        // isParsing is set synchronously inside parseInBackground before the detached task runs.
+        #expect(vm.isParsing == true)
+    }
+
+    @Test("restoreTabState does not parse empty tab regardless of isParseSuccess")
+    func restoreTabStateSkipsParseForEmptyTab() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+
+        let id = tabManager.createTab(with: "")
+        tabManager.activeTabId = id
+        tabManager.tabs[0].isParseSuccess = false
+        tabManager.tabs[0].parseResult = nil
+
+        vm.restoreTabState()
+
+        // Empty input → no parse triggered, PlaceholderView is correct
+        #expect(vm.isParsing == false)
+    }
+
     // MARK: - Large Text Paste Handling
 
     private func makeLargeText() -> String {
@@ -1839,6 +1872,94 @@ struct ViewerViewModelTests {
 
         vm.requestCommitTabRename()
         #expect(observed == true)
+    }
+
+    // MARK: - Tab Generation (Korean IME crash fix)
+
+    @Test("tabGeneration starts at 0")
+    func tabGenerationStartsAtZero() {
+        let (vm, _, _, _, _) = makeSUT()
+        #expect(vm.tabGeneration == 0)
+    }
+
+    @Test("createNewTab increments tabGeneration")
+    func createNewTabIncrementsGeneration() {
+        let (vm, _, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        let genBefore = vm.tabGeneration
+        vm.createNewTab(with: #"{"a":1}"#)
+
+        #expect(vm.tabGeneration == genBefore + 1)
+    }
+
+    @Test("createNewTab cancels pending debounce and parse tasks")
+    func createNewTabCancelsPendingWork() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        // Create a tab and trigger a debounced parse
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+        vm.handleTextChange(#"{"key":"value"}"#)
+
+        // isParsing should be false (debounce hasn't fired yet)
+        // Now create a new tab — should cancel the pending debounce
+        vm.createNewTab(with: nil)
+
+        #expect(vm.isParsing == false)
+        #expect(vm.isInitialLoading == false)
+    }
+
+    @Test("reuseEmptyTab increments tabGeneration")
+    func reuseEmptyTabIncrementsGeneration() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        // Create an empty tab first
+        vm.createNewTab(with: nil)
+        let genAfterFirst = vm.tabGeneration
+
+        // Create another tab — should reuse the empty one and increment generation
+        vm.createNewTab(with: #"{"b":2}"#)
+
+        #expect(vm.tabGeneration == genAfterFirst + 1)
+    }
+
+    @Test("onActiveTabChanged increments tabGeneration")
+    func onActiveTabChangedIncrementsGeneration() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id1 = tabManager.createTab(with: "tab1")
+        let id2 = tabManager.createTab(with: "tab2")
+        tabManager.activeTabId = id1
+        vm.loadInitialContent()
+
+        let genBefore = vm.tabGeneration
+        vm.onActiveTabChanged(oldId: id1, newId: id2)
+
+        #expect(vm.tabGeneration == genBefore + 1)
+    }
+
+    @Test("multiple createNewTab calls monotonically increase tabGeneration")
+    func multipleCreateNewTabIncrementsGeneration() {
+        let (vm, _, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        vm.createNewTab(with: #"{"a":1}"#)
+        let gen1 = vm.tabGeneration
+
+        vm.createNewTab(with: #"{"b":2}"#)
+        let gen2 = vm.tabGeneration
+
+        vm.createNewTab(with: #"{"c":3}"#)
+        let gen3 = vm.tabGeneration
+
+        #expect(gen1 < gen2)
+        #expect(gen2 < gen3)
     }
 }
 

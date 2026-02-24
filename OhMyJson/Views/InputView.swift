@@ -105,6 +105,7 @@ struct UndoableTextView: NSViewRepresentable {
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
     var isEditable: Bool = true
+    var tabGeneration: Int = 0
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -186,6 +187,7 @@ struct UndoableTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         // Sync coordinator's parent reference so it sees latest isRestoringTabState
         context.coordinator.parent = self
+        context.coordinator.lastKnownGeneration = tabGeneration
 
         let textView = scrollView.documentView as! NSTextView
         let currentTheme = theme
@@ -218,6 +220,14 @@ struct UndoableTextView: NSViewRepresentable {
         // Only update if text is different to avoid breaking undo
         if textView.string != text {
             context.coordinator.isProgrammaticUpdate = true
+
+            // Discard active IME composition (e.g. Korean Hangul) before replacing
+            // text storage. The input method server holds references to character
+            // positions in the current storage — replacing it without finalizing
+            // composition causes EXC_BAD_ACCESS.
+            if textView.hasMarkedText() {
+                textView.inputContext?.discardMarkedText()
+            }
 
             if text.isEmpty {
                 // Fast path: clearing — skip undo registration.
@@ -276,6 +286,7 @@ struct UndoableTextView: NSViewRepresentable {
         var isProgrammaticUpdate = false
         var lastAppliedColorScheme: ColorScheme?
         var lastAppliedIsEditable: Bool?
+        var lastKnownGeneration: Int = 0
 
         init(_ parent: UndoableTextView) {
             self.parent = parent
@@ -285,16 +296,20 @@ struct UndoableTextView: NSViewRepresentable {
             guard !isProgrammaticUpdate else { return }
             guard let textView = notification.object as? NSTextView else { return }
 
-            // Update binding (this doesn't trigger updateNSView due to the equality check)
-            DispatchQueue.main.async {
+            let capturedGeneration = lastKnownGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard self.parent.tabGeneration == capturedGeneration else { return }
                 self.parent.text = textView.string
                 self.parent.onTextChange(textView.string)
             }
         }
 
         @objc func restoreText(_ text: String) {
-            // Update the binding which will trigger updateNSView
-            DispatchQueue.main.async {
+            let capturedGeneration = lastKnownGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard self.parent.tabGeneration == capturedGeneration else { return }
                 self.parent.text = text
                 self.parent.onTextChange(text)
             }
@@ -324,6 +339,7 @@ struct InputView: View {
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
     var isLargeJSON: Bool = false
+    var tabGeneration: Int = 0
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -348,7 +364,8 @@ struct InputView: View {
                     scrollPosition: $scrollPosition,
                     isRestoringTabState: isRestoringTabState,
                     onLargeTextPaste: onLargeTextPaste,
-                    isEditable: !isLargeJSON
+                    isEditable: !isLargeJSON,
+                    tabGeneration: tabGeneration
                 )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -366,6 +383,7 @@ struct InputPanel: View {
     var isRestoringTabState: Bool = false
     var onLargeTextPaste: ((String) -> Void)?
     var isLargeJSON: Bool = false
+    var tabGeneration: Int = 0
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -407,7 +425,8 @@ struct InputPanel: View {
                 scrollPosition: $scrollPosition,
                 isRestoringTabState: isRestoringTabState,
                 onLargeTextPaste: onLargeTextPaste,
-                isLargeJSON: isLargeJSON
+                isLargeJSON: isLargeJSON,
+                tabGeneration: tabGeneration
             )
             .padding(8)
         }

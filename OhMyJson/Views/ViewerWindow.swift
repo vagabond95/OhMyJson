@@ -79,7 +79,8 @@ struct ViewerWindow: View {
                                 scrollPosition: $viewModel.inputScrollPosition,
                                 isRestoringTabState: viewModel.isRestoringTabState,
                                 onLargeTextPaste: viewModel.handleLargeTextPaste,
-                                isLargeJSON: viewModel.isLargeJSON
+                                isLargeJSON: viewModel.isLargeJSON,
+                                tabGeneration: viewModel.tabGeneration
                             )
                             .frame(width: inputWidth)
                             .allowsHitTesting(!isDraggingDivider)
