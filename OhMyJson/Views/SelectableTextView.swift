@@ -101,6 +101,9 @@ struct SelectableTextView: NSViewRepresentable {
     /// When true, selection is preserved when the text view loses focus.
     /// Pass `isSearchVisible` from BeautifyView so a drag selection survives ⌘F.
     var preserveSelection: Bool
+    /// When this version changes during a contentId change, selection is cleared
+    /// instead of preserved. Used by search highlight updates to dismiss drag selections.
+    var clearSelectionVersion: Int
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -118,7 +121,8 @@ struct SelectableTextView: NSViewRepresentable {
         gutterContentId: Int = 0,
         highlightPatches: [HighlightPatch]? = nil,
         highlightVersion: Int = 0,
-        preserveSelection: Bool = false
+        preserveSelection: Bool = false,
+        clearSelectionVersion: Int = 0
     ) {
         self.attributedString = attributedString
         self.lineNumberString = lineNumberString
@@ -134,6 +138,7 @@ struct SelectableTextView: NSViewRepresentable {
         self.highlightPatches = highlightPatches
         self.highlightVersion = highlightVersion
         self.preserveSelection = preserveSelection
+        self.clearSelectionVersion = clearSelectionVersion
     }
 
     func makeCoordinator() -> Coordinator {
@@ -369,16 +374,23 @@ struct SelectableTextView: NSViewRepresentable {
             context.coordinator.lastContentId = contentId
             // Sync highlight version so the incremental patch path doesn't re-fire
             context.coordinator.lastHighlightVersion = highlightVersion
-            // Preserve selection if possible
+
+            // When clearSelectionVersion changes, this is a search highlight update — clear selection.
+            // Otherwise (theme change, tab restore), preserve it.
+            let shouldClearSelection = clearSelectionVersion != context.coordinator.lastClearSelectionVersion
+            context.coordinator.lastClearSelectionVersion = clearSelectionVersion
+
             let selectedRange = contentTextView.selectedRange()
 
             contentTextView.textStorage?.setAttributedString(attributedString)
 
-            // Restore selection if valid
-            let maxLocation = attributedString.length
-            if selectedRange.location < maxLocation {
-                let validLength = min(selectedRange.length, maxLocation - selectedRange.location)
-                contentTextView.setSelectedRange(NSRange(location: selectedRange.location, length: validLength))
+            // Restore selection only when not triggered by search highlight
+            if !shouldClearSelection {
+                let maxLocation = attributedString.length
+                if selectedRange.location < maxLocation {
+                    let validLength = min(selectedRange.length, maxLocation - selectedRange.location)
+                    contentTextView.setSelectedRange(NSRange(location: selectedRange.location, length: validLength))
+                }
             }
         }
 
@@ -513,6 +525,8 @@ struct SelectableTextView: NSViewRepresentable {
         var lastHighlightVersion: Int = -1
         /// Tracks last preserveSelection input for rising-edge detection
         var lastPreserveSelectionInput: Bool = false
+        /// Tracks last clearSelectionVersion for detecting search-triggered content updates
+        var lastClearSelectionVersion: Int = -1
 
         init(_ parent: SelectableTextView) {
             self.parent = parent

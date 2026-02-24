@@ -56,6 +56,8 @@ struct BeautifyView: View {
     @State private var highlightPatches: [HighlightPatch]? = nil
     /// Monotonically increasing version for highlight patches.
     @State private var highlightVersion: Int = 0
+    /// Version counter for search-triggered content updates that should clear selection.
+    @State private var clearSelectionVersion: Int = 0
 
     @Environment(AppSettings.self) var settings
     private var theme: AppTheme { settings.currentTheme }
@@ -75,7 +77,8 @@ struct BeautifyView: View {
             gutterContentId: gutterVersion,
             highlightPatches: highlightPatches,
             highlightVersion: highlightVersion,
-            preserveSelection: isSearchVisible
+            preserveSelection: isSearchVisible,
+            clearSelectionVersion: clearSelectionVersion
         )
         .onChange(of: searchText) { _, newValue in
             guard isActive else { isSearchDirty = true; return }
@@ -246,7 +249,7 @@ struct BeautifyView: View {
             cachedBaseContentString = Self.buildBaseContentString(snapshot)
             cachedLineNumberString = Self.buildLineNumberString(snapshot)
             gutterVersion &+= 1
-            applySearchHighlights()
+            applySearchHighlights(clearSelection: false)
             completion?()
             return
         }
@@ -265,7 +268,7 @@ struct BeautifyView: View {
             cachedBaseContentString = pair.content
             cachedLineNumberString = pair.lineNumbers
             gutterVersion &+= 1
-            applySearchHighlights()
+            applySearchHighlights(clearSelection: false)
             completion?()
         }
     }
@@ -273,11 +276,14 @@ struct BeautifyView: View {
     /// Stage 2 only: Overlays search highlights onto the cached base string.
     /// Called when searchText or currentSearchIndex changes (skips Stage 1).
     /// Also rebuilds `cachedMatchRanges` for subsequent incremental updates.
-    private func applySearchHighlights() {
+    /// - Parameter clearSelection: When true, increments `clearSelectionVersion` so
+    ///   SelectableTextView clears any drag selection. Pass false for theme/content rebuilds.
+    private func applySearchHighlights(clearSelection: Bool = true) {
         guard !searchText.isEmpty, !isSearchDismissed else {
             cachedContentString = cachedBaseContentString
             cachedMatchRanges = []
             highlightPatches = nil
+            if clearSelection { clearSelectionVersion &+= 1 }
             contentVersion &+= 1
             return
         }
@@ -322,6 +328,7 @@ struct BeautifyView: View {
         cachedContentString = highlighted
         highlightPatches = nil
         lastHighlightedIndex = currentSearchIndex
+        if clearSelection { clearSelectionVersion &+= 1 }
         contentVersion &+= 1
     }
 
