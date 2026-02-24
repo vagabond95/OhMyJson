@@ -699,6 +699,9 @@ class ViewerViewModel {
         }
         hasRestoredCurrentTab = false
 
+        // Hide placeholder during the entire tab-switch transition
+        isRestoringTabState = true
+
         // Immediately clear old content and show centered progress
         isTreeRendering = false
         isBeautifyRendering = false
