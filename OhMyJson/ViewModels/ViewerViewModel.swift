@@ -287,6 +287,7 @@ class ViewerViewModel {
         tabManager.updateTabFullInput(id: activeTabId, fullText: text)
 
         // Trigger SwiftUI → updateNSView with truncated text (fast — avoids SBBOD)
+        tabGeneration += 1  // ensure updateNSView fires despite previous same-generation renders
         inputText = truncated
 
         // Force Tree mode — Beautify is disabled for large JSON
@@ -469,6 +470,7 @@ class ViewerViewModel {
         // If this tab was already active, manually restore inputText
         // (selectTab won't trigger onActiveTabChanged for same tab)
         if wasAlreadyActive {
+            tabGeneration += 1  // ensure updateNSView fires (mirrors restoreTabState pattern)
             isRestoringTabState = true
             if let json = jsonString {
                 let isLarge = json.utf8.count > InputSize.displayThreshold

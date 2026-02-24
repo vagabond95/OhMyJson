@@ -271,6 +271,23 @@ struct ViewerViewModelTests {
         #expect(vm.currentJSON == json)
     }
 
+    @Test("createNewTab with large JSON increments tabGeneration so updateNSView fires")
+    func createNewTabLargeJSONIncrementsTabGeneration() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        vm.onNeedShowWindow = {}
+
+        // Create empty tab (it becomes active)
+        let _ = tabManager.createTab(with: nil)
+
+        let before = vm.tabGeneration
+        let largeJson = String(repeating: "x", count: InputSize.displayThreshold + 1)
+        vm.createNewTab(with: largeJson)
+
+        // tabGeneration must have increased by at least 2:
+        // once in createNewTab, once in the wasAlreadyActive block
+        #expect(vm.tabGeneration >= before + 2)
+    }
+
     // MARK: - closeTab
 
     @Test("closeTab with last tab shows quit confirmation instead of closing viewer")
@@ -1559,6 +1576,19 @@ struct ViewerViewModelTests {
         #expect(vm.isParsing == true)
     }
 
+    @Test("handleLargeTextPaste increments tabGeneration so updateNSView fires")
+    func handleLargeTextPasteIncrementsTabGeneration() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let before = vm.tabGeneration
+        let largeText = makeLargeText()
+        vm.handleLargeTextPaste(largeText)
+
+        #expect(vm.tabGeneration > before)
+    }
+
     @Test("handleTextChange clears fullInputText when user edits")
     func handleTextChangeClearsFullInputText() {
         let (vm, tabManager, _, _, _) = makeSUT()
@@ -2095,10 +2125,11 @@ struct ViewerViewModelTests {
         vm.createNewTab(with: nil)
         let genAfterFirst = vm.tabGeneration
 
-        // Create another tab — should reuse the empty one and increment generation
+        // Create another tab — should reuse the empty one.
+        // tabGeneration increments twice: once in createNewTab, once in the wasAlreadyActive block.
         vm.createNewTab(with: #"{"b":2}"#)
 
-        #expect(vm.tabGeneration == genAfterFirst + 1)
+        #expect(vm.tabGeneration == genAfterFirst + 2)
     }
 
     @Test("onActiveTabChanged increments tabGeneration")
