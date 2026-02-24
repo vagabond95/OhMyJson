@@ -152,12 +152,13 @@ struct UndoableTextView: NSViewRepresentable {
         textView.delegate = context.coordinator
         textView.allowsUndo = true
         textView.textColor = currentTheme.nsPrimaryText
-        textView.backgroundColor = currentTheme.nsBackground
+        textView.backgroundColor = currentTheme.nsInputBackground
         textView.insertionPointColor = currentTheme.nsInsertionPoint
         textView.selectedTextAttributes = [
             .backgroundColor: currentTheme.nsSelectedTextBackground,
             .foregroundColor: currentTheme.nsSelectedTextColor
         ]
+        textView.textContainerInset = NSSize(width: 6, height: 6)
 
         // Set initial text
         textView.string = text
@@ -200,7 +201,7 @@ struct UndoableTextView: NSViewRepresentable {
         let currentScheme = currentTheme.colorScheme
         if context.coordinator.lastAppliedColorScheme != currentScheme {
             context.coordinator.lastAppliedColorScheme = currentScheme
-            textView.backgroundColor = currentTheme.nsBackground
+            textView.backgroundColor = currentTheme.nsInputBackground
             textView.textColor = currentTheme.nsPrimaryText
             textView.insertionPointColor = currentTheme.nsInsertionPoint
             textView.selectedTextAttributes = [
@@ -216,8 +217,8 @@ struct UndoableTextView: NSViewRepresentable {
             textView.isSelectable = isEditable
             // Visually dim the background to indicate disabled state
             textView.backgroundColor = isEditable
-                ? currentTheme.nsBackground
-                : currentTheme.nsBackground.withAlphaComponent(0.6)
+                ? currentTheme.nsInputBackground
+                : currentTheme.nsInputBackground.withAlphaComponent(0.6)
         }
 
         // Only update text when tab generation changes (tab switch/creation).
@@ -248,6 +249,7 @@ struct UndoableTextView: NSViewRepresentable {
                 // clearAll() resets all state, so undoing only the text is meaningless.
                 textView.undoManager?.removeAllActions()
                 textView.string = ""
+                textView.setSelectedRange(NSRange(location: 0, length: 0))
             } else {
                 // Normal path: register undo and update text
                 let oldText = textView.string
@@ -392,17 +394,18 @@ struct InputView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .allowsHitTesting(false)
-                } else if text.isEmpty {
+                } else if text.isEmpty && !isRestoringTabState {
                     Text("input.placeholder")
                         .foregroundColor(theme.secondaryText)
                         .font(.system(.body, design: .monospaced))
-                        .padding(.horizontal, 5)
+                        .padding(.leading, 11)
+                        .padding(.top, 6)
                         .allowsHitTesting(false)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(theme.background)
+        .background(theme.inputBackground)
     }
 }
 
@@ -442,7 +445,7 @@ struct InputPanel: View {
                 .instantTooltip(String(localized: "tooltip.clear"), position: .bottom)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
             .frame(height: 36)
             .background(theme.secondaryBackground)
             .zIndex(1)
@@ -462,7 +465,9 @@ struct InputPanel: View {
                 isLargeJSONContentLost: isLargeJSONContentLost,
                 tabGeneration: tabGeneration
             )
-            .padding(8)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding([.top, .leading, .bottom], 8)
+            .padding(.trailing, 4)
         }
         .background(theme.background)
     }

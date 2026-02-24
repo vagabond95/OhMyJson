@@ -102,6 +102,10 @@ protocol AppTheme {
     var inactiveTabBorder: Color { get }
     var hoveredTabBackground: Color { get }
 
+    // Input area
+    var inputBackground: Color { get }
+    var nsInputBackground: NSColor { get }
+
     // NSTextView specific
     var nsBackground: NSColor { get }
     var nsPrimaryText: NSColor { get }
@@ -154,6 +158,9 @@ struct DarkTheme: AppTheme {
     let inactiveTabBorder = Color(hex: "404040")
     let hoveredTabBackground = Color(hex: "1C1C1C")
 
+    let inputBackground = Color(hex: "1C1C1C")
+    let nsInputBackground = NSColor(sRGBHex: "1C1C1C")
+
     let nsBackground = NSColor(sRGBHex: "131313")
     let nsPrimaryText = NSColor(sRGBHex: "FAF9F6")
     let nsInsertionPoint = NSColor(sRGBHex: "FAF9F6")
@@ -202,6 +209,9 @@ struct LightTheme: AppTheme {
     let inactiveTabBackground = Color(hex: "ECECEC")
     let inactiveTabBorder = Color(hex: "D4D4D4")
     let hoveredTabBackground = Color(hex: "E8E8E8")
+
+    let inputBackground = Color(hex: "F7F7F7")
+    let nsInputBackground = NSColor(sRGBHex: "F7F7F7")
 
     let nsBackground = NSColor(sRGBHex: "FFFFFF")
     let nsPrimaryText = NSColor(sRGBHex: "1E1E1E")
