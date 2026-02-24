@@ -398,7 +398,7 @@ struct InputView: View {
                     Text("input.placeholder")
                         .foregroundColor(theme.secondaryText)
                         .font(.system(.body, design: .monospaced))
-                        .padding(.leading, 11)
+                        .padding(.leading, 15)
                         .padding(.top, 6)
                         .allowsHitTesting(false)
                 }

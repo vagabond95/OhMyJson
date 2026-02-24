@@ -6,6 +6,16 @@
 import Foundation
 
 struct SampleData {
+    static var onboardingJson: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        return """
+        {
+          "appName": "OhMyJson",
+          "appVersion": "\(version)"
+        }
+        """
+    }
+
     static let json = """
     {
       "app": {

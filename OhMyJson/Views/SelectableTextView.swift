@@ -37,8 +37,12 @@ class DeselectOnResignTextView: NSTextView {
 
     override func resignFirstResponder() -> Bool {
         let result = super.resignFirstResponder()
-        if result && !preserveSelection {
-            setSelectedRange(NSRange(location: selectedRange().location, length: 0))
+        if result {
+            if preserveSelection {
+                preserveSelection = false  // One-shot: consumed
+            } else {
+                setSelectedRange(NSRange(location: selectedRange().location, length: 0))
+            }
         }
         return result
     }
@@ -339,8 +343,15 @@ struct SelectableTextView: NSViewRepresentable {
         guard let contentTextView = context.coordinator.contentTextView,
               let contentScrollView = context.coordinator.contentScrollView else { return }
 
-        // Sync preserveSelection flag so resignFirstResponder knows whether to clear
-        (contentTextView as? DeselectOnResignTextView)?.preserveSelection = preserveSelection
+        // Rising-edge detection: only set preserveSelection = true on false→true transition.
+        // This ensures the one-shot flag is armed only once per search-bar open, not re-armed
+        // on every SwiftUI update while the search bar stays visible.
+        if let deselectView = contentTextView as? DeselectOnResignTextView {
+            if preserveSelection && !context.coordinator.lastPreserveSelectionInput {
+                deselectView.preserveSelection = true
+            }
+            context.coordinator.lastPreserveSelectionInput = preserveSelection
+        }
 
         // Update content if changed (O(1) id check avoids O(n) NSAttributedString comparison)
         let contentChanged = contentId != context.coordinator.lastContentId
@@ -486,6 +497,8 @@ struct SelectableTextView: NSViewRepresentable {
         var lastGutterContentId: Int = -1
         /// Last seen highlightVersion — used for O(1) incremental patch detection
         var lastHighlightVersion: Int = -1
+        /// Tracks last preserveSelection input for rising-edge detection
+        var lastPreserveSelectionInput: Bool = false
 
         init(_ parent: SelectableTextView) {
             self.parent = parent

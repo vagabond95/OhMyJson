@@ -97,6 +97,14 @@ struct SettingsWindowView: View {
 
             divider
 
+            // Hotkey section
+            hotKeySection(combo: $settings.openHotKeyCombo)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .zIndex(1)
+
+            divider
+
             // General settings
             VStack(alignment: .leading, spacing: 10) {
                 // Launch at Login
@@ -173,14 +181,6 @@ struct SettingsWindowView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
-
-            divider
-
-            // Hotkey section
-            hotKeySection(combo: $settings.openHotKeyCombo)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .zIndex(1)
 
             divider
 
@@ -475,6 +475,7 @@ struct SettingsWindowView: View {
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
             TabManager.shared.closeAllTabs()
+            TabManager.shared.createTab(with: nil)
             refreshDbSize()
         }
     }

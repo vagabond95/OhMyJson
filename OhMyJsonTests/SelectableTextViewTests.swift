@@ -232,7 +232,7 @@ struct SelectableTextViewTests {
         #expect(textView.selectedRange().length == 0)
     }
 
-    @Test("resignFirstResponder preserves selection when preserveSelection is true")
+    @Test("resignFirstResponder preserves selection when preserveSelection is true, then resets flag")
     func resignFirstResponder_preservesSelection_whenPreserveSelectionTrue() {
         let textView = DeselectOnResignTextView()
         let window = makeFirstResponder(textView)
@@ -243,6 +243,30 @@ struct SelectableTextViewTests {
         window.makeFirstResponder(nil) // triggers resignFirstResponder
 
         #expect(textView.selectedRange().length == 5)
+        // One-shot: flag must be consumed after single use
+        #expect(textView.preserveSelection == false)
+    }
+
+    @Test("preserveSelection one-shot: second resignFirstResponder clears selection")
+    func resignFirstResponder_clearsSelection_afterOneShotConsumed() {
+        let textView = DeselectOnResignTextView()
+        let window = makeFirstResponder(textView)
+        textView.string = "Hello World"
+        textView.setSelectedRange(NSRange(location: 0, length: 5))
+
+        // First resign with preserveSelection — selection preserved, flag consumed
+        textView.preserveSelection = true
+        window.makeFirstResponder(nil)
+        #expect(textView.selectedRange().length == 5)
+        #expect(textView.preserveSelection == false)
+
+        // Re-select and resign again without re-arming the flag
+        window.makeFirstResponder(textView)
+        textView.setSelectedRange(NSRange(location: 0, length: 5))
+        window.makeFirstResponder(nil)
+
+        // Second resign should clear selection since preserveSelection was consumed
+        #expect(textView.selectedRange().length == 0)
     }
 }
 #endif

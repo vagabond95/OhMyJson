@@ -208,6 +208,7 @@ struct ViewerWindow: View {
             }
         }
         .onChange(of: viewModel.activeTabId) { oldId, newId in
+            NSApp.keyWindow?.makeFirstResponder(nil)
             viewModel.onActiveTabChanged(oldId: oldId, newId: newId)
         }
         .onChange(of: viewModel.searchText) { _, _ in

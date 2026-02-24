@@ -89,6 +89,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
         window.isMovableByWindowBackground = false
 
         window.isReleasedWhenClosed = false
+        window.isRestorable = false
         window.delegate = self
 
         viewerWindow = window

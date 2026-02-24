@@ -16,6 +16,7 @@ struct PlaceholderView: View {
             Text("viewer.placeholder")
                 .font(.system(.body, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
+                .padding(.top, 6)
                 .modifier(ShimmerEffect(offset: shimmerOffset, color: theme.searchHighlight))
 
             Spacer()
