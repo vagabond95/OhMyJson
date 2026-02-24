@@ -15,6 +15,24 @@ class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
     override var mouseDownCanMoveWindow: Bool { false }
 }
 
+/// NSView placed in the empty tab bar space to enable window dragging from there.
+/// isMovable=false blocks all system-initiated drag; this view initiates it explicitly via mouseDown.
+class WindowDraggableNSView: NSView {
+    // isMovable=false makes mouseDownCanMoveWindow irrelevant for system drag,
+    // but set false to be explicit.
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        // Empty tab bar space clicked → start window drag directly.
+        window?.performDrag(with: event)
+    }
+}
+
+/// Custom NSWindow — no drag overrides needed.
+/// All drag control is handled via isMovable=false + WindowDraggableNSView.mouseDown.
+class OhMyJsonWindow: NSWindow {}
+
 @Observable
 class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     static let shared = WindowManager()
@@ -47,7 +65,7 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
     func createAndShowWindow<Content: View>(contentView: Content) {
         let hostingView = ClickThroughHostingView(rootView: contentView)
 
-        let window = NSWindow(
+        let window = OhMyJsonWindow(
             contentRect: NSRect(x: 0, y: 0, width: WindowSize.defaultWidth, height: WindowSize.defaultHeight),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
@@ -64,7 +82,10 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
 
         window.minSize = NSSize(width: WindowSize.minWidth, height: WindowSize.minHeight)
 
-        // CRITICAL: Disable window dragging from background to allow button clicks in titlebar area
+        // CRITICAL: isMovable=false blocks ALL system-initiated drag regardless of
+        // mouseDownCanMoveWindow on child views (covers SwiftUI internal event-tracking views).
+        // WindowDraggableNSView.mouseDown calls performDrag directly for the empty tab bar space.
+        window.isMovable = false
         window.isMovableByWindowBackground = false
 
         window.isReleasedWhenClosed = false

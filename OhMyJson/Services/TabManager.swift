@@ -2,7 +2,8 @@
 //  TabManager.swift
 //  OhMyJson
 //
-//  Manages tab lifecycle, creation, deletion, and LRU tracking
+//  Manages tab lifecycle, creation, deletion, and LRU tracking.
+//  Integrates with TabPersistenceService for session restore and auto-save.
 //
 
 import Foundation
@@ -15,8 +16,11 @@ class TabManager: TabManagerProtocol {
     var tabs: [JSONTab] = []
     var activeTabId: UUID?
 
-    let maxTabs = 10
-    let warningThreshold = 8
+    var maxTabs = 20
+    var warningThreshold = 18
+
+    @ObservationIgnored private var persistence: TabPersistenceServiceProtocol?
+    @ObservationIgnored private var saveDebounceTask: DispatchWorkItem?
 
     private let tabTitleFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -25,18 +29,62 @@ class TabManager: TabManagerProtocol {
     }()
 
     private init() {
-        // Initialize with no tabs - tabs are created on demand
+        self.persistence = TabPersistenceService.shared
     }
+
+    /// Designated initializer for testing with injected persistence service.
+    init(persistence: TabPersistenceServiceProtocol?) {
+        self.persistence = persistence
+    }
+
+    deinit {
+        saveDebounceTask?.cancel()
+    }
+
+    // MARK: - Session Persistence
+
+    /// Restore tabs from persistent storage.
+    /// Must be called before ViewerViewModel is created (AppDelegate.applicationDidFinishLaunching).
+    func restoreSession() {
+        guard let persistence else { return }
+        let (restoredTabs, activeId) = persistence.loadTabs()
+        guard !restoredTabs.isEmpty else { return }
+        self.tabs = restoredTabs
+        self.activeTabId = activeId ?? restoredTabs.first?.id
+    }
+
+    /// Cancel pending debounce and synchronously persist current state.
+    func flush() {
+        saveDebounceTask?.cancel()
+        saveDebounceTask = nil
+        persistence?.saveAll(tabs: tabs, activeTabId: activeTabId)
+    }
+
+    // MARK: - Private Save Helpers
+
+    private func saveImmediately() {
+        saveDebounceTask?.cancel()
+        saveDebounceTask = nil
+        persistence?.saveAll(tabs: tabs, activeTabId: activeTabId)
+    }
+
+    private func scheduleDebouncedSave() {
+        saveDebounceTask?.cancel()
+        let task = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.persistence?.saveAll(tabs: self.tabs, activeTabId: self.activeTabId)
+        }
+        saveDebounceTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + Persistence.saveDebounceInterval, execute: task)
+    }
+
+    // MARK: - Tab Creation
 
     /// Create a new tab with optional JSON content
     /// - Parameter json: Optional JSON string to initialize the tab with
     /// - Returns: UUID of the created tab
     @discardableResult
     func createTab(with json: String?) -> UUID {
-        // Note: LRU eviction and toast warnings are now handled by ViewerViewModel (mediator).
-        // TabManager only manages tab data.
-
-        // Create new tab with timestamp-based title and default view mode
         let now = Date()
         let newTab = JSONTab(
             id: UUID(),
@@ -51,38 +99,43 @@ class TabManager: TabManagerProtocol {
         tabs.append(newTab)
         activeTabId = newTab.id
 
+        saveImmediately()
+
         return newTab.id
     }
 
+    // MARK: - Tab Close
+
     /// Close a specific tab
-    /// - Parameter id: UUID of the tab to close
     func closeTab(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
-        // Note: "last tab → close window" logic is now handled by ViewerViewModel (mediator).
-        // TabManager only removes from the tab array.
-
         tabs.remove(at: index)
 
-        // If we closed the active tab, select another
         if activeTabId == id {
-            // Select the previous tab if available, otherwise the first
             let newIndex = max(0, index - 1)
             if newIndex < tabs.count {
                 activeTabId = tabs[newIndex].id
             } else if let first = tabs.first {
                 activeTabId = first.id
+            } else {
+                activeTabId = nil
             }
         }
+
+        saveImmediately()
     }
 
+    // MARK: - Tab Selection
+
     /// Select a specific tab and mark it as accessed
-    /// - Parameter id: UUID of the tab to select
     func selectTab(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
         activeTabId = id
         tabs[index].markAsAccessed()
+
+        saveImmediately()
     }
 
     /// Select the previous tab (no-op if already at first tab)
@@ -101,17 +154,19 @@ class TabManager: TabManagerProtocol {
         selectTab(id: tabs[index + 1].id)
     }
 
+    // MARK: - LRU
+
     /// Get the UUID of the oldest (least recently accessed) tab
-    /// - Returns: UUID of the oldest tab, or nil if no tabs exist
     func getOldestTab() -> UUID? {
         return tabs.min(by: { $0.lastAccessedAt < $1.lastAccessedAt })?.id
     }
 
     /// Check if we can create a new tab without auto-closing
-    /// - Returns: true if under max limit
     func canCreateTab() -> Bool {
         return tabs.count < maxTabs
     }
+
+    // MARK: - Computed
 
     /// Get the currently active tab
     var activeTab: JSONTab? {
@@ -119,37 +174,34 @@ class TabManager: TabManagerProtocol {
         return tabs.first(where: { $0.id == activeId })
     }
 
+    // MARK: - Update Methods
+
     /// Update the input text of a specific tab
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - text: New input text
     func updateTabInput(id: UUID, text: String) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].inputText = text
     }
 
     /// Update the full (untruncated) input text of a specific tab.
-    /// Set to nil when inputText is the complete content.
     func updateTabFullInput(id: UUID, fullText: String?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].fullInputText = fullText
     }
 
-    /// Update the parse result of a specific tab
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - result: New parse result
+    /// Update the parse result of a specific tab.
+    /// When result is `.success`, marks `isParseSuccess = true` and schedules a debounced DB save.
     func updateTabParseResult(id: UUID, result: JSONParseResult) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].parseResult = result
+
+        if case .success = result {
+            tabs[index].isParseSuccess = true
+            scheduleDebouncedSave()
+        } else {
+            tabs[index].isParseSuccess = false
+        }
     }
 
-    /// Update the search state of a specific tab
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - searchText: Current search text
-    ///   - beautifySearchIndex: Current search result index for beautify view
-    ///   - treeSearchIndex: Current search result index for tree view
     func updateTabSearchState(id: UUID, searchText: String, beautifySearchIndex: Int, treeSearchIndex: Int) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].searchText = searchText
@@ -157,87 +209,77 @@ class TabManager: TabManagerProtocol {
         tabs[index].treeSearchIndex = treeSearchIndex
     }
 
-    /// Update the view mode of a specific tab
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - viewMode: New view mode (beautify or tree)
     func updateTabViewMode(id: UUID, viewMode: ViewMode) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].viewMode = viewMode
     }
 
-    /// Update the input view scroll position
     func updateTabInputScrollPosition(id: UUID, position: CGFloat) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].inputScrollPosition = position
     }
 
-    /// Update the beautify view scroll position
     func updateTabScrollPosition(id: UUID, position: CGFloat) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].beautifyScrollPosition = position
     }
 
-    /// Update the search bar visibility of a specific tab
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - isVisible: Whether the search bar is visible
     func updateTabSearchVisibility(id: UUID, isVisible: Bool) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].isSearchVisible = isVisible
     }
 
-    /// Update the selected node ID for tree view
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - nodeId: UUID of the selected node in tree view
     func updateTabTreeSelectedNodeId(id: UUID, nodeId: UUID?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].treeSelectedNodeId = nodeId
     }
 
-    /// Update the scroll anchor node ID for tree view
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - nodeId: UUID of the scroll anchor node in tree view
     func updateTabTreeScrollAnchor(id: UUID, nodeId: UUID?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].treeScrollAnchorId = nodeId
     }
 
-    /// Update the horizontal scroll offset for tree view
     func updateTabTreeHorizontalScroll(id: UUID, offset: CGFloat) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].treeHorizontalScrollOffset = offset
     }
 
-    /// Update the search dismiss state of a specific tab
     func updateTabSearchDismissState(id: UUID, beautifyDismissed: Bool, treeDismissed: Bool) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].beautifySearchDismissed = beautifyDismissed
         tabs[index].treeSearchDismissed = treeDismissed
     }
 
-    /// Update the custom title of a specific tab
-    /// - Parameters:
-    ///   - id: UUID of the tab
-    ///   - customTitle: User-provided title, or nil to revert to auto-generated timestamp title
     func updateTabTitle(id: UUID, customTitle: String?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].customTitle = customTitle
     }
 
-    /// Close all tabs
+    // MARK: - Bulk Operations
+
+    /// Close all tabs and clear persistent storage.
     func closeAllTabs() {
         tabs.removeAll()
         activeTabId = nil
+        persistence?.deleteAllTabs()
     }
 
-    /// Get tab index for display purposes
-    /// - Parameter id: UUID of the tab
-    /// - Returns: 1-based index, or 0 if not found
+    // MARK: - Utilities
+
+    /// Get tab index for display purposes (1-based)
     func getTabIndex(id: UUID) -> Int {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return 0 }
         return index + 1
+    }
+
+    /// Move a tab from one index to another
+    func moveTab(fromIndex: Int, toIndex: Int) {
+        guard fromIndex != toIndex,
+              fromIndex >= 0, fromIndex < tabs.count,
+              toIndex >= 0, toIndex < tabs.count else { return }
+        let tab = tabs.remove(at: fromIndex)
+        tabs.insert(tab, at: toIndex)
+
+        saveImmediately()
     }
 }

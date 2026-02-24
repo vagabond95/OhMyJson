@@ -426,4 +426,122 @@ struct TabManagerTests {
         let tab = sut.tabs.first(where: { $0.id == id })
         #expect(tab?.displayTitle == "Custom")
     }
+
+    // MARK: - moveTab
+
+    @Test("moveTab swaps adjacent tabs forward")
+    func moveTabSwapsAdjacentForward() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+        let idC = sut.createTab(with: "C")
+
+        sut.moveTab(fromIndex: 0, toIndex: 1)
+
+        #expect(sut.tabs[0].id == idB)
+        #expect(sut.tabs[1].id == idA)
+        #expect(sut.tabs[2].id == idC)
+    }
+
+    @Test("moveTab swaps adjacent tabs backward")
+    func moveTabSwapsAdjacentBackward() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+        let idC = sut.createTab(with: "C")
+
+        sut.moveTab(fromIndex: 2, toIndex: 1)
+
+        #expect(sut.tabs[0].id == idA)
+        #expect(sut.tabs[1].id == idC)
+        #expect(sut.tabs[2].id == idB)
+    }
+
+    @Test("moveTab from first to last")
+    func moveTabFromFirstToLast() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+        let idC = sut.createTab(with: "C")
+
+        sut.moveTab(fromIndex: 0, toIndex: 2)
+
+        #expect(sut.tabs[0].id == idB)
+        #expect(sut.tabs[1].id == idC)
+        #expect(sut.tabs[2].id == idA)
+    }
+
+    @Test("moveTab from last to first")
+    func moveTabFromLastToFirst() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+        let idC = sut.createTab(with: "C")
+
+        sut.moveTab(fromIndex: 2, toIndex: 0)
+
+        #expect(sut.tabs[0].id == idC)
+        #expect(sut.tabs[1].id == idA)
+        #expect(sut.tabs[2].id == idB)
+    }
+
+    @Test("moveTab same index is no-op")
+    func moveTabSameIndexIsNoOp() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+        let idC = sut.createTab(with: "C")
+
+        sut.moveTab(fromIndex: 1, toIndex: 1)
+
+        #expect(sut.tabs[0].id == idA)
+        #expect(sut.tabs[1].id == idB)
+        #expect(sut.tabs[2].id == idC)
+    }
+
+    @Test("moveTab out of bounds is no-op")
+    func moveTabOutOfBoundsIsNoOp() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+
+        sut.moveTab(fromIndex: -1, toIndex: 0)
+        sut.moveTab(fromIndex: 0, toIndex: 5)
+
+        #expect(sut.tabs[0].id == idA)
+        #expect(sut.tabs[1].id == idB)
+        #expect(sut.tabs.count == 2)
+    }
+
+    @Test("moveTab preserves activeTabId")
+    func moveTabPreservesActiveTabId() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let _ = sut.createTab(with: "B")
+        let _ = sut.createTab(with: "C")
+        sut.selectTab(id: idA)
+
+        sut.moveTab(fromIndex: 0, toIndex: 2)
+
+        // activeTabId should still point to idA even after reorder
+        #expect(sut.activeTabId == idA)
+        #expect(sut.tabs[2].id == idA)
+    }
+
+    @Test("selectNextTab respects reordered tabs")
+    func selectNextTabRespectsReorderedTabs() {
+        let sut = makeSUT()
+        let idA = sut.createTab(with: "A")
+        let idB = sut.createTab(with: "B")
+        let idC = sut.createTab(with: "C")
+        // Order: [A, B, C], move C to index 0 → [C, A, B]
+        sut.moveTab(fromIndex: 2, toIndex: 0)
+        sut.selectTab(id: idC)
+
+        sut.selectNextTab()
+        #expect(sut.activeTabId == idA)
+
+        sut.selectNextTab()
+        #expect(sut.activeTabId == idB)
+    }
 }

@@ -10,8 +10,8 @@ import CoreGraphics
 final class MockTabManager: TabManagerProtocol {
     var tabs: [JSONTab] = []
     var activeTabId: UUID?
-    var maxTabs: Int = 10
-    var warningThreshold: Int = 8
+    var maxTabs: Int = 20
+    var warningThreshold: Int = 18
 
     var activeTab: JSONTab? {
         guard let id = activeTabId else { return nil }
@@ -21,6 +21,9 @@ final class MockTabManager: TabManagerProtocol {
     var createTabCallCount = 0
     var closeTabCallCount = 0
     var lastClosedTabId: UUID?
+    var moveTabCallCount = 0
+    var lastMoveFrom: Int?
+    var lastMoveTo: Int?
 
     @discardableResult
     func createTab(with json: String?) -> UUID {
@@ -143,5 +146,24 @@ final class MockTabManager: TabManagerProtocol {
     func updateTabTitle(id: UUID, customTitle: String?) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].customTitle = customTitle
+    }
+
+    func moveTab(fromIndex: Int, toIndex: Int) {
+        moveTabCallCount += 1
+        lastMoveFrom = fromIndex
+        lastMoveTo = toIndex
+        guard fromIndex != toIndex,
+              fromIndex >= 0, fromIndex < tabs.count,
+              toIndex >= 0, toIndex < tabs.count else { return }
+        let tab = tabs.remove(at: fromIndex)
+        tabs.insert(tab, at: toIndex)
+    }
+
+    func restoreSession() {
+        // no-op in mock
+    }
+
+    func flush() {
+        // no-op in mock
     }
 }

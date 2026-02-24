@@ -69,79 +69,91 @@ struct ViewerWindow: View {
                     let totalWidth = geometry.size.width
                     let effectiveWidth = totalWidth - Layout.dividerHitAreaWidth
                     let inputWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, effectiveWidth * dividerRatio))
-                    HStack(spacing: 0) {
-                        // Left: Input Panel
-                        InputPanel(
-                            text: $viewModel.inputText,
-                            onTextChange: viewModel.handleTextChange,
-                            onClear: viewModel.clearAll,
-                            scrollPosition: $viewModel.inputScrollPosition,
-                            isRestoringTabState: viewModel.isRestoringTabState,
-                            onLargeTextPaste: viewModel.handleLargeTextPaste
-                        )
-                        .frame(width: inputWidth)
-                        .allowsHitTesting(!isDraggingDivider)
+                    ZStack {
+                        HStack(spacing: 0) {
+                            // Left: Input Panel
+                            InputPanel(
+                                text: $viewModel.inputText,
+                                onTextChange: viewModel.handleTextChange,
+                                onClear: viewModel.clearAll,
+                                scrollPosition: $viewModel.inputScrollPosition,
+                                isRestoringTabState: viewModel.isRestoringTabState,
+                                onLargeTextPaste: viewModel.handleLargeTextPaste
+                            )
+                            .frame(width: inputWidth)
+                            .allowsHitTesting(!isDraggingDivider)
 
-                        // Resizable Divider
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: Layout.dividerHitAreaWidth)
-                            .overlay(alignment: .top) {
-                                VStack(spacing: 0) {
-                                    Rectangle()
-                                        .fill(theme.secondaryBackground)
-                                        .frame(height: 36)
+                            // Resizable Divider
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(width: Layout.dividerHitAreaWidth)
+                                .overlay(alignment: .top) {
+                                    VStack(spacing: 0) {
+                                        Rectangle()
+                                            .fill(theme.secondaryBackground)
+                                            .frame(height: 36)
+                                        Rectangle()
+                                            .fill(theme.border)
+                                            .frame(height: 1)
+                                    }
+                                    .allowsHitTesting(false)
+                                }
+                                .overlay(
                                     Rectangle()
                                         .fill(theme.border)
-                                        .frame(height: 1)
-                                }
-                                .allowsHitTesting(false)
-                            }
-                            .overlay(
-                                Rectangle()
-                                    .fill(theme.border)
-                                    .frame(width: 1)
-                                    .allowsHitTesting(false)
-                            )
-                            .background(ResizeCursorView())
-                            .contentShape(Rectangle())
-                            .simultaneousGesture(
-                                TapGesture(count: 2)
-                                    .onEnded {
-                                        dividerRatio = Layout.defaultDividerRatio
-                                        settings.dividerRatio = Layout.defaultDividerRatio
-                                    }
-                            )
-                            .gesture(
-                                DragGesture(minimumDistance: 2, coordinateSpace: .named("contentArea"))
-                                    .onChanged { value in
-                                        if !isDraggingDivider {
-                                            isDraggingDivider = true
-                                            dragStartRatio = dividerRatio
-                                            dragStartX = value.startLocation.x
-                                            NSCursor.resizeLeftRight.push()
+                                        .frame(width: 1)
+                                        .allowsHitTesting(false)
+                                )
+                                .background(ResizeCursorView())
+                                .contentShape(Rectangle())
+                                .simultaneousGesture(
+                                    TapGesture(count: 2)
+                                        .onEnded {
+                                            dividerRatio = Layout.defaultDividerRatio
+                                            settings.dividerRatio = Layout.defaultDividerRatio
                                         }
-                                        let deltaX = value.location.x - dragStartX
-                                        let newInputWidth = effectiveWidth * dragStartRatio + deltaX
-                                        let clampedWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, newInputWidth))
-                                        let newRatio = clampedWidth / effectiveWidth
-                                        if abs(newRatio - dividerRatio) * effectiveWidth > Timing.dividerDragThreshold {
-                                            dividerRatio = newRatio
+                                )
+                                .gesture(
+                                    DragGesture(minimumDistance: 2, coordinateSpace: .named("contentArea"))
+                                        .onChanged { value in
+                                            if !isDraggingDivider {
+                                                isDraggingDivider = true
+                                                dragStartRatio = dividerRatio
+                                                dragStartX = value.startLocation.x
+                                                NSCursor.resizeLeftRight.push()
+                                            }
+                                            let deltaX = value.location.x - dragStartX
+                                            let newInputWidth = effectiveWidth * dragStartRatio + deltaX
+                                            let clampedWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, newInputWidth))
+                                            let newRatio = clampedWidth / effectiveWidth
+                                            if abs(newRatio - dividerRatio) * effectiveWidth > Timing.dividerDragThreshold {
+                                                dividerRatio = newRatio
+                                            }
                                         }
-                                    }
-                                    .onEnded { _ in
-                                        isDraggingDivider = false
-                                        settings.dividerRatio = dividerRatio
-                                        NSCursor.pop()
-                                    }
-                            )
+                                        .onEnded { _ in
+                                            isDraggingDivider = false
+                                            settings.dividerRatio = dividerRatio
+                                            NSCursor.pop()
+                                        }
+                                )
 
-                        // Right: TreeViewer Panel
-                        viewerPanel
-                            .frame(maxWidth: .infinity)
-                            .allowsHitTesting(!isDraggingDivider)
+                            // Right: TreeViewer Panel
+                            viewerPanel
+                                .frame(maxWidth: .infinity)
+                                .allowsHitTesting(!isDraggingDivider)
+                        }
+                        .coordinateSpace(name: "contentArea")
+
+                        // Transparent overlay: commits active tab rename on tap outside TabBarView
+                        if viewModel.isRenamingTab {
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    viewModel.requestCommitTabRename()
+                                }
+                                .allowsHitTesting(!isDraggingDivider)
+                        }
                     }
-                    .coordinateSpace(name: "contentArea")
                 }
             }
             .background(theme.background)

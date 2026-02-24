@@ -13,6 +13,10 @@ struct TabBarView: View {
     @Environment(ViewerViewModel.self) var viewModel
 
     @State private var hoveredTabId: UUID?
+    @State private var draggedTabId: UUID?
+    @State private var dragOffset: CGFloat = 0
+    @State private var dragVisualOrder: [UUID] = []
+    @State private var lastSwapOffset: CGFloat = 0
 
     private var theme: AppTheme { settings.currentTheme }
 
@@ -63,6 +67,7 @@ struct TabBarView: View {
                 tabCount: tabManager.tabs.count,
                 availableWidth: maxTabWidth
             )
+            let slotWidth = tabWidth + Layout.tabSpacing
             let isCompressed = tabWidth < Layout.fixedTabWidth
 
             let actualTabsWidth = min(
@@ -94,10 +99,12 @@ struct TabBarView: View {
                     ForEach(tabManager.tabs) { tab in
                         let isActive = tab.id == tabManager.activeTabId
                         let isHovered = tab.id == hoveredTabId
+                        let isDragging = tab.id == draggedTabId
                         TabItemView(
                             tab: tab,
                             isActive: isActive,
                             isHovered: isHovered,
+                            isDragging: isDragging,
                             tabWidth: tabWidth,
                             showGradient: isCompressed,
                             backgroundColor: tabBackgroundColor(
@@ -124,8 +131,31 @@ struct TabBarView: View {
                                 viewModel.isRenamingTab = false
                             }
                         )
+                        .offset(x: visualOffsetForTab(tab.id, slotWidth: slotWidth))
+                        .zIndex(isDragging ? 1 : 0)
+                        .opacity(isDragging ? 0.8 : 1.0)
+                        .animation(
+                            draggedTabId != nil ? .spring(response: 0.3, dampingFraction: 0.7) : nil,
+                            value: dragVisualOrder
+                        )
+                        .gesture(
+                            DragGesture(minimumDistance: 10, coordinateSpace: .named("tabContainer"))
+                                .onChanged { value in
+                                    guard tabManager.tabs.count > 1 else { return }
+                                    guard !viewModel.isRenamingTab else { return }
+                                    handleDragChanged(
+                                        tabId: tab.id,
+                                        translation: value.translation,
+                                        slotWidth: slotWidth
+                                    )
+                                }
+                                .onEnded { _ in
+                                    handleDragEnded()
+                                }
+                        )
                     }
                 }
+                .coordinateSpace(name: "tabContainer")
                 .frame(width: actualTabsWidth, alignment: .leading)
                 .clipped()
 
@@ -142,6 +172,10 @@ struct TabBarView: View {
                 }
                 .buttonStyle(.plain)
                 .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
+
+                // Empty space — allows window dragging from the tab bar gap
+                WindowDraggableArea()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(.horizontal, Layout.elementPadding)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
@@ -155,12 +189,72 @@ struct TabBarView: View {
             }
         }
     }
+
+    // MARK: - Drag Reorder
+
+    private func visualOffsetForTab(_ tabId: UUID, slotWidth: CGFloat) -> CGFloat {
+        guard draggedTabId != nil else { return 0 }
+        if tabId == draggedTabId {
+            return dragOffset
+        }
+        guard let originalIndex = tabManager.tabs.firstIndex(where: { $0.id == tabId }),
+              let visualIndex = dragVisualOrder.firstIndex(of: tabId) else { return 0 }
+        return CGFloat(visualIndex - originalIndex) * slotWidth
+    }
+
+    private func handleDragChanged(tabId: UUID, translation: CGSize, slotWidth: CGFloat) {
+        if draggedTabId == nil {
+            draggedTabId = tabId
+            dragVisualOrder = tabManager.tabs.map(\.id)
+            lastSwapOffset = 0
+            tabManager.selectTab(id: tabId)
+        }
+
+        dragOffset = translation.width
+
+        guard let currentVisualIndex = dragVisualOrder.firstIndex(of: tabId) else { return }
+        let relativeOffset = dragOffset - lastSwapOffset
+        let hysteresisBuffer = min(slotWidth * 0.15, 12)
+        let threshold = slotWidth * 0.5 + hysteresisBuffer
+
+        if currentVisualIndex < dragVisualOrder.count - 1, relativeOffset > threshold {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                dragVisualOrder.swapAt(currentVisualIndex, currentVisualIndex + 1)
+            }
+            lastSwapOffset += slotWidth
+        } else if currentVisualIndex > 0, relativeOffset < -threshold {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                dragVisualOrder.swapAt(currentVisualIndex, currentVisualIndex - 1)
+            }
+            lastSwapOffset -= slotWidth
+        }
+    }
+
+    private func handleDragEnded() {
+        guard let draggedId = draggedTabId,
+              let originalIndex = tabManager.tabs.firstIndex(where: { $0.id == draggedId }),
+              let finalIndex = dragVisualOrder.firstIndex(of: draggedId) else {
+            draggedTabId = nil
+            dragOffset = 0
+            dragVisualOrder = []
+            lastSwapOffset = 0
+            return
+        }
+        if originalIndex != finalIndex {
+            tabManager.moveTab(fromIndex: originalIndex, toIndex: finalIndex)
+        }
+        draggedTabId = nil
+        dragOffset = 0
+        dragVisualOrder = []
+        lastSwapOffset = 0
+    }
 }
 
 struct TabItemView: View {
     let tab: JSONTab
     let isActive: Bool
     let isHovered: Bool
+    let isDragging: Bool
     let tabWidth: CGFloat
     let showGradient: Bool
     let backgroundColor: Color
@@ -258,15 +352,17 @@ struct TabItemView: View {
     var body: some View {
         HStack(spacing: Layout.spacing) {
             textWithGradient
-            Image(systemName: "xmark")
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
-                .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
-                .contentShape(Rectangle())
-                .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
-                .onTapGesture {
-                    onClose()
-                }
+            if !isDragging {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundColor(isActive ? theme.primaryText : theme.secondaryText)
+                    .frame(width: Layout.closeButtonWidth, height: Layout.closeButtonWidth)
+                    .contentShape(Rectangle())
+                    .hoverHighlight(color: theme.toggleHoverBg, cornerRadius: 3)
+                    .onTapGesture {
+                        onClose()
+                    }
+            }
         }
         .padding(.horizontal, Layout.horizontalPadding)
         .padding(.vertical, 6)
@@ -296,12 +392,14 @@ struct TabItemView: View {
                 }
         )
         .contextMenu {
-            Button(String(localized: "tab.context.rename")) {
-                startEditing()
-            }
-            Divider()
-            Button(String(localized: "tab.context.close")) {
-                onClose()
+            if !isDragging {
+                Button(String(localized: "tab.context.rename")) {
+                    startEditing()
+                }
+                Divider()
+                Button(String(localized: "tab.context.close")) {
+                    onClose()
+                }
             }
         }
         .onHover { hovering in
@@ -343,6 +441,13 @@ struct TabItemView: View {
         isTextFieldFocused = false
         onFinishEditing()
     }
+}
+
+/// SwiftUI wrapper for WindowDraggableNSView — placed in empty tab bar space
+/// so users can drag the window from there.
+private struct WindowDraggableArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> WindowDraggableNSView { WindowDraggableNSView() }
+    func updateNSView(_ nsView: WindowDraggableNSView, context: Context) {}
 }
 
 #Preview {

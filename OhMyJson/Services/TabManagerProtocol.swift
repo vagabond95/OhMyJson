@@ -10,8 +10,8 @@ protocol TabManagerProtocol: AnyObject {
     var tabs: [JSONTab] { get }
     var activeTabId: UUID? { get set }
     var activeTab: JSONTab? { get }
-    var maxTabs: Int { get }
-    var warningThreshold: Int { get }
+    var maxTabs: Int { get set }
+    var warningThreshold: Int { get set }
 
     @discardableResult
     func createTab(with json: String?) -> UUID
@@ -23,6 +23,12 @@ protocol TabManagerProtocol: AnyObject {
     func getOldestTab() -> UUID?
     func canCreateTab() -> Bool
     func getTabIndex(id: UUID) -> Int
+
+    /// Restore tabs from persistent storage. Call once at startup before ViewModel creation.
+    func restoreSession()
+
+    /// Cancel pending debounce and synchronously persist the current tab state.
+    func flush()
 
     func updateTabInput(id: UUID, text: String)
     func updateTabFullInput(id: UUID, fullText: String?)
@@ -37,4 +43,5 @@ protocol TabManagerProtocol: AnyObject {
     func updateTabTreeHorizontalScroll(id: UUID, offset: CGFloat)
     func updateTabSearchDismissState(id: UUID, beautifyDismissed: Bool, treeDismissed: Bool)
     func updateTabTitle(id: UUID, customTitle: String?)
+    func moveTab(fromIndex: Int, toIndex: Int)
 }
