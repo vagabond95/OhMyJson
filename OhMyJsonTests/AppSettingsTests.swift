@@ -338,13 +338,13 @@ struct AppSettingsDefaultsTests {
 
     // MARK: - Auto Check for Updates Tests
 
-    @Test("autoCheckForUpdates defaults to false")
+    @Test("autoCheckForUpdates defaults to true")
     func autoCheckForUpdatesDefault() {
         let settings = AppSettings.shared
-        // After init or resetToDefaults, autoCheckForUpdates should be false
+        // After init or resetToDefaults, autoCheckForUpdates should be true
         let saved = settings.autoCheckForUpdates
         settings.resetToDefaults()
-        #expect(settings.autoCheckForUpdates == false)
+        #expect(settings.autoCheckForUpdates == true)
         settings.autoCheckForUpdates = saved
     }
 
@@ -353,11 +353,11 @@ struct AppSettingsDefaultsTests {
         let settings = AppSettings.shared
         let saved = settings.autoCheckForUpdates
 
-        settings.autoCheckForUpdates = true
-        #expect(settings.autoCheckForUpdates == true)
+        settings.autoCheckForUpdates = false
+        #expect(settings.autoCheckForUpdates == false)
 
         settings.resetToDefaults()
-        #expect(settings.autoCheckForUpdates == false)
+        #expect(settings.autoCheckForUpdates == true)
 
         settings.autoCheckForUpdates = saved
     }
@@ -367,7 +367,7 @@ struct AppSettingsDefaultsTests {
         let settings = AppSettings.shared
         let saved = settings.autoCheckForUpdates
 
-        settings.autoCheckForUpdates = false
+        settings.autoCheckForUpdates = true
 
         var didChange = false
         withObservationTracking {
@@ -376,7 +376,7 @@ struct AppSettingsDefaultsTests {
             didChange = true
         }
 
-        settings.autoCheckForUpdates = true
+        settings.autoCheckForUpdates = false
         #expect(didChange == true, "Changing autoCheckForUpdates must trigger observation")
 
         settings.autoCheckForUpdates = saved

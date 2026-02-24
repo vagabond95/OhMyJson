@@ -333,7 +333,8 @@ class AppSettings {
         let savedRatio = UserDefaults.standard.double(forKey: dividerRatioKey)
         self.dividerRatio = (savedRatio > 0 && savedRatio < 1) ? CGFloat(savedRatio) : 0.35
 
-        // Load Auto Check for Updates (default: false)
+        // Load Auto Check for Updates (default: true)
+        UserDefaults.standard.register(defaults: [autoCheckForUpdatesKey: true])
         self.autoCheckForUpdates = UserDefaults.standard.bool(forKey: autoCheckForUpdatesKey)
 
         // Load Ignore Escape Sequences (default: false)
@@ -381,7 +382,7 @@ class AppSettings {
         launchAtLogin = false
         themeMode = .dark
         defaultViewMode = .beautify
-        autoCheckForUpdates = false
+        autoCheckForUpdates = true
         ignoreEscapeSequences = false
     }
 }
