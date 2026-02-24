@@ -45,7 +45,7 @@ struct TabBarView: View {
 
     private func calculatedTabWidth(tabCount: Int, availableWidth: CGFloat) -> CGFloat {
         guard tabCount > 0 else { return Layout.fixedTabWidth }
-        let totalSpacing = CGFloat(tabCount - 1) * Layout.tabSpacing
+        let totalSpacing = CGFloat(tabCount) * Layout.tabSpacing
         let requiredWidth = CGFloat(tabCount) * Layout.fixedTabWidth + totalSpacing
         if requiredWidth > availableWidth {
             return max((availableWidth - totalSpacing) / CGFloat(tabCount), 0)
@@ -70,133 +70,150 @@ struct TabBarView: View {
             let isCompressed = tabWidth < Layout.fixedTabWidth
 
             let actualTabsWidth = min(
-                        CGFloat(tabManager.tabs.count) * tabWidth + CGFloat(max(0, tabManager.tabs.count - 1)) * Layout.tabSpacing,
-                        maxTabWidth
-                    )
+                CGFloat(tabManager.tabs.count) * slotWidth,
+                maxTabWidth
+            )
 
-            HStack(spacing: 0) {
-                // Left edge padding (draggable)
+            VStack(spacing: 0) {
+                // Top margin strip (draggable)
                 WindowDraggableArea()
-                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 5)
 
-                // Traffic light area
-                Color.clear
-                    .frame(width: Layout.trafficLightWidth, height: Layout.buttonHeight)
+                HStack(spacing: 0) {
+                    // Left edge padding (draggable)
+                    WindowDraggableArea()
+                        .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
 
-                // Draggable gap between traffic light and theme button
-                WindowDraggableArea()
-                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+                    // Traffic light area
+                    Color.clear
+                        .frame(width: Layout.trafficLightWidth, height: Layout.buttonHeight)
 
-                // Theme toggle button
-                Button(action: {
-                    settings.toggleTheme()
-                }) {
-                    Image(systemName: themeIconName)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(theme.secondaryText)
-                        .frame(width: Layout.themeButtonWidth, height: Layout.buttonHeight)
-                        .contentShape(Rectangle())
-                        .hoverHighlight(color: theme.toggleHoverBg)
-                }
-                .buttonStyle(.plain)
-                .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
+                    // Draggable gap between traffic light and theme button
+                    WindowDraggableArea()
+                        .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
 
-                // Draggable gap between theme button and tabs
-                WindowDraggableArea()
-                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
-
-                // Tab container (weight(1f) equivalent)
-                HStack(spacing: Layout.tabSpacing) {
-                    ForEach(tabManager.tabs) { tab in
-                        let isActive = tab.id == tabManager.activeTabId
-                        let isHovered = tab.id == hoveredTabId
-                        let isDragging = tab.id == draggedTabId
-                        TabItemView(
-                            tab: tab,
-                            isActive: isActive,
-                            isHovered: isHovered,
-                            isDragging: isDragging,
-                            tabWidth: tabWidth,
-                            showGradient: isCompressed,
-                            backgroundColor: tabBackgroundColor(
-                                isActive: isActive,
-                                isHovered: isHovered
-                            ),
-                            commitSignal: viewModel.tabRenameCommitSignal,
-                            onSelect: {
-                                tabManager.selectTab(id: tab.id)
-                            },
-                            onClose: {
-                                viewModel.closeTab(id: tab.id)
-                            },
-                            onHover: { isHovering in
-                                hoveredTabId = isHovering ? tab.id : nil
-                            },
-                            onRename: { newTitle in
-                                tabManager.updateTabTitle(id: tab.id, customTitle: newTitle)
-                            },
-                            onStartEditing: {
-                                viewModel.isRenamingTab = true
-                            },
-                            onFinishEditing: {
-                                viewModel.isRenamingTab = false
-                            }
-                        )
-                        .offset(x: visualOffsetForTab(tab.id, slotWidth: slotWidth))
-                        .zIndex(isDragging ? 1 : 0)
-                        .opacity(isDragging ? 0.8 : 1.0)
-                        .animation(
-                            draggedTabId != nil ? .spring(response: 0.3, dampingFraction: 0.7) : nil,
-                            value: dragVisualOrder
-                        )
-                        .gesture(
-                            DragGesture(minimumDistance: 10, coordinateSpace: .named("tabContainer"))
-                                .onChanged { value in
-                                    guard tabManager.tabs.count > 1 else { return }
-                                    guard !viewModel.isRenamingTab else { return }
-                                    handleDragChanged(
-                                        tabId: tab.id,
-                                        translation: value.translation,
-                                        slotWidth: slotWidth
-                                    )
-                                }
-                                .onEnded { _ in
-                                    handleDragEnded()
-                                }
-                        )
+                    // Theme toggle button
+                    Button(action: {
+                        settings.toggleTheme()
+                    }) {
+                        Image(systemName: themeIconName)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(theme.secondaryText)
+                            .frame(width: Layout.themeButtonWidth, height: Layout.buttonHeight)
+                            .contentShape(Rectangle())
+                            .hoverHighlight(color: theme.toggleHoverBg)
                     }
+                    .buttonStyle(.plain)
+                    .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
+
+                    // Draggable gap between theme button and tabs
+                    WindowDraggableArea()
+                        .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+
+                    // Tab container (weight(1f) equivalent)
+                    HStack(spacing: 0) {
+                        ForEach(tabManager.tabs) { tab in
+                            let isActive = tab.id == tabManager.activeTabId
+                            let isHovered = tab.id == hoveredTabId
+                            let isDragging = tab.id == draggedTabId
+                            HStack(spacing: 0) {
+                                TabItemView(
+                                    tab: tab,
+                                    isActive: isActive,
+                                    isHovered: isHovered,
+                                    isDragging: isDragging,
+                                    tabWidth: tabWidth,
+                                    showGradient: isCompressed,
+                                    backgroundColor: tabBackgroundColor(
+                                        isActive: isActive,
+                                        isHovered: isHovered
+                                    ),
+                                    commitSignal: viewModel.tabRenameCommitSignal,
+                                    onSelect: {
+                                        tabManager.selectTab(id: tab.id)
+                                    },
+                                    onClose: {
+                                        viewModel.closeTab(id: tab.id)
+                                    },
+                                    onHover: { isHovering in
+                                        hoveredTabId = isHovering ? tab.id : nil
+                                    },
+                                    onRename: { newTitle in
+                                        tabManager.updateTabTitle(id: tab.id, customTitle: newTitle)
+                                    },
+                                    onStartEditing: {
+                                        viewModel.isRenamingTab = true
+                                    },
+                                    onFinishEditing: {
+                                        viewModel.isRenamingTab = false
+                                    }
+                                )
+                                WindowDraggableArea()
+                                    .frame(width: Layout.tabSpacing, height: Layout.buttonHeight)
+                            }
+                            .offset(x: visualOffsetForTab(tab.id, slotWidth: slotWidth))
+                            .zIndex(isDragging ? 1 : 0)
+                            .opacity(isDragging ? 0.8 : 1.0)
+                            .animation(
+                                draggedTabId != nil ? .spring(response: 0.3, dampingFraction: 0.7) : nil,
+                                value: dragVisualOrder
+                            )
+                            .gesture(
+                                DragGesture(minimumDistance: 10, coordinateSpace: .named("tabContainer"))
+                                    .onChanged { value in
+                                        guard tabManager.tabs.count > 1 else { return }
+                                        guard !viewModel.isRenamingTab else { return }
+                                        handleDragChanged(
+                                            tabId: tab.id,
+                                            translation: value.translation,
+                                            slotWidth: slotWidth
+                                        )
+                                    }
+                                    .onEnded { _ in
+                                        handleDragEnded()
+                                    }
+                            )
+                        }
+                    }
+                    .coordinateSpace(name: "tabContainer")
+                    .frame(width: actualTabsWidth, alignment: .leading)
+                    .clipped()
+
+                    // Draggable gap between tabs and add button
+                    WindowDraggableArea()
+                        .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+
+                    // Add Tab Button
+                    Button {
+                        tabManager.createTab(with: nil)
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(theme.secondaryText)
+                            .frame(width: Layout.addTabButtonWidth, height: Layout.buttonHeight)
+                            .contentShape(Rectangle())
+                            .hoverHighlight(color: theme.toggleHoverBg)
+                    }
+                    .buttonStyle(.plain)
+                    .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
+
+                    // Draggable gap between add button and remaining space
+                    WindowDraggableArea()
+                        .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
+
+                    // Remaining space — allows window dragging from the tab bar gap
+                    WindowDraggableArea()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: Layout.buttonHeight)
                 }
-                .coordinateSpace(name: "tabContainer")
-                .frame(width: actualTabsWidth, alignment: .leading)
-                .clipped()
 
-                // Draggable gap between tabs and add button
+                // Bottom margin strip (draggable)
                 WindowDraggableArea()
-                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
-
-                // Add Tab Button
-                Button {
-                    tabManager.createTab(with: nil)
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(theme.secondaryText)
-                        .frame(width: Layout.addTabButtonWidth, height: Layout.buttonHeight)
-                        .contentShape(Rectangle())
-                        .hoverHighlight(color: theme.toggleHoverBg)
-                }
-                .buttonStyle(.plain)
-                .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
-
-                // Draggable gap between add button and remaining space
-                WindowDraggableArea()
-                    .frame(width: Layout.elementPadding, height: Layout.buttonHeight)
-
-                // Remaining space — allows window dragging from the tab bar gap
-                WindowDraggableArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 5)
             }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         .frame(height: 40)
         .background(theme.tabBarBackground)
