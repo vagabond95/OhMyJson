@@ -6,165 +6,183 @@
 import SwiftUI
 
 struct OnboardingView: View {
+    let jsonPreview: String
+    let onCopyJson: () -> Void
     let onGetStarted: () -> Void
-    let onCopySampleJson: () -> Void
 
-    @State private var showToast = false
     @State private var showKeycap = false
     @State private var isHoveringCopy = false
     @State private var isHoveringKeycap = false
-    @State private var isPulsing = false
 
     // Dark metal palette
     private let baseColor = Color(hex: "1A1A1A")
     private let keycapBg = Color(hex: "2A2A2A")
+    private let codeBg = Color(hex: "111111")
     private let textPrimary = Color(hex: "E4E3E0")
     private let textSecondary = Color(hex: "9E9D9B")
-    private let accentColor = Color(hex: "4A4A4A")
+    private let buttonBg = Color(hex: "1E1E1E")
+    private let pulseColor = Color(hex: "8AB4F8") // soft blue glow
 
     var body: some View {
-        ZStack {
-            VStack(spacing: 20) {
-                // Copy json
-                Button(action: {
-                    onCopySampleJson()
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showToast = true
-                    }
-                    withAnimation(.easeOut(duration: 0.4).delay(0.3)) {
-                        showKeycap = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showToast = false
-                        }
-                    }
-                }) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "doc.on.clipboard")
-                            .font(.system(size: 30, weight: .light))
-                            .foregroundColor(showKeycap ? textPrimary : .white)
-                        Text("onboarding.copy_json")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(showKeycap ? textPrimary : .white)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 12)
-                    .background(styledBackground(accent: !showKeycap))
-                }
-                .buttonStyle(.plain)
-                .disabled(showKeycap)
-                .scaleEffect(!showKeycap && isHoveringCopy ? 1.05 : 1.0)
-                .brightness(!showKeycap && isHoveringCopy ? 0.08 : 0)
-                .opacity(showKeycap ? 0.4 : 1.0)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.clear)
-                        .shadow(color: Color.white.opacity(isPulsing && !showKeycap ? 0.3 : 0), radius: isPulsing && !showKeycap ? 8 : 0)
-                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
-                )
-                .onHover { hovering in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        isHoveringCopy = hovering
-                    }
-                }
-                .onAppear {
-                    isPulsing = true
-                }
+        VStack(spacing: 0) {
+            Spacer()
 
-                if showKeycap {
-                    arrowDown()
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-
-                    // Hotkey
-                    Button(action: onGetStarted) {
-                        keycapRow().background(styledBackground(accent: true))
-                    }
-                    .buttonStyle(.plain)
-                    .scaleEffect(isHoveringKeycap ? 1.05 : 1.0)
-                    .brightness(isHoveringKeycap ? 0.08 : 0)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.clear)
-                            .shadow(color: Color.white.opacity(isPulsing ? 0.3 : 0.1), radius: isPulsing ? 8 : 4)
-                            .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
-                    )
-                    .onHover { hovering in
-                        withAnimation(.easeOut(duration: 0.15)) {
-                            isHoveringKeycap = hovering
-                        }
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+            if showKeycap {
+                // MARK: - Step 2: Hotkey Guide
+                step2HotkeyGuide()
+                    .transition(.opacity)
+            } else {
+                // MARK: - Step 1: JSON Preview + Copy
+                step1JsonPreview()
+                    .transition(.opacity)
             }
-            .frame(width: 250, height: 250)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(baseColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(
-                                RadialGradient(
-                                    colors: [
-                                        Color.white.opacity(0.03), Color.clear,
-                                    ],
-                                    center: .top,
-                                    startRadius: 0,
-                                    endRadius: 350
-                                )
-                            )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.12),
-                                        Color.white.opacity(0.04),
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
 
-            // Toast overlay
-            if showToast {
-                VStack {
-                    Spacer()
-                    Text("toast.json_copied")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(textPrimary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(keycapBg)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                                )
-                                .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
-                        )
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                }
-                .padding(.bottom, -24)
-                .allowsHitTesting(false)
-            }
+            Spacer()
         }
-        .frame(width: 250, height: 250)
+        .frame(width: 280, height: 260)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(baseColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.white.opacity(0.03), Color.clear,
+                                ],
+                                center: .top,
+                                startRadius: 0,
+                                endRadius: 350
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.12),
+                                    Color.white.opacity(0.04),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(.dark)
     }
 
+    // MARK: - Step 1: JSON Preview + Copy Button
+
+    private func step1JsonPreview() -> some View {
+        PhaseAnimator([false, true], trigger: showKeycap) { phase in
+            let pulsing = phase && !isHoveringCopy
+
+            VStack(spacing: 30) {
+                // JSON code block
+                Text(jsonPreview)
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundColor(textPrimary)
+                    .lineSpacing(2)
+                    .padding(36)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(codeBg)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 20)
+
+                // Copy JSON button
+                Button {
+                    onCopyJson()
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showKeycap = true
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("onboarding.copy_json")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundColor(textPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(styledBackground(accent: true))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .scaleEffect(isHoveringCopy ? 1.08 : (pulsing ? 1.07 : 1.0))
+                .brightness(isHoveringCopy ? 0.1 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.clear)
+                        .shadow(color: pulseColor.opacity(pulsing ? 0.55 : 0.08), radius: pulsing ? 16 : 3)
+                )
+                .animation(.easeOut(duration: 0.15), value: isHoveringCopy)
+                .onHover { hovering in
+                    isHoveringCopy = hovering
+                }
+            }
+        } animation: { _ in
+            .easeInOut(duration: 1.2)
+        }
+    }
+
+    // MARK: - Step 2: Hotkey Guide
+
+    private func step2HotkeyGuide() -> some View {
+        PhaseAnimator([false, true]) { phase in
+            let pulsing = phase && !isHoveringKeycap
+
+            VStack(spacing: 14) {
+                // "Now press:"
+                Text("onboarding.now_press")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(textSecondary)
+
+                // Keycap row — clickable as fallback
+                Button(action: onGetStarted) {
+                    keycapRow()
+                        .background(styledBackground(accent: true))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .scaleEffect(isHoveringKeycap ? 1.08 : (pulsing ? 1.07 : 1.0))
+                .brightness(isHoveringKeycap ? 0.1 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.clear)
+                        .shadow(color: pulseColor.opacity(pulsing ? 0.55 : 0.08), radius: pulsing ? 16 : 3)
+                )
+                .animation(.easeOut(duration: 0.15), value: isHoveringKeycap)
+                .onHover { hovering in
+                    isHoveringKeycap = hovering
+                }
+
+                // "to view formatted JSON"
+                Text("onboarding.to_view")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(textSecondary)
+            }
+        } animation: { _ in
+            .easeInOut(duration: 1.2)
+        }
+    }
+
+    // MARK: - Styled Background
+
     private func styledBackground(accent: Bool) -> some View {
-        let fillColor = accent ? accentColor : keycapBg
-        let gradientOpacity = accent ? 0.20 : 0.10
-        let strokeOpacity = accent ? 0.20 : 0.15
-        let shadowColor = accent ? Color.white.opacity(0.15) : Color.black.opacity(0.4)
+        let fillColor = accent ? buttonBg : keycapBg
+        let strokeColor = accent ? pulseColor.opacity(0.25) : Color.white.opacity(0.15)
 
         return RoundedRectangle(cornerRadius: 10)
             .fill(fillColor)
@@ -173,7 +191,7 @@ struct OnboardingView: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(gradientOpacity),
+                                Color.white.opacity(0.08),
                                 Color.clear,
                             ],
                             startPoint: .top,
@@ -183,24 +201,13 @@ struct OnboardingView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(
-                        Color.white.opacity(strokeOpacity),
-                        lineWidth: 1
-                    )
+                    .stroke(strokeColor, lineWidth: 1)
             )
             .shadow(
-                color: shadowColor,
-                radius: accent ? 4 : 3,
+                color: Color.black.opacity(0.4),
+                radius: 3,
                 y: 2
             )
-    }
-
-    // MARK: - Arrow Down
-
-    private func arrowDown() -> some View {
-        Image(systemName: "arrow.down")
-            .font(.system(size: 20, weight: .medium))
-            .foregroundColor(textSecondary.opacity(0.6))
     }
 
     // MARK: - Keycap Row
@@ -224,9 +231,9 @@ struct OnboardingView: View {
 }
 
 #Preview {
-    OnboardingView(onGetStarted: {
-        print("Get Started tapped")
-    }, onCopySampleJson: {
-        print("Copy Sample JSON tapped")
-    })
+    OnboardingView(
+        jsonPreview: SampleData.onboardingJson,
+        onCopyJson: { print("Copy JSON") },
+        onGetStarted: { print("Get Started") }
+    )
 }

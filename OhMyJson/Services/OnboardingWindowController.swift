@@ -7,9 +7,12 @@
 import AppKit
 import SwiftUI
 
+private class KeyableWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+}
+
 class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControllerProtocol {
     private var window: NSWindow?
-    private var keyMonitor: Any?
     var onDismiss: (() -> Void)?
 
     var isShowing: Bool {
@@ -17,9 +20,6 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
     }
 
     deinit {
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
         window?.delegate = nil
     }
 
@@ -27,24 +27,34 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
         showHotkeyPhase()
     }
 
+    func dismiss() {
+        dismissWithFade()
+    }
+
     // MARK: - Hotkey Phase
 
     private func showHotkeyPhase() {
+        let jsonText = SampleData.onboardingJson
+
         let onboardingView = OnboardingView(
+            jsonPreview: jsonText,
+            onCopyJson: {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(jsonText, forType: .string)
+            },
             onGetStarted: { [weak self] in
                 self?.dismissWithFade()
-            },
-            onCopySampleJson: {}
+            }
         )
         let hostingView = NSHostingView(rootView: onboardingView)
         createWindow(with: hostingView)
-        installKeyMonitor()
     }
 
     // MARK: - Window Management
 
     private func createWindow(with contentView: NSView) {
-        let window = NSWindow(
+        let window = KeyableWindow(
             contentRect: NSRect(x: 0, y: 0, width: WindowSize.onboardingWidth, height: WindowSize.onboardingHeight),
             styleMask: [.borderless],
             backing: .buffered,
@@ -68,29 +78,8 @@ class OnboardingWindowController: NSObject, NSWindowDelegate, OnboardingControll
         NSApp.activate()
     }
 
-    private func installKeyMonitor() {
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
-        }
-
-        let defaultCombo = HotKeyCombo.defaultOpen
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.modifierFlags.contains(defaultCombo.nsEventModifierFlags) && event.keyCode == UInt16(defaultCombo.keyCode) {
-                self?.dismissWithFade()
-                return nil
-            }
-            return event
-        }
-    }
-
     private func dismissWithFade() {
         guard let window = window else { return }
-
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
-        }
 
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.3

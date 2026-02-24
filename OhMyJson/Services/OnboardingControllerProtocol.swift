@@ -8,5 +8,6 @@ protocol OnboardingControllerProtocol: AnyObject {
     var isShowing: Bool { get }
     var onDismiss: (() -> Void)? { get set }
     func show()
+    func dismiss()
 }
 #endif

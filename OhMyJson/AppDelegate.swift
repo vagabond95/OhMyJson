@@ -359,7 +359,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         let combo = AppSettings.shared.openHotKeyCombo
 
         HotKeyManager.shared.start(combo: combo) { [weak self] in
-            self?.viewModel.handleHotKey()
+            guard let self else { return }
+            if let controller = self.onboardingController, controller.isShowing {
+                controller.dismiss()
+            } else {
+                self.viewModel.handleHotKey()
+            }
         }
     }
 
@@ -400,6 +405,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
 
     /// Called by ViewModel when it needs the window to be shown
     private func ensureWindowShown() {
+        guard onboardingController?.isShowing != true else { return }
         guard !WindowManager.shared.isViewerOpen else { return }
 
         let contentView = ViewerWindow()
@@ -412,8 +418,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     // MARK: - Onboarding
 
     private func showOnboarding() {
-        HotKeyManager.shared.isEnabled = false
-
         let controller = OnboardingWindowController()
         controller.onDismiss = { [weak self] in
             self?.completeOnboarding()
@@ -424,9 +428,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
 
     private func completeOnboarding() {
         AppSettings.shared.hasSeenOnboarding = true
-        HotKeyManager.shared.isEnabled = true
         onboardingController = nil
-        setupHotKey()
         openWindowWithNewTab(json: SampleData.json)
 
         // Trigger confetti in ViewerWindow after a short delay for window to appear

@@ -11,10 +11,17 @@ final class MockOnboardingController: OnboardingControllerProtocol {
     var onDismiss: (() -> Void)?
 
     var showCallCount = 0
+    var dismissCallCount = 0
 
     func show() {
         showCallCount += 1
         isShowing = true
+    }
+
+    func dismiss() {
+        dismissCallCount += 1
+        isShowing = false
+        onDismiss?()
     }
 }
 #endif
