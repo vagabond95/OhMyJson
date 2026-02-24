@@ -376,14 +376,33 @@ struct TabPersistenceServiceTests {
         #expect(content2?.fullInputText == "updated2")
     }
 
-    // MARK: - databaseSize
+    // MARK: - databaseSize (PRAGMA-based)
 
-    @Test("databaseSize does not throw for in-memory database")
+    @Test("databaseSize returns non-nil for in-memory database via PRAGMA")
     func testDatabaseSizeInMemory() throws {
         let service = try makeService()
-        // databaseSize() reads from the disk path regardless of in-memory mode.
-        // It may return nil (no file) or a file size if one exists on disk.
-        // The important thing is it doesn't throw.
-        let _ = service.databaseSize()
+        let size = service.databaseSize()
+        #expect(size != nil, "PRAGMA-based databaseSize should work on in-memory DB")
+        #expect(size! > 0, "Even an empty schema should occupy some pages")
+    }
+
+    @Test("databaseSize decreases after deleteAllTabs (PRAGMA freelist)")
+    func testDatabaseSizeDecreasesAfterDelete() throws {
+        let service = try makeService()
+
+        // Insert tabs with content to grow the database
+        let tabs = (1...5).map { i in makeTab(title: "Tab \(i)", inputText: "text") }
+        service.saveAll(tabs: tabs, activeTabId: tabs[0].id)
+        for tab in tabs {
+            service.saveTabContent(id: tab.id, fullText: String(repeating: "x", count: 50_000))
+        }
+
+        let sizeBefore = service.databaseSize()!
+        #expect(sizeBefore > 0)
+
+        service.deleteAllTabs()
+
+        let sizeAfter = service.databaseSize()!
+        #expect(sizeAfter < sizeBefore, "PRAGMA-based size should decrease after DELETE (freed pages excluded)")
     }
 }

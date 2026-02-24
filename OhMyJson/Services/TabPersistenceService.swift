@@ -210,9 +210,13 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
     }
 
     func databaseSize() -> Int64? {
-        guard let url = try? databaseURL() else { return nil }
-        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
-        return attrs?[.size] as? Int64
+        guard let db else { return nil }
+        return try? db.read { db in
+            let pageCount = try Int64.fetchOne(db, sql: "PRAGMA page_count") ?? 0
+            let freeCount = try Int64.fetchOne(db, sql: "PRAGMA freelist_count") ?? 0
+            let pageSize = try Int64.fetchOne(db, sql: "PRAGMA page_size") ?? 0
+            return (pageCount - freeCount) * pageSize
+        }
     }
 
     func saveAllWithContent(tabs: [JSONTab], activeTabId: UUID?, contentId: UUID, fullText: String?) {
