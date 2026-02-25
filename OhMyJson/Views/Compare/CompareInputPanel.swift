@@ -29,7 +29,9 @@ struct CompareInputPanel: View {
                 onTextChange: viewModel.handleCompareLeftTextChange,
                 onClear: viewModel.clearCompareLeft,
                 parseResult: viewModel.compareLeftParseResult,
-                isLargeJSON: viewModel.compareLeftText.utf8.count > InputSize.displayThreshold
+                isLargeJSON: viewModel.compareLeftText.utf8.count > InputSize.displayThreshold,
+                tabGeneration: viewModel.compareLeftGeneration,
+                isRestoringTabState: viewModel.isRestoringTabState
             )
 
             // Vertical divider
@@ -45,7 +47,9 @@ struct CompareInputPanel: View {
                 onTextChange: viewModel.handleCompareRightTextChange,
                 onClear: viewModel.clearCompareRight,
                 parseResult: viewModel.compareRightParseResult,
-                isLargeJSON: viewModel.compareRightText.utf8.count > InputSize.displayThreshold
+                isLargeJSON: viewModel.compareRightText.utf8.count > InputSize.displayThreshold,
+                tabGeneration: viewModel.compareRightGeneration,
+                isRestoringTabState: viewModel.isRestoringTabState
             )
         }
     }
@@ -58,7 +62,9 @@ struct CompareInputPanel: View {
         onTextChange: @escaping (String) -> Void,
         onClear: @escaping () -> Void,
         parseResult: JSONParseResult?,
-        isLargeJSON: Bool
+        isLargeJSON: Bool,
+        tabGeneration: Int,
+        isRestoringTabState: Bool
     ) -> some View {
         VStack(spacing: 0) {
             // Header
@@ -96,7 +102,9 @@ struct CompareInputPanel: View {
                     font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
                     onTextChange: onTextChange,
                     scrollPosition: scrollPosition,
-                    isEditable: !isLargeJSON
+                    isRestoringTabState: isRestoringTabState,
+                    isEditable: !isLargeJSON,
+                    tabGeneration: tabGeneration
                 )
 
                 // Placeholder

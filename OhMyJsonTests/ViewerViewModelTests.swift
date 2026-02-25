@@ -2553,6 +2553,15 @@ struct ViewerViewModelCompareTests {
         #expect(vm.compareLeftParseResult == nil)
     }
 
+    @Test("clearCompareLeft increments compareLeftGeneration")
+    func clearCompareLeftIncrementsGeneration() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        let before = vm.compareLeftGeneration
+        vm.compareLeftText = "{\"test\": 1}"
+        vm.clearCompareLeft()
+        #expect(vm.compareLeftGeneration == before + 1)
+    }
+
     @Test("clearCompareRight clears right text and parse result")
     func clearCompareRight() {
         let (vm, _, _, _, _, _) = makeSUT()
@@ -2560,6 +2569,15 @@ struct ViewerViewModelCompareTests {
         vm.clearCompareRight()
         #expect(vm.compareRightText == "")
         #expect(vm.compareRightParseResult == nil)
+    }
+
+    @Test("clearCompareRight increments compareRightGeneration")
+    func clearCompareRightIncrementsGeneration() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        let before = vm.compareRightGeneration
+        vm.compareRightText = "{\"test\": 1}"
+        vm.clearCompareRight()
+        #expect(vm.compareRightGeneration == before + 1)
     }
 
     @Test("updateCompareOption toggles ignoreKeyOrder")
@@ -2725,6 +2743,47 @@ struct ViewerViewModelCompareTests {
         vm.navigateToNextDiff()
 
         #expect(vm.currentDiffIndex == 0)
+    }
+
+    @Test("restoreTabState increments both compare generations")
+    func restoreTabStateIncrementsCompareGenerations() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        let leftBefore = vm.compareLeftGeneration
+        let rightBefore = vm.compareRightGeneration
+
+        vm.restoreTabState()
+
+        #expect(vm.compareLeftGeneration == leftBefore + 1)
+        #expect(vm.compareRightGeneration == rightBefore + 1)
+    }
+
+    @Test("handleHotKeyInCompareMode increments left generation when left is empty")
+    func handleHotKeyInCompareModeLeftGeneration() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.compareLeftText = ""
+        vm.compareRightText = ""
+        let leftBefore = vm.compareLeftGeneration
+        let rightBefore = vm.compareRightGeneration
+
+        vm.handleHotKeyInCompareMode("{\"a\": 1}")
+
+        #expect(vm.compareLeftGeneration == leftBefore + 1)
+        #expect(vm.compareRightGeneration == rightBefore)
+    }
+
+    @Test("handleHotKeyInCompareMode increments right generation when left is filled")
+    func handleHotKeyInCompareModeRightGeneration() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.compareLeftText = "{\"a\": 1}"
+        vm.compareRightText = ""
+        let leftBefore = vm.compareLeftGeneration
+        let rightBefore = vm.compareRightGeneration
+
+        vm.handleHotKeyInCompareMode("{\"b\": 2}")
+
+        #expect(vm.compareLeftGeneration == leftBefore)
+        #expect(vm.compareRightGeneration == rightBefore + 1)
     }
 }
 #endif

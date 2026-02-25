@@ -183,6 +183,8 @@ class ViewerViewModel {
     /// Monotonically increasing counter, incremented on tab creation/switch.
     /// Used by textDidChange to detect stale async callbacks.
     @ObservationIgnored private(set) var tabGeneration: Int = 0
+    @ObservationIgnored private(set) var compareLeftGeneration: Int = 0
+    @ObservationIgnored private(set) var compareRightGeneration: Int = 0
 
     @ObservationIgnored private var restoreTask: DispatchWorkItem?
     @ObservationIgnored private var hasRestoredCurrentTab: Bool = false
@@ -793,6 +795,8 @@ class ViewerViewModel {
     func restoreTabState() {
         isRestoringTabState = true
         tabGeneration += 1
+        compareLeftGeneration += 1
+        compareRightGeneration += 1
 
         guard let initialActiveTab = tabManager.activeTab else {
             isParsing = false
@@ -1093,6 +1097,7 @@ class ViewerViewModel {
     }
 
     func clearCompareLeft() {
+        compareLeftGeneration += 1
         compareLeftText = ""
         compareLeftParseResult = nil
         compareDiffResult = nil
@@ -1105,6 +1110,7 @@ class ViewerViewModel {
     }
 
     func clearCompareRight() {
+        compareRightGeneration += 1
         compareRightText = ""
         compareRightParseResult = nil
         compareDiffResult = nil
@@ -1242,9 +1248,11 @@ class ViewerViewModel {
 
     func handleHotKeyInCompareMode(_ clipboardText: String) {
         if compareLeftText.isEmpty {
+            compareLeftGeneration += 1
             compareLeftText = clipboardText
             handleCompareLeftTextChange(clipboardText)
         } else if compareRightText.isEmpty {
+            compareRightGeneration += 1
             compareRightText = clipboardText
             handleCompareRightTextChange(clipboardText)
         } else {
