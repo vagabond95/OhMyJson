@@ -80,43 +80,32 @@ struct CompareResultHeader: View {
                 ProgressView()
                     .controlSize(.small)
                     .padding(.horizontal, 4)
-            } else if let result = viewModel.compareDiffResult {
-                if result.isIdentical {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 12))
-                        Text("No differences")
-                            .font(.system(size: 11))
-                            .foregroundColor(theme.secondaryText)
-                    }
-                } else {
-                    diffBadge(count: result.addedCount, label: "added", color: theme.diffAddedGutter)
-                    diffBadge(count: result.removedCount, label: "removed", color: theme.diffRemovedGutter)
-                    diffBadge(count: result.modifiedCount, label: "modified", color: theme.diffModifiedGutter)
+            } else if let result = viewModel.compareDiffResult, !result.isIdentical {
+                diffBadge(count: result.addedCount, label: "added", color: theme.diffAddedGutter)
+                diffBadge(count: result.removedCount, label: "removed", color: theme.diffRemovedGutter)
+                diffBadge(count: result.modifiedCount, label: "modified", color: theme.diffModifiedGutter)
 
-                    // Navigation buttons
-                    HStack(spacing: 2) {
-                        Button(action: viewModel.navigateToPreviousDiff) {
-                            Image(systemName: "chevron.up")
-                                .font(.system(size: 10, weight: .medium))
-                                .frame(width: 20, height: 20)
-                                .contentShape(Rectangle())
-                                .toolbarIconHover()
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(viewModel.totalDiffCount == 0)
-
-                        Button(action: viewModel.navigateToNextDiff) {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .frame(width: 20, height: 20)
-                                .contentShape(Rectangle())
-                                .toolbarIconHover()
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(viewModel.totalDiffCount == 0)
+                // Navigation buttons
+                HStack(spacing: 2) {
+                    Button(action: viewModel.navigateToPreviousDiff) {
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 10, weight: .medium))
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                            .toolbarIconHover()
                     }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.totalDiffCount == 0)
+
+                    Button(action: viewModel.navigateToNextDiff) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .medium))
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                            .toolbarIconHover()
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.totalDiffCount == 0)
                 }
             }
 

@@ -20,18 +20,39 @@ struct CompareResultPanels: View {
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left result
-            resultPanel(side: .left)
+        if let diffResult = viewModel.compareDiffResult, diffResult.isIdentical {
+            noDiffView()
+        } else {
+            HStack(spacing: 0) {
+                // Left result
+                resultPanel(side: .left)
 
-            // Vertical divider
-            Rectangle()
-                .fill(theme.border)
-                .frame(width: 1)
+                // Vertical divider
+                Rectangle()
+                    .fill(theme.border)
+                    .frame(width: 1)
 
-            // Right result
-            resultPanel(side: .right)
+                // Right result
+                resultPanel(side: .right)
+            }
         }
+    }
+
+    @ViewBuilder
+    private func noDiffView() -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.system(size: 28))
+            Text("No Differences")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(theme.primaryText)
+            Text("Both JSON structures are identical")
+                .font(.system(size: 12))
+                .foregroundColor(theme.secondaryText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background)
     }
 
     @ViewBuilder
