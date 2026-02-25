@@ -544,6 +544,16 @@
         }
       }
     },
+    "menu.compare_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare View"
+          }
+        }
+      }
+    },
     "menu.undo" : {
       "localizations" : {
         "en" : {
@@ -1349,6 +1359,16 @@
         }
       }
     },
+    "shortcuts.compare_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare Mode"
+          }
+        }
+      }
+    },
     "shortcuts.undo" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1398,6 +1418,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copied to clipboard"
+          }
+        }
+      }
+    },
+    "toast.diff_copied" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff copied to clipboard"
           }
         }
       }
@@ -1475,6 +1505,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Beautify (⌘1)"
+          }
+        }
+      }
+    },
+    "tooltip.compare_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare (⌘3)"
           }
         }
       }
@@ -1664,6 +1704,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Beautify"
+          }
+        }
+      }
+    },
+    "viewer.mode.compare" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare"
           }
         }
       }

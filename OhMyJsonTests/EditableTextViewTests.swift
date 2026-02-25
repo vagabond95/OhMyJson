@@ -163,6 +163,16 @@ struct EditableTextViewTests {
         #expect(result == false)
     }
 
+    @Test("⌘3 returns false — bypasses to menu for Compare mode")
+    func command3_returnsFalse() {
+        let textView = EditableTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_3, characters: "3")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
+    }
+
     @Test("⌘N returns false — bypasses to menu for New Tab")
     func commandN_returnsFalse() {
         let textView = EditableTextView()

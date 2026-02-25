@@ -52,6 +52,7 @@ enum AppShortcut {
     static let find         = ShortcutKey(display: "F", modifiers: [.command], keyEquivalent: "f")
     static let beautifyMode = ShortcutKey(display: "1", modifiers: [.command], keyEquivalent: "1")
     static let treeMode     = ShortcutKey(display: "2", modifiers: [.command], keyEquivalent: "2")
+    static let compareMode  = ShortcutKey(display: "3", modifiers: [.command], keyEquivalent: "3")
 
     // Tree
     static let expandAll    = ShortcutKey(display: "+", modifiers: [.command, .shift], keyEquivalent: "+")

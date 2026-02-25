@@ -133,6 +133,16 @@ struct SelectableTextViewTests {
         #expect(result == false)
     }
 
+    @Test("⌘3 returns false — bypasses to menu for Compare mode")
+    func command3_returnsFalse() {
+        let textView = DeselectOnResignTextView()
+        let event = makeEvent(keyCode: kVK_ANSI_3, characters: "3")
+
+        let result = textView.performKeyEquivalent(with: event)
+
+        #expect(result == false)
+    }
+
     @Test("⌘, returns false — bypasses to menu for Settings")
     func commandComma_returnsFalse() {
         let textView = DeselectOnResignTextView()

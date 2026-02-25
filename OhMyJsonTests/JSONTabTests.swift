@@ -148,8 +148,9 @@ struct JSONTabTests {
 
     @Test("ViewMode cases")
     func viewModeCases() {
-        #expect(ViewMode.allCases.count == 2)
+        #expect(ViewMode.allCases.count == 3)
         #expect(ViewMode.beautify.rawValue == "Beautify")
         #expect(ViewMode.tree.rawValue == "Tree")
+        #expect(ViewMode.compare.rawValue == "Compare")
     }
 }

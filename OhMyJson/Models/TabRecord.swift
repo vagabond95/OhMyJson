@@ -30,4 +30,6 @@ struct TabRecord: Codable, FetchableRecord, PersistableRecord {
     var lastAccessedAt: Double
     var isActive: Bool
     var isParseSuccess: Bool
+    var compareLeftText: String?
+    var compareRightText: String?
 }

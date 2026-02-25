@@ -43,6 +43,7 @@ protocol TabManagerProtocol: AnyObject {
     func updateTabTreeHorizontalScroll(id: UUID, offset: CGFloat)
     func updateTabSearchDismissState(id: UUID, beautifyDismissed: Bool, treeDismissed: Bool)
     func updateTabTitle(id: UUID, customTitle: String?)
+    func updateTabCompareState(id: UUID, leftText: String?, rightText: String?)
     func moveTab(fromIndex: Int, toIndex: Int)
 
     /// Persist current state to DB, then dehydrate tabs outside the LRU keep window.

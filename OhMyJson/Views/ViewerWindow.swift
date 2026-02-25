@@ -64,97 +64,113 @@ struct ViewerWindow: View {
                         .frame(height: 1)
                 }
 
-                // Main Content: Input (35%) | Resizable Divider | Viewer (65%)
+                // Main Content
                 GeometryReader { geometry in
-                    let totalWidth = geometry.size.width
-                    let effectiveWidth = totalWidth - Layout.dividerHitAreaWidth
-                    let inputWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, effectiveWidth * dividerRatio))
                     ZStack {
-                        HStack(spacing: 0) {
-                            // Left: Input Panel
-                            InputPanel(
-                                text: $viewModel.inputText,
-                                onTextChange: viewModel.handleTextChange,
-                                onClear: viewModel.clearAll,
-                                scrollPosition: $viewModel.inputScrollPosition,
-                                isRestoringTabState: viewModel.isRestoringTabState,
-                                onLargeTextPaste: viewModel.handleLargeTextPaste,
-                                isLargeJSON: viewModel.isLargeJSON,
-                                isLargeJSONContentLost: viewModel.isLargeJSONContentLost,
-                                tabGeneration: viewModel.tabGeneration
-                            )
-                            .frame(width: inputWidth)
-                            .allowsHitTesting(!isDraggingDivider)
+                        if viewModel.viewMode == .compare {
+                            // Compare mode: full-width compare layout
+                            CompareView()
 
-                            // Resizable Divider
-                            Rectangle()
-                                .fill(Color.clear)
-                                .frame(width: Layout.dividerHitAreaWidth)
-                                .overlay(alignment: .top) {
-                                    VStack(spacing: 0) {
-                                        Rectangle()
-                                            .fill(theme.secondaryBackground)
-                                            .frame(height: 36)
+                            // Transparent overlay for tab rename
+                            if viewModel.isRenamingTab {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.requestCommitTabRename()
+                                    }
+                            }
+                        } else {
+                            // Normal mode: Input (35%) | Resizable Divider | Viewer (65%)
+                            let totalWidth = geometry.size.width
+                            let effectiveWidth = totalWidth - Layout.dividerHitAreaWidth
+                            let inputWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, effectiveWidth * dividerRatio))
+
+                            HStack(spacing: 0) {
+                                // Left: Input Panel
+                                InputPanel(
+                                    text: $viewModel.inputText,
+                                    onTextChange: viewModel.handleTextChange,
+                                    onClear: viewModel.clearAll,
+                                    scrollPosition: $viewModel.inputScrollPosition,
+                                    isRestoringTabState: viewModel.isRestoringTabState,
+                                    onLargeTextPaste: viewModel.handleLargeTextPaste,
+                                    isLargeJSON: viewModel.isLargeJSON,
+                                    isLargeJSONContentLost: viewModel.isLargeJSONContentLost,
+                                    tabGeneration: viewModel.tabGeneration
+                                )
+                                .frame(width: inputWidth)
+                                .allowsHitTesting(!isDraggingDivider)
+
+                                // Resizable Divider
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .frame(width: Layout.dividerHitAreaWidth)
+                                    .overlay(alignment: .top) {
+                                        VStack(spacing: 0) {
+                                            Rectangle()
+                                                .fill(theme.secondaryBackground)
+                                                .frame(height: 36)
+                                            Rectangle()
+                                                .fill(theme.border)
+                                                .frame(height: 1)
+                                        }
+                                        .allowsHitTesting(false)
+                                    }
+                                    .overlay(
                                         Rectangle()
                                             .fill(theme.border)
-                                            .frame(height: 1)
+                                            .frame(width: 1)
+                                            .allowsHitTesting(false)
+                                    )
+                                    .background(ResizeCursorView())
+                                    .contentShape(Rectangle())
+                                    .simultaneousGesture(
+                                        TapGesture(count: 2)
+                                            .onEnded {
+                                                dividerRatio = Layout.defaultDividerRatio
+                                                settings.dividerRatio = Layout.defaultDividerRatio
+                                            }
+                                    )
+                                    .gesture(
+                                        DragGesture(minimumDistance: 2, coordinateSpace: .named("contentArea"))
+                                            .onChanged { value in
+                                                if !isDraggingDivider {
+                                                    isDraggingDivider = true
+                                                    dragStartRatio = dividerRatio
+                                                    dragStartX = value.startLocation.x
+                                                    NSCursor.resizeLeftRight.push()
+                                                }
+                                                let deltaX = value.location.x - dragStartX
+                                                let newInputWidth = effectiveWidth * dragStartRatio + deltaX
+                                                let clampedWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, newInputWidth))
+                                                let newRatio = clampedWidth / effectiveWidth
+                                                if abs(newRatio - dividerRatio) * effectiveWidth > Timing.dividerDragThreshold {
+                                                    dividerRatio = newRatio
+                                                }
+                                            }
+                                            .onEnded { _ in
+                                                isDraggingDivider = false
+                                                settings.dividerRatio = dividerRatio
+                                                NSCursor.pop()
+                                            }
+                                    )
+
+                                // Right: TreeViewer Panel
+                                viewerPanel
+                                    .frame(maxWidth: .infinity)
+                                    .allowsHitTesting(!isDraggingDivider)
+                            }
+                            .coordinateSpace(name: "contentArea")
+
+                            // Transparent overlay: commits active tab rename on tap outside TabBarView
+                            if viewModel.isRenamingTab {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.requestCommitTabRename()
                                     }
-                                    .allowsHitTesting(false)
-                                }
-                                .overlay(
-                                    Rectangle()
-                                        .fill(theme.border)
-                                        .frame(width: 1)
-                                        .allowsHitTesting(false)
-                                )
-                                .background(ResizeCursorView())
-                                .contentShape(Rectangle())
-                                .simultaneousGesture(
-                                    TapGesture(count: 2)
-                                        .onEnded {
-                                            dividerRatio = Layout.defaultDividerRatio
-                                            settings.dividerRatio = Layout.defaultDividerRatio
-                                        }
-                                )
-                                .gesture(
-                                    DragGesture(minimumDistance: 2, coordinateSpace: .named("contentArea"))
-                                        .onChanged { value in
-                                            if !isDraggingDivider {
-                                                isDraggingDivider = true
-                                                dragStartRatio = dividerRatio
-                                                dragStartX = value.startLocation.x
-                                                NSCursor.resizeLeftRight.push()
-                                            }
-                                            let deltaX = value.location.x - dragStartX
-                                            let newInputWidth = effectiveWidth * dragStartRatio + deltaX
-                                            let clampedWidth = max(Layout.minPanelWidth, min(effectiveWidth - Layout.minPanelWidth, newInputWidth))
-                                            let newRatio = clampedWidth / effectiveWidth
-                                            if abs(newRatio - dividerRatio) * effectiveWidth > Timing.dividerDragThreshold {
-                                                dividerRatio = newRatio
-                                            }
-                                        }
-                                        .onEnded { _ in
-                                            isDraggingDivider = false
-                                            settings.dividerRatio = dividerRatio
-                                            NSCursor.pop()
-                                        }
-                                )
-
-                            // Right: TreeViewer Panel
-                            viewerPanel
-                                .frame(maxWidth: .infinity)
-                                .allowsHitTesting(!isDraggingDivider)
-                        }
-                        .coordinateSpace(name: "contentArea")
-
-                        // Transparent overlay: commits active tab rename on tap outside TabBarView
-                        if viewModel.isRenamingTab {
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    viewModel.requestCommitTabRename()
-                                }
-                                .allowsHitTesting(!isDraggingDivider)
+                                    .allowsHitTesting(!isDraggingDivider)
+                            }
                         }
                     }
                 }
@@ -474,7 +490,7 @@ struct ViewerWindow: View {
                 return event
             }
 
-            // ESC to close cheat sheet or search
+            // ESC to close cheat sheet, search, or exit compare mode
             if event.keyCode == KeyCode.escape {
                 if vm.isCheatSheetVisible {
                     withAnimation(.easeInOut(duration: Animation.quick)) {
@@ -485,6 +501,21 @@ struct ViewerWindow: View {
                     withAnimation(.easeInOut(duration: Animation.quick)) {
                         vm.closeSearch()
                     }
+                    return nil
+                } else if vm.viewMode == .compare {
+                    vm.switchViewMode(to: .beautify)
+                    return nil
+                }
+            }
+
+            // Cmd+↑/↓ for diff navigation in compare mode
+            if vm.viewMode == .compare && event.modifierFlags.contains(.command) {
+                if event.keyCode == KeyCode.upArrow {
+                    vm.navigateToPreviousDiff()
+                    return nil
+                }
+                if event.keyCode == KeyCode.downArrow {
+                    vm.navigateToNextDiff()
                     return nil
                 }
             }

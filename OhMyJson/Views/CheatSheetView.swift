@@ -37,6 +37,7 @@ private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
         ShortcutGroup(title: String(localized: "shortcuts.group.view"), items: [
             ShortcutItem(action: String(localized: "shortcuts.beautify_mode"), keys: AppShortcut.beautifyMode.displayString),
             ShortcutItem(action: String(localized: "shortcuts.tree_mode"), keys: AppShortcut.treeMode.displayString),
+            ShortcutItem(action: String(localized: "shortcuts.compare_mode"), keys: AppShortcut.compareMode.displayString),
         ]),
         ShortcutGroup(title: String(localized: "shortcuts.group.search"), items: [
             ShortcutItem(action: String(localized: "shortcuts.find"), keys: AppShortcut.find.displayString),

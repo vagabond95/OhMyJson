@@ -137,6 +137,12 @@ final class MockTabManager: TabManagerProtocol {
         tabs[index].treeHorizontalScrollOffset = offset
     }
 
+    func updateTabCompareState(id: UUID, leftText: String?, rightText: String?) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[index].compareLeftText = leftText
+        tabs[index].compareRightText = rightText
+    }
+
     func updateTabSearchDismissState(id: UUID, beautifyDismissed: Bool, treeDismissed: Bool) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         tabs[index].beautifySearchDismissed = beautifyDismissed

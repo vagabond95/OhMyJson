@@ -115,6 +115,9 @@ struct KeyboardShortcutTests {
 
         #expect(AppShortcut.treeMode.keyEquivalent == "2")
         #expect(AppShortcut.treeMode.modifiers == [.command])
+
+        #expect(AppShortcut.compareMode.keyEquivalent == "3")
+        #expect(AppShortcut.compareMode.modifiers == [.command])
     }
 
     @Test("Static search shortcuts have correct key equivalents")

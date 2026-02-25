@@ -118,6 +118,20 @@ protocol AppTheme {
 
     // Color scheme
     var colorScheme: ColorScheme { get }
+
+    // Diff colors (Compare mode)
+    var diffAddedBg: Color { get }
+    var diffRemovedBg: Color { get }
+    var diffModifiedBg: Color { get }
+    var diffPaddingBg: Color { get }
+    var nsDiffAddedBg: NSColor { get }
+    var nsDiffRemovedBg: NSColor { get }
+    var nsDiffModifiedBg: NSColor { get }
+    var nsDiffPaddingBg: NSColor { get }
+    var diffAddedGutter: Color { get }
+    var diffRemovedGutter: Color { get }
+    var diffModifiedGutter: Color { get }
+    var diffFocusBorder: Color { get }
 }
 
 // MARK: - Dark Theme (migrated from TerminalTheme)
@@ -170,6 +184,32 @@ struct DarkTheme: AppTheme {
     let shadowOpacity: Double = 0.3
 
     let colorScheme: ColorScheme = .dark
+
+    // Diff colors
+    let diffAddedBg = Color(.sRGB, red: 34/255, green: 197/255, blue: 94/255, opacity: 0.15)
+    let diffRemovedBg = Color(.sRGB, red: 239/255, green: 68/255, blue: 68/255, opacity: 0.15)
+    let diffModifiedBg = Color(.sRGB, red: 234/255, green: 179/255, blue: 8/255, opacity: 0.15)
+    let diffPaddingBg = Color(.sRGB, red: 128/255, green: 128/255, blue: 128/255, opacity: 0.05)
+    let nsDiffAddedBg: NSColor = {
+        var c: [CGFloat] = [34/255, 197/255, 94/255, 0.15]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let nsDiffRemovedBg: NSColor = {
+        var c: [CGFloat] = [239/255, 68/255, 68/255, 0.15]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let nsDiffModifiedBg: NSColor = {
+        var c: [CGFloat] = [234/255, 179/255, 8/255, 0.15]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let nsDiffPaddingBg: NSColor = {
+        var c: [CGFloat] = [128/255, 128/255, 128/255, 0.05]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let diffAddedGutter = Color(hex: "22C55E")
+    let diffRemovedGutter = Color(hex: "EF4444")
+    let diffModifiedGutter = Color(hex: "EAB308")
+    let diffFocusBorder = Color(hex: "FFFFFF").opacity(0.5)
 }
 
 // MARK: - Light Theme (VS Code Light+ inspired)
@@ -222,4 +262,30 @@ struct LightTheme: AppTheme {
     let shadowOpacity: Double = 0.1
 
     let colorScheme: ColorScheme = .light
+
+    // Diff colors
+    let diffAddedBg = Color(.sRGB, red: 34/255, green: 197/255, blue: 94/255, opacity: 0.12)
+    let diffRemovedBg = Color(.sRGB, red: 239/255, green: 68/255, blue: 68/255, opacity: 0.12)
+    let diffModifiedBg = Color(.sRGB, red: 234/255, green: 179/255, blue: 8/255, opacity: 0.12)
+    let diffPaddingBg = Color(.sRGB, red: 128/255, green: 128/255, blue: 128/255, opacity: 0.03)
+    let nsDiffAddedBg: NSColor = {
+        var c: [CGFloat] = [34/255, 197/255, 94/255, 0.12]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let nsDiffRemovedBg: NSColor = {
+        var c: [CGFloat] = [239/255, 68/255, 68/255, 0.12]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let nsDiffModifiedBg: NSColor = {
+        var c: [CGFloat] = [234/255, 179/255, 8/255, 0.12]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let nsDiffPaddingBg: NSColor = {
+        var c: [CGFloat] = [128/255, 128/255, 128/255, 0.03]
+        return NSColor(colorSpace: .sRGB, components: &c, count: 4)
+    }()
+    let diffAddedGutter = Color(hex: "16A34A")
+    let diffRemovedGutter = Color(hex: "DC2626")
+    let diffModifiedGutter = Color(hex: "CA8A04")
+    let diffFocusBorder = Color(hex: "000000").opacity(0.3)
 }

@@ -490,7 +490,7 @@ struct BeautifyView: View {
         return result
     }
 
-    private static func tokenizeLine(_ line: String, stripEscapes: Bool = false) -> [JSONToken] {
+    static func tokenizeLine(_ line: String, stripEscapes: Bool = false) -> [JSONToken] {
         var tokens: [JSONToken] = []
         var remaining = line[...]
 
@@ -576,7 +576,7 @@ struct BeautifyView: View {
         return tokens
     }
 
-    private static func findStringEnd(in text: Substring) -> String.Index? {
+    static func findStringEnd(in text: Substring) -> String.Index? {
         guard text.first == "\"" else { return nil }
 
         var index = text.index(after: text.startIndex)

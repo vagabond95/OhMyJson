@@ -109,6 +109,24 @@ extension Notification.Name {
     static let checkForUpdates = Notification.Name("checkForUpdates")
 }
 
+// MARK: - Compare Mode
+
+enum CompareTiming {
+    static let diffDebounce: TimeInterval = 0.5
+}
+
+enum CompareLayout {
+    static let defaultInputRatio: CGFloat = 0.3
+    static let minInputRatio: CGFloat = 0.15
+    static let maxInputRatio: CGFloat = 0.7
+    static let gutterWidth: CGFloat = 3
+    static let collapseContext: Int = 3
+}
+
+enum CompareLimit {
+    static let maxDisplayLines = 5_000
+}
+
 // MARK: - Persistence
 
 enum Persistence {

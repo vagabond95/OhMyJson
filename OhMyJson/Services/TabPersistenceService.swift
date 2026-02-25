@@ -125,6 +125,11 @@ final class TabPersistenceService: TabPersistenceServiceProtocol {
             try db.execute(sql: "ALTER TABLE tab DROP COLUMN fullInputText")
         }
 
+        migrator.registerMigration("v3-compare-state") { db in
+            try db.execute(sql: "ALTER TABLE tab ADD COLUMN compareLeftText TEXT")
+            try db.execute(sql: "ALTER TABLE tab ADD COLUMN compareRightText TEXT")
+        }
+
         try migrator.migrate(queue)
     }
 

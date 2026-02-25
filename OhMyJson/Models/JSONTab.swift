@@ -11,11 +11,13 @@ import Foundation
 enum ViewMode: String, CaseIterable {
     case beautify = "Beautify"
     case tree = "Tree"
+    case compare = "Compare"
 
     var displayName: String {
         switch self {
         case .beautify: return String(localized: "viewer.mode.beautify")
         case .tree: return String(localized: "viewer.mode.tree")
+        case .compare: return String(localized: "viewer.mode.compare")
         }
     }
 
@@ -23,6 +25,7 @@ enum ViewMode: String, CaseIterable {
         switch self {
         case .beautify: return String(localized: "tooltip.beautify_mode")
         case .tree: return String(localized: "tooltip.tree_mode")
+        case .compare: return String(localized: "tooltip.compare_mode")
         }
     }
 }
@@ -92,6 +95,14 @@ struct JSONTab: Identifiable, Equatable {
     /// Not persisted — set only at app launch by `hydrateTabContent()`.
     var isLargeJSONContentLost: Bool
 
+    // MARK: - Compare State
+
+    /// Left panel text for Compare mode. nil = not yet used.
+    var compareLeftText: String?
+
+    /// Right panel text for Compare mode. nil = not yet used.
+    var compareRightText: String?
+
     init(
         id: UUID = UUID(),
         inputText: String = "",
@@ -115,7 +126,9 @@ struct JSONTab: Identifiable, Equatable {
         treeSearchDismissed: Bool = false,
         isParseSuccess: Bool = false,
         isHydrated: Bool = true,
-        isLargeJSONContentLost: Bool = false
+        isLargeJSONContentLost: Bool = false,
+        compareLeftText: String? = nil,
+        compareRightText: String? = nil
     ) {
         self.id = id
         self.inputText = inputText
@@ -140,6 +153,8 @@ struct JSONTab: Identifiable, Equatable {
         self.isParseSuccess = isParseSuccess
         self.isHydrated = isHydrated
         self.isLargeJSONContentLost = isLargeJSONContentLost
+        self.compareLeftText = compareLeftText
+        self.compareRightText = compareRightText
     }
 
     /// Update last accessed time to current
@@ -192,7 +207,9 @@ extension JSONTab {
             beautifySearchDismissed: record.beautifySearchDismissed,
             treeSearchDismissed: record.treeSearchDismissed,
             isParseSuccess: record.isParseSuccess,
-            isHydrated: false
+            isHydrated: false,
+            compareLeftText: record.compareLeftText,
+            compareRightText: record.compareRightText
         )
     }
 }
@@ -218,5 +235,7 @@ extension TabRecord {
         self.lastAccessedAt = tab.lastAccessedAt.timeIntervalSinceReferenceDate
         self.isActive = isActive
         self.isParseSuccess = tab.isParseSuccess
+        self.compareLeftText = tab.compareLeftText
+        self.compareRightText = tab.compareRightText
     }
 }

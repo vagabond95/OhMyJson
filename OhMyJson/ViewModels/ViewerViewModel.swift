@@ -127,6 +127,39 @@ class ViewerViewModel {
     private var _formattedJSONCache: String?
     var formattedJSON: String? { _formattedJSONCache }
 
+    // MARK: - Compare Mode State
+
+    var compareLeftText: String = ""
+    var compareRightText: String = ""
+    var compareLeftParseResult: JSONParseResult?
+    var compareRightParseResult: JSONParseResult?
+    var compareDiffResult: CompareDiffResult?
+    var isCompareDiffing: Bool = false
+    var currentDiffIndex: Int = 0
+    var totalDiffCount: Int = 0
+
+    // Diff options
+    var compareIgnoreKeyOrder: Bool = true
+    var compareIgnoreArrayOrder: Bool = false
+    var compareStrictType: Bool = true
+
+    // Sync scroll
+    var compareSyncScrollOffset: CGFloat = 0
+    var compareSyncScrollSide: CompareSide = .left
+
+    // Render result
+    var compareRenderResult: CompareRenderResult?
+    var compareRenderVersion: Int = 0
+
+    // Collapsed sections
+    var compareCollapsedSections: Set<Int> = []
+
+    @ObservationIgnored private var compareDiffTask: Task<Void, Never>?
+    @ObservationIgnored private var compareDebounceTask: DispatchWorkItem?
+    @ObservationIgnored private var _pendingHotKeyText: String?
+
+    private let diffEngine: JSONDiffEngineProtocol
+
     // MARK: - Internal State
 
     @ObservationIgnored private var debounceTask: DispatchWorkItem?
@@ -189,6 +222,8 @@ class ViewerViewModel {
         parseTask?.cancel()
         indentFormatTask?.cancel()
         searchCountTask?.cancel()
+        compareDiffTask?.cancel()
+        compareDebounceTask?.cancel()
         indentCancellable = nil
         onNeedShowWindow = nil
         quitConfirmationHandler = nil
@@ -230,12 +265,14 @@ class ViewerViewModel {
         tabManager: TabManagerProtocol,
         clipboardService: ClipboardServiceProtocol,
         jsonParser: JSONParserProtocol,
-        windowManager: WindowManagerProtocol
+        windowManager: WindowManagerProtocol,
+        diffEngine: JSONDiffEngineProtocol = JSONDiffEngine.shared
     ) {
         self.tabManager = tabManager
         self.clipboardService = clipboardService
         self.jsonParser = jsonParser
         self.windowManager = windowManager
+        self.diffEngine = diffEngine
 
         // Observe indent changes via Combine to refresh formatted JSON cache
         indentCancellable = AppSettings.shared.jsonIndentChanged
@@ -320,6 +357,13 @@ class ViewerViewModel {
             } else {
                 createNewTab(with: nil)
             }
+            return
+        }
+
+        // In compare mode, route clipboard text to compare panels
+        if viewMode == .compare {
+            showExistingTabs()
+            handleHotKeyInCompareMode(trimmed)
             return
         }
 
@@ -738,6 +782,12 @@ class ViewerViewModel {
         tabManager.updateTabTreeHorizontalScroll(id: tabId, offset: treeHorizontalScrollOffset)
         tabManager.updateTabSearchDismissState(id: tabId, beautifyDismissed: beautifySearchDismissed, treeDismissed: treeSearchDismissed)
         tabManager.updateTabFullInput(id: tabId, fullText: fullInputText)
+        // Save compare state
+        tabManager.updateTabCompareState(
+            id: tabId,
+            leftText: compareLeftText.isEmpty ? nil : compareLeftText,
+            rightText: compareRightText.isEmpty ? nil : compareRightText
+        )
     }
 
     func restoreTabState() {
@@ -818,6 +868,22 @@ class ViewerViewModel {
         treeScrollAnchorId = activeTab.treeScrollAnchorId
         beautifySearchDismissed = activeTab.beautifySearchDismissed
         treeSearchDismissed = activeTab.treeSearchDismissed
+
+        // Restore compare state
+        compareLeftText = activeTab.compareLeftText ?? ""
+        compareRightText = activeTab.compareRightText ?? ""
+        compareDiffResult = nil
+        compareRenderResult = nil
+        compareCollapsedSections = []
+        currentDiffIndex = 0
+        totalDiffCount = 0
+        if viewMode == .compare {
+            parseCompareLeft(compareLeftText)
+            parseCompareRight(compareRightText)
+            if !compareLeftText.isEmpty && !compareRightText.isEmpty {
+                runCompareDiff()
+            }
+        }
 
         if viewMode == .beautify {
             updateSearchResultCountForBeautify()
@@ -957,10 +1023,24 @@ class ViewerViewModel {
         if let activeTabId = tabManager.activeTabId {
             if viewMode == .beautify {
                 tabManager.updateTabScrollPosition(id: activeTabId, position: beautifyScrollPosition)
-            } else {
+            } else if viewMode == .tree {
                 tabManager.updateTabTreeSelectedNodeId(id: activeTabId, nodeId: selectedNodeId)
                 tabManager.updateTabTreeScrollAnchor(id: activeTabId, nodeId: treeScrollAnchorId)
                 tabManager.updateTabTreeHorizontalScroll(id: activeTabId, offset: treeHorizontalScrollOffset)
+            }
+            // Compare mode state is auto-saved via text change handlers
+        }
+
+        let previousMode = viewMode
+
+        // Entering compare mode: copy inputText to left panel if empty
+        if mode == .compare && previousMode != .compare {
+            if compareLeftText.isEmpty {
+                let textToCopy = fullInputText ?? inputText
+                if !textToCopy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    compareLeftText = textToCopy
+                    handleCompareLeftTextChange(compareLeftText)
+                }
             }
         }
 
@@ -974,7 +1054,7 @@ class ViewerViewModel {
             isRestoringTabState = true
             if mode == .beautify {
                 beautifyScrollPosition = activeTab.beautifyScrollPosition
-            } else {
+            } else if mode == .tree {
                 selectedNodeId = activeTab.treeSelectedNodeId
                 treeScrollAnchorId = activeTab.treeScrollAnchorId
                 treeHorizontalScrollOffset = activeTab.treeHorizontalScrollOffset
@@ -986,8 +1066,190 @@ class ViewerViewModel {
 
         if mode == .beautify {
             updateSearchResultCountForBeautify()
-        } else {
+        } else if mode == .tree {
             updateSearchResultCount()
+        }
+        // Compare mode triggers diff via text change handlers
+    }
+
+    // MARK: - Compare Mode Methods
+
+    func handleCompareLeftTextChange(_ text: String) {
+        compareLeftText = text
+        if let activeTabId = tabManager.activeTabId {
+            tabManager.updateTabCompareState(id: activeTabId, leftText: compareLeftText, rightText: compareRightText)
+        }
+        parseCompareLeft(text)
+        scheduleCompareDiff()
+    }
+
+    func handleCompareRightTextChange(_ text: String) {
+        compareRightText = text
+        if let activeTabId = tabManager.activeTabId {
+            tabManager.updateTabCompareState(id: activeTabId, leftText: compareLeftText, rightText: compareRightText)
+        }
+        parseCompareRight(text)
+        scheduleCompareDiff()
+    }
+
+    func clearCompareLeft() {
+        compareLeftText = ""
+        compareLeftParseResult = nil
+        compareDiffResult = nil
+        compareRenderResult = nil
+        totalDiffCount = 0
+        currentDiffIndex = 0
+        if let activeTabId = tabManager.activeTabId {
+            tabManager.updateTabCompareState(id: activeTabId, leftText: nil, rightText: compareRightText)
+        }
+    }
+
+    func clearCompareRight() {
+        compareRightText = ""
+        compareRightParseResult = nil
+        compareDiffResult = nil
+        compareRenderResult = nil
+        totalDiffCount = 0
+        currentDiffIndex = 0
+        if let activeTabId = tabManager.activeTabId {
+            tabManager.updateTabCompareState(id: activeTabId, leftText: compareLeftText, rightText: nil)
+        }
+    }
+
+    func updateCompareOption(ignoreKeyOrder: Bool? = nil, ignoreArrayOrder: Bool? = nil, strictType: Bool? = nil) {
+        if let v = ignoreKeyOrder { compareIgnoreKeyOrder = v }
+        if let v = ignoreArrayOrder { compareIgnoreArrayOrder = v }
+        if let v = strictType { compareStrictType = v }
+        // Immediate re-diff (no debounce)
+        runCompareDiff()
+    }
+
+    func navigateToNextDiff() {
+        guard totalDiffCount > 0 else { return }
+        currentDiffIndex = (currentDiffIndex + 1) % totalDiffCount
+        compareRenderVersion += 1
+    }
+
+    func navigateToPreviousDiff() {
+        guard totalDiffCount > 0 else { return }
+        currentDiffIndex = (currentDiffIndex - 1 + totalDiffCount) % totalDiffCount
+        compareRenderVersion += 1
+    }
+
+    func copyDiff() {
+        guard let result = compareDiffResult else { return }
+        let serialized = result.serializeDiff()
+        if let data = try? JSONSerialization.data(withJSONObject: serialized, options: [.prettyPrinted, .sortedKeys]),
+           let jsonString = String(data: data, encoding: .utf8) {
+            clipboardService.writeText(jsonString)
+            ToastManager.shared.show(String(localized: "toast.diff_copied"))
+        }
+    }
+
+    func expandCollapsedSection(at sectionIndex: Int) {
+        compareCollapsedSections.insert(sectionIndex)
+        compareRenderVersion += 1
+    }
+
+    // MARK: - Compare Private Helpers
+
+    private func parseCompareLeft(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            compareLeftParseResult = nil
+            return
+        }
+        compareLeftParseResult = jsonParser.parse(trimmed)
+    }
+
+    private func parseCompareRight(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            compareRightParseResult = nil
+            return
+        }
+        compareRightParseResult = jsonParser.parse(trimmed)
+    }
+
+    private func scheduleCompareDiff() {
+        compareDebounceTask?.cancel()
+        let task = DispatchWorkItem { [weak self] in
+            self?.runCompareDiff()
+        }
+        compareDebounceTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + CompareTiming.diffDebounce, execute: task)
+    }
+
+    private func runCompareDiff() {
+        compareDiffTask?.cancel()
+
+        guard case .success(let leftRoot) = compareLeftParseResult,
+              case .success(let rightRoot) = compareRightParseResult else {
+            compareDiffResult = nil
+            compareRenderResult = nil
+            totalDiffCount = 0
+            currentDiffIndex = 0
+            isCompareDiffing = false
+            return
+        }
+
+        isCompareDiffing = true
+        let leftValue = leftRoot.value
+        let rightValue = rightRoot.value
+        let options = CompareOptions(
+            ignoreKeyOrder: compareIgnoreKeyOrder,
+            ignoreArrayOrder: compareIgnoreArrayOrder,
+            strictType: compareStrictType
+        )
+        let engine = self.diffEngine
+        let parser = self.jsonParser
+        let leftText = self.compareLeftText
+        let rightText = self.compareRightText
+
+        compareDiffTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                engine.compare(left: leftValue, right: rightValue, options: options)
+            }.value
+
+            guard !Task.isCancelled else { return }
+
+            // Build render result on background
+            let renderResult = await Task.detached(priority: .userInitiated) {
+                CompareDiffRenderer.buildRenderResult(
+                    leftJSON: leftText,
+                    rightJSON: rightText,
+                    diffResult: result,
+                    expandedSections: self?.compareCollapsedSections ?? [],
+                    indentSize: AppSettings.shared.jsonIndent
+                )
+            }.value
+
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.compareDiffResult = result
+                self.compareRenderResult = renderResult
+                self.totalDiffCount = result.totalDiffCount
+                if self.currentDiffIndex >= self.totalDiffCount {
+                    self.currentDiffIndex = 0
+                }
+                self.isCompareDiffing = false
+                self.compareRenderVersion += 1
+            }
+        }
+    }
+
+    func handleHotKeyInCompareMode(_ clipboardText: String) {
+        if compareLeftText.isEmpty {
+            compareLeftText = clipboardText
+            handleCompareLeftTextChange(clipboardText)
+        } else if compareRightText.isEmpty {
+            compareRightText = clipboardText
+            handleCompareRightTextChange(clipboardText)
+        } else {
+            // Both panels have content — store for later prompt
+            _pendingHotKeyText = clipboardText
         }
     }
 

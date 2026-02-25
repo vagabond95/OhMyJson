@@ -2475,4 +2475,256 @@ struct UpdateBannerTests {
         cleanUp()
     }
 }
+
+// MARK: - Compare Mode Tests
+
+@Suite("ViewerViewModel Compare Tests")
+@MainActor
+struct ViewerViewModelCompareTests {
+
+    private func makeSUT(
+        clipboardText: String? = nil
+    ) -> (vm: ViewerViewModel, tabManager: MockTabManager, clipboard: MockClipboardService, parser: MockJSONParser, windowManager: MockWindowManager, diffEngine: MockJSONDiffEngine) {
+        let tabManager = MockTabManager()
+        let clipboard = MockClipboardService()
+        clipboard.storedText = clipboardText
+        let parser = MockJSONParser()
+        let windowManager = MockWindowManager()
+        let diffEngine = MockJSONDiffEngine()
+
+        let vm = ViewerViewModel(
+            tabManager: tabManager,
+            clipboardService: clipboard,
+            jsonParser: parser,
+            windowManager: windowManager,
+            diffEngine: diffEngine
+        )
+
+        return (vm, tabManager, clipboard, parser, windowManager, diffEngine)
+    }
+
+    @Test("switchViewMode to compare sets viewMode")
+    func switchToCompare() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.switchViewMode(to: .compare)
+        #expect(vm.viewMode == .compare)
+    }
+
+    @Test("switchViewMode to compare copies inputText to left panel when empty")
+    func switchToCompareCopiesInput() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.inputText = "{\"key\": \"value\"}"
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"key\": \"value\"}")
+    }
+
+    @Test("switchViewMode to compare does not overwrite existing left text")
+    func switchToComparePreservesExistingLeft() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.compareLeftText = "{\"existing\": true}"
+        vm.inputText = "{\"new\": false}"
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"existing\": true}")
+    }
+
+    @Test("switchViewMode from compare to beautify preserves compare state")
+    func switchFromComparePreservesState() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.switchViewMode(to: .compare)
+        vm.compareLeftText = "{\"left\": 1}"
+        vm.compareRightText = "{\"right\": 2}"
+        vm.switchViewMode(to: .beautify)
+        #expect(vm.viewMode == .beautify)
+        // Compare text should still be retained for when user switches back
+        #expect(vm.compareLeftText == "{\"left\": 1}")
+        #expect(vm.compareRightText == "{\"right\": 2}")
+    }
+
+    @Test("clearCompareLeft clears left text and parse result")
+    func clearCompareLeft() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.compareLeftText = "{\"test\": 1}"
+        vm.clearCompareLeft()
+        #expect(vm.compareLeftText == "")
+        #expect(vm.compareLeftParseResult == nil)
+    }
+
+    @Test("clearCompareRight clears right text and parse result")
+    func clearCompareRight() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.compareRightText = "{\"test\": 1}"
+        vm.clearCompareRight()
+        #expect(vm.compareRightText == "")
+        #expect(vm.compareRightParseResult == nil)
+    }
+
+    @Test("updateCompareOption toggles ignoreKeyOrder")
+    func updateCompareOptionIgnoreKeyOrder() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        let initial = vm.compareIgnoreKeyOrder
+        vm.updateCompareOption(ignoreKeyOrder: !initial)
+        #expect(vm.compareIgnoreKeyOrder == !initial)
+    }
+
+    @Test("updateCompareOption toggles ignoreArrayOrder")
+    func updateCompareOptionIgnoreArrayOrder() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        let initial = vm.compareIgnoreArrayOrder
+        vm.updateCompareOption(ignoreArrayOrder: !initial)
+        #expect(vm.compareIgnoreArrayOrder == !initial)
+    }
+
+    @Test("updateCompareOption toggles strictType")
+    func updateCompareOptionStrictType() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        let initial = vm.compareStrictType
+        vm.updateCompareOption(strictType: !initial)
+        #expect(vm.compareStrictType == !initial)
+    }
+
+    @Test("handleHotKey in compare mode routes text to left panel when empty")
+    func handleHotKeyCompareLeftEmpty() {
+        let (vm, tabManager, clipboard, _, windowManager, _) = makeSUT(clipboardText: "{\"hot\": \"key\"}")
+        tabManager.activeTabId = UUID()
+        windowManager.isViewerOpen = true
+        vm.switchViewMode(to: .compare)
+
+        vm.handleHotKey()
+
+        #expect(vm.compareLeftText == "{\"hot\": \"key\"}")
+    }
+
+    @Test("handleHotKey in compare mode routes text to right panel when left is filled")
+    func handleHotKeyCompareRightEmpty() {
+        let (vm, tabManager, clipboard, _, windowManager, _) = makeSUT(clipboardText: "{\"right\": true}")
+        tabManager.activeTabId = UUID()
+        windowManager.isViewerOpen = true
+        vm.switchViewMode(to: .compare)
+        vm.compareLeftText = "{\"left\": true}"
+
+        vm.handleHotKey()
+
+        #expect(vm.compareRightText == "{\"right\": true}")
+    }
+
+    @Test("handleHotKey in compare mode stores pending text when both panels filled")
+    func handleHotKeyCompareBothFilled() {
+        let (vm, tabManager, _, _, windowManager, _) = makeSUT(clipboardText: "{\"pending\": true}")
+        tabManager.activeTabId = UUID()
+        windowManager.isViewerOpen = true
+        vm.switchViewMode(to: .compare)
+        vm.compareLeftText = "{\"left\": true}"
+        vm.compareRightText = "{\"right\": true}"
+
+        vm.handleHotKey()
+
+        // Both panels still have original text
+        #expect(vm.compareLeftText == "{\"left\": true}")
+        #expect(vm.compareRightText == "{\"right\": true}")
+    }
+
+    @Test("compareLeftText observation triggers view update")
+    func compareLeftTextObservation() {
+        let (vm, _, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.compareLeftText
+        } onChange: {
+            observed = true
+        }
+
+        vm.compareLeftText = "{\"new\": 1}"
+        #expect(observed == true)
+    }
+
+    @Test("compareRightText observation triggers view update")
+    func compareRightTextObservation() {
+        let (vm, _, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.compareRightText
+        } onChange: {
+            observed = true
+        }
+
+        vm.compareRightText = "{\"new\": 2}"
+        #expect(observed == true)
+    }
+
+    @Test("compareDiffResult observation triggers view update")
+    func compareDiffResultObservation() {
+        let (vm, _, _, _, _, _) = makeSUT()
+
+        var observed = false
+        withObservationTracking {
+            _ = vm.compareDiffResult
+        } onChange: {
+            observed = true
+        }
+
+        vm.compareDiffResult = CompareDiffResult(items: [])
+        #expect(observed == true)
+    }
+
+    @Test("navigateToNextDiff increments currentDiffIndex")
+    func navigateToNextDiff() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.totalDiffCount = 5
+        vm.currentDiffIndex = 0
+
+        vm.navigateToNextDiff()
+
+        #expect(vm.currentDiffIndex == 1)
+    }
+
+    @Test("navigateToNextDiff wraps around")
+    func navigateToNextDiffWraps() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.totalDiffCount = 3
+        vm.currentDiffIndex = 2
+
+        vm.navigateToNextDiff()
+
+        #expect(vm.currentDiffIndex == 0)
+    }
+
+    @Test("navigateToPreviousDiff decrements currentDiffIndex")
+    func navigateToPreviousDiff() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.totalDiffCount = 5
+        vm.currentDiffIndex = 3
+
+        vm.navigateToPreviousDiff()
+
+        #expect(vm.currentDiffIndex == 2)
+    }
+
+    @Test("navigateToPreviousDiff wraps around")
+    func navigateToPreviousDiffWraps() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.totalDiffCount = 3
+        vm.currentDiffIndex = 0
+
+        vm.navigateToPreviousDiff()
+
+        #expect(vm.currentDiffIndex == 2)
+    }
+
+    @Test("navigateToNextDiff is no-op when totalDiffCount is 0")
+    func navigateToNextDiffNoOp() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        vm.totalDiffCount = 0
+        vm.currentDiffIndex = 0
+
+        vm.navigateToNextDiff()
+
+        #expect(vm.currentDiffIndex == 0)
+    }
+}
 #endif

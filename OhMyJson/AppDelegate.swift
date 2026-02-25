@@ -171,6 +171,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         treeItem.target = self
         viewMenu.addItem(treeItem)
 
+        let compareItem = NSMenuItem(title: String(localized: "menu.compare_mode"), action: #selector(switchToCompare), keyEquivalent: AppShortcut.compareMode.keyEquivalent)
+        compareItem.keyEquivalentModifierMask = AppShortcut.compareMode.modifiers
+        compareItem.target = self
+        viewMenu.addItem(compareItem)
+
         viewMenu.addItem(NSMenuItem.separator())
 
         let expandAllItem = NSMenuItem(title: String(localized: "menu.expand_all"), action: #selector(expandAll), keyEquivalent: AppShortcut.expandAll.keyEquivalent)
@@ -236,6 +241,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     @objc private func switchToTree(_ sender: Any?) {
         if onboardingController?.isShowing == true { return }
         viewModel.switchViewMode(to: .tree)
+    }
+
+    @objc private func switchToCompare(_ sender: Any?) {
+        if onboardingController?.isShowing == true { return }
+        viewModel.switchViewMode(to: .compare)
     }
 
     @objc private func expandAll(_ sender: Any?) {
