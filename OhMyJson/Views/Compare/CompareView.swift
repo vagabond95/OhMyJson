@@ -24,12 +24,21 @@ struct CompareView: View {
             let totalHeight = geometry.size.height
             let dividerHeight: CGFloat = 9
             let toolbarHeight: CGFloat = 36
-            let availableHeight = totalHeight - dividerHeight - toolbarHeight
+            let resultHeaderHeight: CGFloat = 28
+            let availableHeight = totalHeight - dividerHeight - toolbarHeight - resultHeaderHeight
             let inputHeight = max(80, min(availableHeight - 80, availableHeight * inputRatio))
             let resultHeight = availableHeight - inputHeight
 
             VStack(spacing: 0) {
-                // Input Panels (top)
+                // Toolbar (top) — viewMode only
+                CompareToolbar()
+                    .frame(height: toolbarHeight)
+
+                Rectangle()
+                    .fill(theme.border)
+                    .frame(height: 1)
+
+                // Input Panels
                 CompareInputPanel()
                     .frame(height: inputHeight)
                     .allowsHitTesting(!isDraggingDivider)
@@ -69,9 +78,9 @@ struct CompareView: View {
                             }
                     )
 
-                // Toolbar
-                CompareToolbar()
-                    .frame(height: toolbarHeight)
+                // Result Header — diff badges + options + copy
+                CompareResultHeader()
+                    .frame(height: resultHeaderHeight)
 
                 Rectangle()
                     .fill(theme.border)

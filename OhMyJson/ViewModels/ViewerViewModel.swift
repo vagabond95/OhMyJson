@@ -372,6 +372,7 @@ class ViewerViewModel {
         // Validate JSON before creating a tab — ignore non-JSON clipboard content
         guard jsonParser.validateJSON(trimmed) else {
             showExistingTabs()
+            ToastManager.shared.show(String(localized: "toast.invalid_json"))
             return
         }
 

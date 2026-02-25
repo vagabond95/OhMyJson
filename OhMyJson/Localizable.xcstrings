@@ -1434,7 +1434,6 @@
       }
     },
     "toast.invalid_json" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
