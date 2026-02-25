@@ -369,6 +369,12 @@ class ViewerViewModel {
             return
         }
 
+        // Validate JSON before creating a tab — ignore non-JSON clipboard content
+        guard jsonParser.validateJSON(trimmed) else {
+            showExistingTabs()
+            return
+        }
+
         // Check size (5MB limit)
         let sizeInBytes = trimmed.utf8.count
         let sizeInMB = Double(sizeInBytes) / Double(FileSize.megabyte)
@@ -378,7 +384,6 @@ class ViewerViewModel {
             return
         }
 
-        // Always create tab — if JSON is invalid, ErrorView will show the parse error details
         createNewTab(with: trimmed)
     }
 
@@ -549,16 +554,14 @@ class ViewerViewModel {
 
     private func showQuitConfirmation() {
         let alert = NSAlert()
-        alert.messageText = String(localized: "alert.last_tab_close.title")
-        alert.informativeText = String(localized: "alert.last_tab_close.message")
-        alert.addButton(withTitle: String(localized: "alert.last_tab_close.close"))
-        alert.addButton(withTitle: String(localized: "alert.last_tab_close.cancel"))
+        alert.messageText = String(localized: "alert.quit_app.title")
+        alert.informativeText = String(localized: "alert.quit_app.message")
+        alert.addButton(withTitle: String(localized: "alert.quit_app.quit"))
+        alert.addButton(withTitle: String(localized: "alert.quit_app.cancel"))
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            // Clear all tabs + DB, then close the window. App stays alive as menu bar app.
-            tabManager.closeAllTabs()
-            windowManager.closeViewer()
+            NSApp.terminate(nil)
         }
     }
 

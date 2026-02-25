@@ -113,8 +113,8 @@ struct CompareInputPanel: View {
                         .font(.system(size: 13))
                         .foregroundColor(theme.secondaryText.opacity(0.5))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 8)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 6)
                         .allowsHitTesting(false)
                 }
             }

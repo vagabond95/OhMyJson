@@ -77,26 +77,38 @@ struct ViewerViewModelTests {
         #expect(vm.currentJSON == json)
     }
 
-    @Test("handleHotKey with invalid JSON creates tab with error view")
+    @Test("handleHotKey with invalid JSON does not create tab")
     func handleHotKeyInvalidJSON() {
-        let (vm, tabManager, _, _, _) = makeSUT(clipboardText: "not json")
+        let (vm, tabManager, _, parser, _) = makeSUT(clipboardText: "not json")
+        parser.validateResult = false
 
         vm.handleHotKey()
 
-        // Invalid JSON always creates a tab — ErrorView shows parse error details
-        #expect(tabManager.createTabCallCount == 1)
-        #expect(vm.currentJSON == "not json")
+        #expect(tabManager.createTabCallCount == 0)
+        #expect(parser.validateCallCount == 1)
     }
 
-    @Test("handleHotKey with invalid JSON brings window to front if open")
-    func handleHotKeyInvalidJSONBringToFront() {
-        let (vm, _, _, _, windowManager) = makeSUT(clipboardText: "not json")
+    @Test("handleHotKey with invalid JSON shows existing tabs")
+    func handleHotKeyInvalidJSONShowsExistingTabs() {
+        let (vm, _, _, parser, windowManager) = makeSUT(clipboardText: "not json")
+        parser.validateResult = false
         windowManager.isViewerOpen = true
 
         vm.handleHotKey()
 
-        // createNewTab calls bringToFront when window is already open
         #expect(windowManager.bringToFrontCallCount == 1)
+    }
+
+    @Test("handleHotKey with invalid JSON opens window when no viewer is open")
+    func handleHotKeyInvalidJSONOpensWindow() {
+        let (vm, _, _, parser, _) = makeSUT(clipboardText: "not json")
+        parser.validateResult = false
+        var windowShowCalled = false
+        vm.onNeedShowWindow = { windowShowCalled = true }
+
+        vm.handleHotKey()
+
+        #expect(windowShowCalled)
     }
 
     // MARK: - createNewTab

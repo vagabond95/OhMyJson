@@ -25,6 +25,16 @@
     "%lld" : {
 
     },
+    "%lld %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld %2$@"
+          }
+        }
+      }
+    },
     "▶" : {
 
     },
@@ -140,46 +150,6 @@
         }
       }
     },
-    "alert.last_tab_close.cancel" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
-          }
-        }
-      }
-    },
-    "alert.last_tab_close.close" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close"
-          }
-        }
-      }
-    },
-    "alert.last_tab_close.message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All tabs will be cleared. The window will close and the app will continue running in the menu bar."
-          }
-        }
-      }
-    },
-    "alert.last_tab_close.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close last tab?"
-          }
-        }
-      }
-    },
     "alert.quit_app.cancel" : {
       "localizations" : {
         "en" : {
@@ -258,6 +228,9 @@
     "Clear" : {
 
     },
+    "Comparing..." : {
+
+    },
     "error.header.empty_input" : {
       "localizations" : {
         "en" : {
@@ -307,6 +280,9 @@
           }
         }
       }
+    },
+    "Fix JSON errors to compare" : {
+
     },
     "Ignore escape sequences on view" : {
 
@@ -400,6 +376,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Collapse All"
+          }
+        }
+      }
+    },
+    "menu.compare_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare View"
           }
         }
       }
@@ -544,16 +530,6 @@
         }
       }
     },
-    "menu.compare_mode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compare View"
-          }
-        }
-      }
-    },
     "menu.undo" : {
       "localizations" : {
         "en" : {
@@ -563,6 +539,9 @@
           }
         }
       }
+    },
+    "No differences" : {
+
     },
     "null" : {
 
@@ -599,6 +578,12 @@
           }
         }
       }
+    },
+    "Paste JSON here..." : {
+
+    },
+    "Paste JSON in both panels to compare" : {
+
     },
     "settings.about.chrome_plugin" : {
       "localizations" : {
@@ -1083,6 +1068,16 @@
         }
       }
     },
+    "shortcuts.compare_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare Mode"
+          }
+        }
+      }
+    },
     "shortcuts.copy_paste_cut" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1359,16 +1354,6 @@
         }
       }
     },
-    "shortcuts.compare_mode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compare Mode"
-          }
-        }
-      }
-    },
     "shortcuts.undo" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1422,16 +1407,6 @@
         }
       }
     },
-    "toast.diff_copied" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diff copied to clipboard"
-          }
-        }
-      }
-    },
     "toast.copying" : {
       "localizations" : {
         "en" : {
@@ -1444,6 +1419,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "복사 중..."
+          }
+        }
+      }
+    },
+    "toast.diff_copied" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff copied to clipboard"
           }
         }
       }
@@ -1509,16 +1494,6 @@
         }
       }
     },
-    "tooltip.compare_mode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compare (⌘3)"
-          }
-        }
-      }
-    },
     "tooltip.beautify_unavailable_large" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1546,6 +1521,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Collapse All (⌘⇧-)"
+          }
+        }
+      }
+    },
+    "tooltip.compare_mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare (⌘3)"
           }
         }
       }
@@ -1737,6 +1722,9 @@
           }
         }
       }
+    },
+    "Waiting for JSON input..." : {
+
     }
   },
   "version" : "1.0"

@@ -31,7 +31,17 @@ class WindowDraggableNSView: NSView {
 
 /// Custom NSWindow — no drag overrides needed.
 /// All drag control is handled via isMovable=false + WindowDraggableNSView.mouseDown.
-class OhMyJsonWindow: NSWindow {}
+class OhMyJsonWindow: NSWindow {
+    /// Intercept performClose to distinguish keyboard (Cmd+W) from mouse (traffic light).
+    /// Keyboard triggers tab close; mouse triggers quit confirmation via windowShouldClose.
+    override func performClose(_ sender: Any?) {
+        if let event = NSApp.currentEvent, event.type == .keyDown {
+            WindowManager.shared.handleCmdW()
+        } else {
+            super.performClose(sender)
+        }
+    }
+}
 
 @Observable
 class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
@@ -176,6 +186,15 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
         let hasOtherWindows = NSApp.windows.contains { $0.isVisible && $0 !== notification.object as? NSWindow }
         if !hasOtherWindows {
             NSApp.setActivationPolicy(.accessory)
+        }
+    }
+
+    /// Called from OhMyJsonWindow.performClose when triggered by keyboard (Cmd+W).
+    /// Routes to ViewModel's closeTab which handles tab count logic.
+    func handleCmdW() {
+        guard let vm = viewModel else { return }
+        if let activeTabId = vm.activeTabId {
+            vm.closeTab(id: activeTabId)
         }
     }
 

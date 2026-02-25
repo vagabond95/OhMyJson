@@ -118,7 +118,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         settingsItem.target = self
         appMenu.addItem(settingsItem)
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(NSMenuItem(title: String(localized: "menu.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: AppShortcut.quit.keyEquivalent))
+        let quitMenuItem = NSMenuItem(title: String(localized: "menu.quit"), action: #selector(quitAppWithConfirmation), keyEquivalent: AppShortcut.quit.keyEquivalent)
+        quitMenuItem.target = self
+        appMenu.addItem(quitMenuItem)
         mainMenu.addItem(appMenuItem)
 
         // File Menu - Only Command+N and Command+W overrides
@@ -363,6 +365,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
 
     @objc private func quitApp(_ sender: Any?) {
         NSApplication.shared.terminate(nil)
+    }
+
+    @objc private func quitAppWithConfirmation(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "alert.quit_app.title")
+        alert.informativeText = String(localized: "alert.quit_app.message")
+        alert.addButton(withTitle: String(localized: "alert.quit_app.quit"))
+        alert.addButton(withTitle: String(localized: "alert.quit_app.cancel"))
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+        }
     }
 
     private func setupHotKey() {
