@@ -147,6 +147,7 @@ struct CompareResultTextView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = false
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
+        scrollView.verticalScrollElasticity = .none
 
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
