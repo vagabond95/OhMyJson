@@ -20,6 +20,14 @@ enum ThemeMode: Int, Codable, CaseIterable {
 
 // MARK: - HotKeyCombo
 
+struct KeyElement: Identifiable, Equatable {
+    let id: Int
+    let label: String
+    let isModifier: Bool
+    let modifierFlag: NSEvent.ModifierFlags?
+    let keyCode: UInt16?
+}
+
 struct HotKeyCombo: Equatable, Codable {
     var keyCode: UInt32
     var modifiers: UInt32
@@ -68,6 +76,22 @@ struct HotKeyCombo: Equatable, Codable {
             labels.append(keyString)
         }
         return labels
+    }
+
+    var keyElements: [KeyElement] {
+        let modifierMap: [String: (String, NSEvent.ModifierFlags)] = [
+            "⌃": ("Ctrl", .control),
+            "⌥": ("Opt", .option),
+            "⇧": ("Shift", .shift),
+            "⌘": ("Cmd", .command),
+        ]
+        return displayLabels.enumerated().map { index, symbol in
+            if let (label, flag) = modifierMap[symbol] {
+                return KeyElement(id: index, label: label, isModifier: true, modifierFlag: flag, keyCode: nil)
+            } else {
+                return KeyElement(id: index, label: symbol, isModifier: false, modifierFlag: nil, keyCode: UInt16(self.keyCode))
+            }
+        }
     }
 
     var nsEventModifierFlags: NSEvent.ModifierFlags {

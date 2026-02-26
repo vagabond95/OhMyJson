@@ -158,6 +158,81 @@ struct HotKeyComboTests {
         #expect(combo.keyEquivalent == "[")
     }
 
+    // MARK: - keyElements
+
+    @Test("keyElements returns correct elements for Ctrl+Option+J")
+    func keyElementsDefault() {
+        let combo = HotKeyCombo.defaultOpen
+        let elements = combo.keyElements
+        #expect(elements.count == 3)
+
+        // First: Ctrl modifier
+        #expect(elements[0].id == 0)
+        #expect(elements[0].label == "Ctrl")
+        #expect(elements[0].isModifier == true)
+        #expect(elements[0].modifierFlag == .control)
+        #expect(elements[0].keyCode == nil)
+
+        // Second: Opt modifier
+        #expect(elements[1].id == 1)
+        #expect(elements[1].label == "Opt")
+        #expect(elements[1].isModifier == true)
+        #expect(elements[1].modifierFlag == .option)
+        #expect(elements[1].keyCode == nil)
+
+        // Third: J main key
+        #expect(elements[2].id == 2)
+        #expect(elements[2].label == "J")
+        #expect(elements[2].isModifier == false)
+        #expect(elements[2].modifierFlag == nil)
+        #expect(elements[2].keyCode == UInt16(combo.keyCode))
+    }
+
+    @Test("keyElements for Cmd+Shift+A includes all four modifiers mapped correctly")
+    func keyElementsCmdShiftA() {
+        let combo = HotKeyCombo(
+            keyCode: UInt32(kVK_ANSI_A),
+            modifiers: UInt32(cmdKey | shiftKey)
+        )
+        let elements = combo.keyElements
+        #expect(elements.count == 3)
+
+        #expect(elements[0].label == "Shift")
+        #expect(elements[0].modifierFlag == .shift)
+
+        #expect(elements[1].label == "Cmd")
+        #expect(elements[1].modifierFlag == .command)
+
+        #expect(elements[2].label == "A")
+        #expect(elements[2].isModifier == false)
+    }
+
+    @Test("keyElements with all four modifiers")
+    func keyElementsAllModifiers() {
+        let combo = HotKeyCombo(
+            keyCode: UInt32(kVK_ANSI_Z),
+            modifiers: UInt32(controlKey | optionKey | shiftKey | cmdKey)
+        )
+        let elements = combo.keyElements
+        #expect(elements.count == 5)
+
+        let modifierLabels = elements.filter(\.isModifier).map(\.label)
+        #expect(modifierLabels.contains("Ctrl"))
+        #expect(modifierLabels.contains("Opt"))
+        #expect(modifierLabels.contains("Shift"))
+        #expect(modifierLabels.contains("Cmd"))
+
+        let mainKey = elements.first(where: { !$0.isModifier })
+        #expect(mainKey?.label == "Z")
+    }
+
+    @Test("keyElements IDs are sequential starting from 0")
+    func keyElementsSequentialIds() {
+        let combo = HotKeyCombo.defaultOpen
+        let ids = combo.keyElements.map(\.id)
+        #expect(ids == [0, 1, 2])
+    }
+
     // MARK: - Default Hotkey Constants
 
     @Test("All default hotkeys have non-zero modifiers")
