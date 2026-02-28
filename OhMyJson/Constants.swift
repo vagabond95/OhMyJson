@@ -87,7 +87,7 @@ enum BeautifyLimit {
     /// Maximum lines rendered in BeautifyView's NSAttributedString.
     /// TextKit 2 lazy layout prevents SBBOD; this limit guards against
     /// excessive memory usage (~50MB NSAttributedString at 50K lines).
-    static let maxDisplayLines = 50_000
+    static let maxDisplayLines = 10_000
 }
 
 // MARK: - Tree Layout

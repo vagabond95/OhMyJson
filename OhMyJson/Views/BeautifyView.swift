@@ -37,7 +37,7 @@ struct BeautifyView: View {
     @State private var gutterVersion: Int = 0
 
     /// Line count threshold for switching to async attributed string building
-    private static let asyncBuildThreshold = 1000
+    private static let asyncBuildThreshold = 300
 
     /// Stage 1 cache: syntax-colored string WITHOUT search highlights.
     /// Rebuilt only when content or theme changes.
