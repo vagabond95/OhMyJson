@@ -358,7 +358,20 @@ struct TreeView: View {
     private func updateVisibleNodes() {
         let newVisibleNodes = rootNode.allNodes()
         visibleNodes = newVisibleNodes
-        updateAncestorLastMap()
+
+        // Use pre-computed ancestor map from ViewModel when available (O(V) lookup)
+        // instead of rebuilding via recursive traversal (O(V) with stack overhead).
+        if !allAncestorMapCache.isEmpty {
+            var newMap: [UUID: [Bool]] = [:]
+            newMap.reserveCapacity(newVisibleNodes.count)
+            for node in newVisibleNodes {
+                newMap[node.id] = allAncestorMapCache[node.id] ?? []
+            }
+            ancestorLastMap = newMap
+        } else {
+            updateAncestorLastMap()
+        }
+
         estimatedContentWidth = maxContentWidth
         onVisibleNodesChanged?(newVisibleNodes)
     }
