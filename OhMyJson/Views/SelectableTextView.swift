@@ -202,11 +202,6 @@ struct SelectableTextView: NSViewRepresentable {
         // Set initial content
         contentTextView.textStorage?.setAttributedString(attributedString)
 
-        // Force TextKit 2 layout so document height is correct for scroll restoration
-        if let tlm = contentTextView.textLayoutManager {
-            tlm.ensureLayout(for: tlm.documentRange)
-        }
-
         // Wire mouseDown callback via coordinator
         let coordinator = context.coordinator
         coordinator.onMouseDown = onMouseDown
@@ -257,11 +252,6 @@ struct SelectableTextView: NSViewRepresentable {
 
             // Set line numbers content
             gutterTextView.textStorage?.setAttributedString(lineNumbers)
-
-            // Force TextKit 2 layout so document height is correct for scroll restoration
-            if let gutterTlm = gutterTextView.textLayoutManager {
-                gutterTlm.ensureLayout(for: gutterTlm.documentRange)
-            }
 
             // Calculate gutter width based on content
             let gutterWidth = calculateGutterWidth(for: lineNumbers)
@@ -382,7 +372,9 @@ struct SelectableTextView: NSViewRepresentable {
 
             let selectedRange = contentTextView.selectedRange()
 
+            contentTextView.textStorage?.beginEditing()
             contentTextView.textStorage?.setAttributedString(attributedString)
+            contentTextView.textStorage?.endEditing()
 
             // Restore selection only when not triggered by search highlight
             if !shouldClearSelection {
@@ -422,7 +414,9 @@ struct SelectableTextView: NSViewRepresentable {
            let gutterScrollView = context.coordinator.gutterScrollView {
             if gutterContentId != context.coordinator.lastGutterContentId {
                 context.coordinator.lastGutterContentId = gutterContentId
+                gutterTextView.textStorage?.beginEditing()
                 gutterTextView.textStorage?.setAttributedString(lineNumbers)
+                gutterTextView.textStorage?.endEditing()
 
                 // Recalculate and update gutter width if needed
                 let newWidth = calculateGutterWidth(for: lineNumbers)
@@ -466,12 +460,8 @@ struct SelectableTextView: NSViewRepresentable {
             }
         }
 
-        // During tab restoration: ensure layout is complete, then restore saved scroll position
+        // During tab restoration: restore saved scroll position
         if isRestoringTabState {
-            // Force TextKit 2 layout so document height is correct before scrolling
-            if let tlm = contentTextView.textLayoutManager {
-                tlm.ensureLayout(for: tlm.documentRange)
-            }
             let clipView = contentScrollView.contentView
             clipView.scroll(to: NSPoint(x: 0, y: scrollPosition))
             contentScrollView.reflectScrolledClipView(clipView)
@@ -499,8 +489,12 @@ struct SelectableTextView: NSViewRepresentable {
         // Clear text storage content before NSTextView dealloc.
         // Using setAttributedString(empty) keeps layout manager attached so TextKit
         // internal state stays consistent; an empty storage has minimal dealloc cost.
+        coordinator.contentTextView?.textStorage?.beginEditing()
         coordinator.contentTextView?.textStorage?.setAttributedString(NSAttributedString())
+        coordinator.contentTextView?.textStorage?.endEditing()
+        coordinator.gutterTextView?.textStorage?.beginEditing()
         coordinator.gutterTextView?.textStorage?.setAttributedString(NSAttributedString())
+        coordinator.gutterTextView?.textStorage?.endEditing()
     }
 
     class Coordinator: NSObject {
