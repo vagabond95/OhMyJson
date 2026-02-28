@@ -315,6 +315,52 @@ struct JSONDiffEngineTests {
         #expect(parent.hasDiff)
     }
 
+    // MARK: - Container Key Rename Detection
+
+    @Test("Container key rename with same value nils leftValue/rightValue")
+    func containerKeyRenameNilsValue() {
+        let left = JSONValue.object([
+            "features": .array([.number(1), .number(2), .number(3)]),
+            "name": .string("test")
+        ])
+        let right = JSONValue.object([
+            "feat~~res": .array([.number(1), .number(2), .number(3)]),
+            "name": .string("test")
+        ])
+        let result = engine.compare(left: left, right: right, options: CompareOptions())
+        let flattened = result.flattenedDiffItems
+
+        let removedItem = flattened.first { $0.type == .removed && $0.key == "features" }
+        #expect(removedItem != nil, "Should have a removed item for 'features'")
+        #expect(removedItem?.leftValue == nil, "Renamed container's leftValue should be nil")
+
+        let addedItem = flattened.first { $0.type == .added && $0.key == "feat~~res" }
+        #expect(addedItem != nil, "Should have an added item for 'feat~~res'")
+        #expect(addedItem?.rightValue == nil, "Renamed container's rightValue should be nil")
+    }
+
+    @Test("Container key rename with different value keeps leftValue/rightValue")
+    func containerKeyRenameWithDifferentValueKeepsValue() {
+        let left = JSONValue.object([
+            "features": .array([.number(1), .number(2), .number(3)]),
+            "name": .string("test")
+        ])
+        let right = JSONValue.object([
+            "feat~~res": .array([.number(1), .number(2), .number(99)]),
+            "name": .string("test")
+        ])
+        let result = engine.compare(left: left, right: right, options: CompareOptions())
+        let flattened = result.flattenedDiffItems
+
+        let removedItem = flattened.first { $0.type == .removed && $0.key == "features" }
+        #expect(removedItem != nil, "Should have a removed item for 'features'")
+        #expect(removedItem?.leftValue != nil, "Non-renamed container's leftValue should be preserved")
+
+        let addedItem = flattened.first { $0.type == .added && $0.key == "feat~~res" }
+        #expect(addedItem != nil, "Should have an added item for 'feat~~res'")
+        #expect(addedItem?.rightValue != nil, "Non-renamed container's rightValue should be preserved")
+    }
+
     // MARK: - CompareDiffResult Counts
 
     @Test("Counting mixed diff types")

@@ -54,6 +54,22 @@ final class JSONDiffEngine: JSONDiffEngineProtocol {
 
         var children: [DiffItem] = []
 
+        // Detect container key renames: removed+added keys with identical container values
+        var renameMatchedRemoved = Set<String>()
+        var renameMatchedAdded = Set<String>()
+
+        for rk in removedKeys.sorted() {
+            guard let lv = left[rk], lv.isContainer else { continue }
+            for ak in addedKeys.sorted() where !renameMatchedAdded.contains(ak) {
+                guard let rv = right[ak] else { continue }
+                if lv == rv {
+                    renameMatchedRemoved.insert(rk)
+                    renameMatchedAdded.insert(ak)
+                    break
+                }
+            }
+        }
+
         // Determine key ordering
         let orderedKeys: [String]
         if options.ignoreKeyOrder {
@@ -69,9 +85,11 @@ final class JSONDiffEngine: JSONDiffEngineProtocol {
             let childPath = path + [key]
 
             if removedKeys.contains(key) {
-                children.append(DiffItem(path: childPath, type: .removed, key: key, leftValue: left[key], rightValue: nil, children: [], depth: depth + 1))
+                let isRenamed = renameMatchedRemoved.contains(key)
+                children.append(DiffItem(path: childPath, type: .removed, key: key, leftValue: isRenamed ? nil : left[key], rightValue: nil, children: [], depth: depth + 1))
             } else if addedKeys.contains(key) {
-                children.append(DiffItem(path: childPath, type: .added, key: key, leftValue: nil, rightValue: right[key], children: [], depth: depth + 1))
+                let isRenamed = renameMatchedAdded.contains(key)
+                children.append(DiffItem(path: childPath, type: .added, key: key, leftValue: nil, rightValue: isRenamed ? nil : right[key], children: [], depth: depth + 1))
             } else {
                 // Common key — recurse
                 let child = compareValues(left: left[key]!, right: right[key]!, path: childPath, depth: depth + 1, options: options)

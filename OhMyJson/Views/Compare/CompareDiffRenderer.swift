@@ -101,63 +101,163 @@ enum CompareDiffRenderer {
         return result
     }
 
+    // MARK: - Line Path Mapping
+
+    /// Extract the JSON key from a `"key" : value` line. Returns nil for non-key lines.
+    static func extractKey(from trimmedLine: String) -> String? {
+        guard trimmedLine.hasPrefix("\"") else { return nil }
+        var i = trimmedLine.index(after: trimmedLine.startIndex)
+        while i < trimmedLine.endIndex {
+            if trimmedLine[i] == "\\" {
+                // Skip escaped character
+                i = trimmedLine.index(after: i)
+                guard i < trimmedLine.endIndex else { return nil }
+                i = trimmedLine.index(after: i)
+                continue
+            }
+            if trimmedLine[i] == "\"" {
+                // Found closing quote — check for ` : ` after it
+                let afterQuote = trimmedLine[trimmedLine.index(after: i)...]
+                let trimmedAfter = afterQuote.drop(while: { $0 == " " })
+                if trimmedAfter.hasPrefix(":") {
+                    return String(trimmedLine[trimmedLine.index(after: trimmedLine.startIndex)..<i])
+                }
+                return nil
+            }
+            i = trimmedLine.index(after: i)
+        }
+        return nil
+    }
+
+    /// Build a map from line index to JSON path for each line of formatted JSON.
+    ///
+    /// Uses a stack-based approach to track the current path through the JSON tree.
+    /// Each line gets assigned the path of the JSON value it represents.
+    static func buildLinePathMap(lines: [String]) -> [[String]] {
+        struct Level {
+            var isArray: Bool
+            var nextIndex: Int
+        }
+
+        var result = [[String]](repeating: [], count: lines.count)
+        var currentPath: [String] = []
+        var levelStack: [Level] = []
+
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else {
+                result[i] = currentPath
+                continue
+            }
+
+            if let key = extractKey(from: trimmed) {
+                // "key" : value line
+                if trimmed.hasSuffix("{") {
+                    // Key opens an object
+                    result[i] = currentPath + [key]
+                    currentPath.append(key)
+                    levelStack.append(Level(isArray: false, nextIndex: 0))
+                } else if trimmed.hasSuffix("[") {
+                    // Key opens an array
+                    result[i] = currentPath + [key]
+                    currentPath.append(key)
+                    levelStack.append(Level(isArray: true, nextIndex: 0))
+                } else {
+                    // Primitive value
+                    result[i] = currentPath + [key]
+                }
+            } else if trimmed.hasPrefix("{") {
+                // Standalone { — root object or array element object
+                if let last = levelStack.last, last.isArray {
+                    let idx = last.nextIndex
+                    levelStack[levelStack.count - 1].nextIndex += 1
+                    result[i] = currentPath + [String(idx)]
+                    currentPath.append(String(idx))
+                    levelStack.append(Level(isArray: false, nextIndex: 0))
+                } else {
+                    // Root object
+                    result[i] = currentPath
+                    levelStack.append(Level(isArray: false, nextIndex: 0))
+                }
+            } else if trimmed.hasPrefix("[") {
+                // Standalone [ — root array or nested array in array
+                if let last = levelStack.last, last.isArray {
+                    let idx = last.nextIndex
+                    levelStack[levelStack.count - 1].nextIndex += 1
+                    result[i] = currentPath + [String(idx)]
+                    currentPath.append(String(idx))
+                    levelStack.append(Level(isArray: true, nextIndex: 0))
+                } else {
+                    // Root array
+                    result[i] = currentPath
+                    levelStack.append(Level(isArray: true, nextIndex: 0))
+                }
+            } else if trimmed.hasPrefix("}") || trimmed.hasPrefix("]") {
+                // Closing brace/bracket
+                result[i] = currentPath
+                if !levelStack.isEmpty {
+                    levelStack.removeLast()
+                }
+                if !currentPath.isEmpty {
+                    currentPath.removeLast()
+                }
+            } else {
+                // Bare primitive in array
+                if let last = levelStack.last, last.isArray {
+                    let idx = last.nextIndex
+                    levelStack[levelStack.count - 1].nextIndex += 1
+                    result[i] = currentPath + [String(idx)]
+                } else {
+                    result[i] = currentPath
+                }
+            }
+        }
+
+        return result
+    }
+
     // MARK: - Line Diff Assignment
 
     private static func assignLineDiffs(lines: [String], diffResult: CompareDiffResult, side: CompareSide) -> [DiffType] {
-        // Simple approach: pretty-print, then use diff items to mark lines
-        // For now, use a line-by-line comparison approach
         var diffs = [DiffType](repeating: .unchanged, count: lines.count)
-
+        let linePaths = buildLinePathMap(lines: lines)
         let flattened = diffResult.flattenedDiffItems
+
         for item in flattened {
+            // Filter by side
             switch item.type {
             case .added:
-                if side == .right {
-                    // Mark lines in right that correspond to added content
-                    markLinesForValue(item.rightValue, in: lines, diffs: &diffs, type: .added)
-                }
+                guard side == .right else { continue }
             case .removed:
-                if side == .left {
-                    markLinesForValue(item.leftValue, in: lines, diffs: &diffs, type: .removed)
-                }
+                guard side == .left else { continue }
             case .modified:
-                if side == .left {
-                    markLinesForValue(item.leftValue, in: lines, diffs: &diffs, type: .modified)
-                } else {
-                    markLinesForValue(item.rightValue, in: lines, diffs: &diffs, type: .modified)
-                }
-            case .unchanged:
                 break
+            case .unchanged:
+                continue
+            }
+
+            let value = side == .left ? item.leftValue : item.rightValue
+
+            if let value, value.isContainer {
+                // Container add/remove: mark all lines whose path starts with item.path
+                for (i, linePath) in linePaths.enumerated() where diffs[i] == .unchanged {
+                    if linePath.count >= item.path.count &&
+                        Array(linePath.prefix(item.path.count)) == item.path {
+                        diffs[i] = item.type
+                    }
+                }
+            } else {
+                // Primitive or nil value (renamed container): exact path match
+                for (i, linePath) in linePaths.enumerated() where diffs[i] == .unchanged {
+                    if linePath == item.path {
+                        diffs[i] = item.type
+                        break
+                    }
+                }
             }
         }
 
         return diffs
-    }
-
-    private static func markLinesForValue(_ value: JSONValue?, in lines: [String], diffs: inout [DiffType], type: DiffType) {
-        guard let value else { return }
-        // Get string representation of the value
-        let valueStr: String
-        switch value {
-        case .string(let s): valueStr = "\"\(s)\""
-        case .number(let n):
-            valueStr = n.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", n) : String(n)
-        case .bool(let b): valueStr = b ? "true" : "false"
-        case .null: valueStr = "null"
-        case .object, .array:
-            // For containers, we'd need to search for the key/structure — simplified approach
-            return
-        }
-
-        // Find matching lines
-        let trimmedValue = valueStr.trimmingCharacters(in: .whitespaces)
-        for (i, line) in lines.enumerated() {
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            if trimmedLine.contains(trimmedValue) && diffs[i] == .unchanged {
-                diffs[i] = type
-                break // Only mark first occurrence
-            }
-        }
     }
 
     // MARK: - Paired Lines with Padding
@@ -215,6 +315,11 @@ enum CompareDiffRenderer {
             case .content(let dt) where dt != .unchanged: isDiff[i] = true
             default: break
             }
+        }
+
+        // If no diffs exist, show all lines without collapsing
+        if !isDiff.contains(true) {
+            return (leftLines, rightLines)
         }
 
         // Mark context lines around diffs
