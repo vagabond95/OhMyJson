@@ -94,9 +94,11 @@ OhMyJson       File                    Edit
 3. 텍스트 양끝 공백 trim
 4. **빈 클립보드** → 빈 상태로 새 탭 생성 + 창 열기
 5. **5MB 초과** → 확인 다이얼로그 ("Continue" / "Cancel")
-6. JSON 파싱 시도
-7. **성공** → 새 탭 생성 + 창 열기 (이미 열려있으면 최전면으로)
-8. **실패** → Toast만 표시 ("Invalid JSON in clipboard", 2초), 새 탭 생성하지 않음. 창이 열려있으면 최전면으로
+6. O(1) first-character pre-check (RFC 8259: `{`, `[`, `"`, `t`, `f`, `n`, `-`, `0-9`)
+7. **pre-check 실패** → Toast만 표시 ("Invalid JSON in clipboard"), 새 탭 생성하지 않음. 창이 열려있으면 최전면으로
+8. **pre-check 통과** → 새 탭 생성 + 백그라운드 파싱 시도
+9. **파싱 성공** → 창 열기 (이미 열려있으면 최전면으로)
+10. **파싱 실패** → ErrorView에 파싱 에러 표시 (탭은 유지)
 
 ### 3.3 접근성 권한 모니터링
 - `AccessibilityManager`가 0.3초 간격으로 `AXIsProcessTrusted()` 폴링
@@ -162,7 +164,7 @@ OhMyJson       File                    Edit
 
 ### 4.4 영역별 툴바
 - **Input 영역**: 좌측에 "Json Input" 라벨 (headline 스타일), 우측에 🗑️ 아이콘 Clear 버튼 (tooltip: "Clear")
-- **Viewer 영역**: 좌측에 뷰 모드 세그먼트 컨트롤 (Beautify | Tree), 우측에 📋 Copy All 아이콘 버튼 (유효한 JSON일 때만 표시, tooltip: "Copy All")
+- **Viewer 영역**: 좌측에 뷰 모드 세그먼트 컨트롤 (Beautify | Tree | Compare), 우측에 📋 Copy All 아이콘 버튼 (유효한 JSON일 때만 표시, tooltip: "Copy All")
 
 ### 4.5 창 닫기 동작
 
@@ -1119,7 +1121,11 @@ Sparkle: 다운로드 → 설치 → 재시작
 
 ### 18.6 Large JSON
 
-`isLargeJSON == true` 시: 입력 편집 비활성화, Beautify 비활성화 (`.tree` 강제), 결과 5,000줄 제한
+`isLargeJSON == true` 시: 입력 편집 비활성화, Beautify·Compare 비활성화 (`.tree` 강제, 세그먼트 컨트롤 dim 처리), `formatJSON()` 스킵 (`formattedJSON == nil`), indent 변경 무시
+
+**Compare 모드 내 large JSON 붙여넣기**: 입력 패널에서 512KB 초과 텍스트 붙여넣기 시 alert 표시 → "Open in New Tab" 선택 시 새 탭(Tree 모드)으로 생성, "Cancel" 시 무시. 핫키(Ctrl+Option+J)로 large JSON 캡처 시에도 동일하게 새 탭으로 자동 생성.
+
+**BeautifyView 표시 제한**: `BeautifyLimit.maxDisplayLines` = 10,000줄. 초과 시 truncation notice 표시. `asyncBuildThreshold` = 300줄 이상은 비동기 빌드.
 
 ### 18.7 상세 문서
 
