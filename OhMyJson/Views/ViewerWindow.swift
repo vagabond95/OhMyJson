@@ -217,6 +217,19 @@ struct ViewerWindow: View {
             setupKeyboardShortcuts()
             viewModel.loadInitialContent()
         }
+        .alert(
+            String(localized: "alert.compare_large_json.title"),
+            isPresented: $viewModel.showCompareLargeJSONAlert
+        ) {
+            Button(String(localized: "alert.compare_large_json.open_new_tab")) {
+                viewModel.confirmCompareLargeJSONNewTab()
+            }
+            Button(String(localized: "alert.compare_large_json.cancel"), role: .cancel) {
+                viewModel.cancelCompareLargeJSONAlert()
+            }
+        } message: {
+            Text(String(localized: "alert.compare_large_json.message"))
+        }
         .onDisappear {
             if let monitor = keyMonitor {
                 NSEvent.removeMonitor(monitor)
@@ -347,7 +360,7 @@ struct ViewerWindow: View {
     private var viewModeSegmentedControl: some View {
         HStack(spacing: 0) {
             ForEach(ViewMode.allCases, id: \.self) { mode in
-                let isDisabled = mode == .beautify && viewModel.isLargeJSON
+                let isDisabled = viewModel.isLargeJSON && (mode == .beautify || mode == .compare)
                 Button(action: {
                     viewModel.switchViewMode(to: mode)
                 }) {
@@ -369,7 +382,9 @@ struct ViewerWindow: View {
                 .disabled(isDisabled)
                 .instantTooltip(
                     isDisabled
-                        ? String(localized: "tooltip.beautify_unavailable_large")
+                        ? String(localized: mode == .beautify
+                            ? "tooltip.beautify_unavailable_large"
+                            : "tooltip.compare_unavailable_large")
                         : mode.tooltipText,
                     position: .bottom
                 )
@@ -390,7 +405,7 @@ struct ViewerWindow: View {
             switch viewModel.parseResult {
             case .success(let rootNode):
                 ZStack {
-                    if let formatted = viewModel.formattedJSON {
+                    if let formatted = viewModel.formattedJSON, !viewModel.isLargeJSON {
                         BeautifyView(
                             formattedJSON: formatted,
                             isActive: viewModel.viewMode == .beautify,
@@ -503,7 +518,7 @@ struct ViewerWindow: View {
                     }
                     return nil
                 } else if vm.viewMode == .compare {
-                    vm.switchViewMode(to: .beautify)
+                    vm.switchViewMode(to: vm.isLargeJSON ? .tree : .beautify)
                     return nil
                 }
             }

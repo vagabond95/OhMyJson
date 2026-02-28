@@ -153,6 +153,50 @@
         }
       }
     },
+    "alert.compare_large_json.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "alert.compare_large_json.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This JSON is too large for Compare mode. Would you like to open it in a new tab?"
+          }
+        }
+      }
+    },
+    "alert.compare_large_json.open_new_tab" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in New Tab"
+          }
+        }
+      }
+    },
+    "alert.compare_large_json.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON Too Large"
+          }
+        }
+      }
+    },
     "alert.quit_app.cancel" : {
       "localizations" : {
         "en" : {
@@ -1506,6 +1550,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Beautify is unavailable for large JSON"
+          }
+        }
+      }
+    },
+    "tooltip.compare_unavailable_large" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare is unavailable for large JSON"
           }
         }
       }

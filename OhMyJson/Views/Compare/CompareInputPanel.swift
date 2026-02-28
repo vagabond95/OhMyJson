@@ -29,7 +29,7 @@ struct CompareInputPanel: View {
                 onTextChange: viewModel.handleCompareLeftTextChange,
                 onClear: viewModel.clearCompareLeft,
                 parseResult: viewModel.compareLeftParseResult,
-                isLargeJSON: viewModel.compareLeftText.utf8.count > InputSize.displayThreshold,
+                onLargeTextPaste: viewModel.handleCompareLargeTextPaste,
                 tabGeneration: viewModel.compareLeftGeneration,
                 isRestoringTabState: viewModel.isRestoringTabState
             )
@@ -47,7 +47,7 @@ struct CompareInputPanel: View {
                 onTextChange: viewModel.handleCompareRightTextChange,
                 onClear: viewModel.clearCompareRight,
                 parseResult: viewModel.compareRightParseResult,
-                isLargeJSON: viewModel.compareRightText.utf8.count > InputSize.displayThreshold,
+                onLargeTextPaste: viewModel.handleCompareLargeTextPaste,
                 tabGeneration: viewModel.compareRightGeneration,
                 isRestoringTabState: viewModel.isRestoringTabState
             )
@@ -62,7 +62,7 @@ struct CompareInputPanel: View {
         onTextChange: @escaping (String) -> Void,
         onClear: @escaping () -> Void,
         parseResult: JSONParseResult?,
-        isLargeJSON: Bool,
+        onLargeTextPaste: ((String) -> Void)?,
         tabGeneration: Int,
         isRestoringTabState: Bool
     ) -> some View {
@@ -103,7 +103,8 @@ struct CompareInputPanel: View {
                     onTextChange: onTextChange,
                     scrollPosition: scrollPosition,
                     isRestoringTabState: isRestoringTabState,
-                    isEditable: !isLargeJSON,
+                    onLargeTextPaste: onLargeTextPaste,
+                    isEditable: true,
                     tabGeneration: tabGeneration
                 )
 
