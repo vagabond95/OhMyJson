@@ -1474,8 +1474,8 @@ struct ViewerViewModelTests {
         #expect(tabManager.dehydrateAfterTabSwitchCallCount == 1)
     }
 
-    @Test("restoreTabState calls hydrateTabContent when active tab is dehydrated")
-    func restoreTabStateHydratesDehydratedTab() {
+    @MainActor @Test("restoreTabState calls hydrateTabContent when active tab is dehydrated")
+    func restoreTabStateHydratesDehydratedTab() async throws {
         let (vm, tabManager, _, _, _) = makeSUT()
         let id = tabManager.createTab(with: "some json")
         tabManager.activeTabId = id
@@ -1483,6 +1483,8 @@ struct ViewerViewModelTests {
         tabManager.tabs[0].isHydrated = false
 
         vm.restoreTabState()
+        // Async hydration via Task — wait for completion
+        try await Task.sleep(nanoseconds: 100_000_000)
 
         #expect(tabManager.hydrateTabContentCallCount == 1)
     }
@@ -1499,8 +1501,8 @@ struct ViewerViewModelTests {
         #expect(tabManager.hydrateTabContentCallCount == 0)
     }
 
-    @Test("restoreTabState triggers background parse for dehydrated tab with prior parse success")
-    func restoreTabStateParsesAfterHydration() {
+    @MainActor @Test("restoreTabState triggers background parse for dehydrated tab with prior parse success")
+    func restoreTabStateParsesAfterHydration() async throws {
         let (vm, tabManager, _, parser, _) = makeSUT()
         let node = JSONNode(value: .null)
         parser.parseResult = .success(node)
@@ -1512,10 +1514,35 @@ struct ViewerViewModelTests {
         tabManager.tabs[0].isParseSuccess = true
         tabManager.tabs[0].parseResult = nil
 
+        let parseCountBefore = parser.parseCallCount
         vm.restoreTabState()
+        // Async hydration via Task — wait for hydration + parse completion
+        try await Task.sleep(nanoseconds: 500_000_000)
 
-        // Background parse should have started
-        #expect(vm.isParsing == true)
+        // Background parse should have been triggered
+        #expect(parser.parseCallCount > parseCountBefore)
+    }
+
+    @MainActor @Test("restoreTabState increments tabGeneration after async hydration so NSTextView updates")
+    func restoreTabStateIncrementsTabGenerationAfterHydration() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let node = JSONNode(value: .null)
+        parser.parseResult = .success(node)
+
+        let id = tabManager.createTab(with: "{}")
+        tabManager.activeTabId = id
+        tabManager.tabs[0].isHydrated = false
+        tabManager.tabs[0].isParseSuccess = true
+        tabManager.tabs[0].parseResult = nil
+
+        let generationBefore = vm.tabGeneration
+        vm.restoreTabState()
+        // Wait for async hydration Task to complete
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        // tabGeneration must have increased beyond the initial restoreTabState bump,
+        // ensuring NSTextView picks up the restored inputText.
+        #expect(vm.tabGeneration > generationBefore + 1)
     }
 
     @Test("restoreTabState triggers background parse for failed tab with non-empty content")
@@ -2277,8 +2304,8 @@ struct ViewerViewModelTests {
         #expect(vm.isLargeJSONContentLost == false)
     }
 
-    @Test("restoreTabState sets isLargeJSONContentLost from tab when content is lost")
-    func restoreTabStateSetsContentLostFlag() {
+    @MainActor @Test("restoreTabState sets isLargeJSONContentLost from tab when content is lost")
+    func restoreTabStateSetsContentLostFlag() async throws {
         let (vm, tabManager, _, _, _) = makeSUT()
         let largeText = makeLargeText()
         let truncated = ViewerViewModel.buildLargeInputNotice(largeText)
@@ -2291,6 +2318,8 @@ struct ViewerViewModelTests {
         // fullInputText is nil — content was lost
 
         vm.restoreTabState()
+        // Async hydration via Task — wait for completion
+        try await Task.sleep(nanoseconds: 100_000_000)
 
         // hydrateTabContent detects lost content and sets isLargeJSONContentLost
         #expect(vm.isLargeJSONContentLost == true)
@@ -2366,6 +2395,62 @@ struct ViewerViewModelTests {
 
         #expect(gen1 < gen2)
         #expect(gen2 < gen3)
+    }
+
+    // MARK: - Large JSON SBBOD Fixes
+
+    @MainActor @Test("parseInBackground sets formattedJSON to nil for large JSON")
+    func parseInBackgroundSkipsFormatForLargeJSON() async throws {
+        let (vm, _, _, parser, _) = makeSUT()
+        let largeJSON = String(repeating: "{\"key\":\"value\"}", count: 50_000)  // > 512KB
+        let node = JSONNode(value: .object(["key": .string("value")]))
+        parser.parseResult = .success(node)
+        vm.onNeedShowWindow = {}
+
+        vm.createNewTab(with: largeJSON)
+
+        // Wait for background parse to complete
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        #expect(vm.isLargeJSON == true)
+        #expect(vm.formattedJSON == nil)
+    }
+
+    @MainActor @Test("restoreTabState sets formattedJSON to nil for large JSON tab")
+    func restoreTabStateNilsFormattedJSONForLargeJSON() {
+        let (vm, tabManager, _, _, _) = makeSUT()
+        let largeText = makeLargeText()
+        let truncated = ViewerViewModel.buildLargeInputNotice(largeText)
+
+        let id = tabManager.createTab(with: truncated)
+        tabManager.activeTabId = id
+        tabManager.updateTabFullInput(id: id, fullText: largeText)
+        tabManager.updateTabParseResult(id: id, result: .success(JSONNode(value: .object([:]))))
+
+        vm.restoreTabState()
+
+        #expect(vm.isLargeJSON == true)
+        #expect(vm.formattedJSON == nil)
+    }
+
+    @MainActor @Test("restoreTabState rebuilds formattedJSON asynchronously for normal JSON tab")
+    func restoreTabStateRebuildsFormattedJSONForNormalJSON() async throws {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        let json = #"{"name": "test"}"#
+        let node = JSONNode(value: .object(["name": .string("test")]))
+        parser.formatResult = "formatted output"
+
+        let id = tabManager.createTab(with: json)
+        tabManager.activeTabId = id
+        tabManager.updateTabParseResult(id: id, result: .success(node))
+
+        vm.restoreTabState()
+
+        // formattedJSON may be nil initially (async rebuild)
+        // Wait for async format task to complete
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        #expect(vm.formattedJSON == "formatted output")
     }
 }
 
@@ -2744,6 +2829,175 @@ struct ViewerViewModelCompareTests {
 
         #expect(vm.compareLeftGeneration == leftBefore)
         #expect(vm.compareRightGeneration == rightBefore + 1)
+    }
+
+    // MARK: - Compare Large JSON Blocking
+
+    private func makeLargeJSON() -> String {
+        // Valid JSON that exceeds InputSize.displayThreshold (512KB)
+        let value = String(repeating: "x", count: InputSize.displayThreshold + 1)
+        return "{\"key\": \"\(value)\"}"
+    }
+
+    @Test("switchViewMode to compare is blocked when isLargeJSON")
+    func switchViewModeToCompareBlockedForLargeJSON() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        let tabId = tabManager.createTab(with: "large")
+        tabManager.updateTabFullInput(id: tabId, fullText: makeLargeJSON())
+        vm.restoreTabState()
+        vm.viewMode = .tree
+
+        vm.switchViewMode(to: .compare)
+
+        #expect(vm.viewMode == .tree)
+    }
+
+    @Test("handleCompareLargeTextPaste shows alert")
+    func handleCompareLargeTextPasteShowsAlert() {
+        let (vm, _, _, _, _, _) = makeSUT()
+
+        vm.handleCompareLargeTextPaste(makeLargeJSON())
+
+        #expect(vm.showCompareLargeJSONAlert == true)
+    }
+
+    @Test("confirmCompareLargeJSONNewTab creates tab and dismisses alert")
+    func confirmCompareLargeJSONNewTabCreatesTab() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        let initialCount = tabManager.tabs.count
+        vm.handleCompareLargeTextPaste(makeLargeJSON())
+
+        vm.confirmCompareLargeJSONNewTab()
+
+        #expect(tabManager.tabs.count == initialCount + 1)
+        #expect(vm.showCompareLargeJSONAlert == false)
+    }
+
+    @Test("cancelCompareLargeJSONAlert dismisses without changes")
+    func cancelCompareLargeJSONAlertDismissesCleanly() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        let initialCount = tabManager.tabs.count
+        vm.handleCompareLargeTextPaste(makeLargeJSON())
+
+        vm.cancelCompareLargeJSONAlert()
+
+        #expect(tabManager.tabs.count == initialCount)
+    }
+
+    @Test("handleHotKeyInCompareMode with large JSON opens new tab")
+    func handleHotKeyInCompareModeLargeOpensNewTab() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        vm.compareLeftText = ""
+        vm.compareRightText = ""
+        let initialCount = tabManager.tabs.count
+        let largeJSON = makeLargeJSON()
+
+        vm.handleHotKeyInCompareMode(largeJSON)
+
+        // Large JSON should create a new tab, not fill compare panels
+        #expect(tabManager.tabs.count == initialCount + 1)
+        #expect(vm.compareLeftText == "")
+        #expect(vm.compareRightText == "")
+    }
+
+    @Test("restoreTabState forces tree mode for large JSON in compare")
+    func restoreTabStateForcesTreeForLargeCompare() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        let largeJSON = makeLargeJSON()
+        let tabId = tabManager.createTab(with: "display")
+        tabManager.updateTabFullInput(id: tabId, fullText: largeJSON)
+        tabManager.updateTabViewMode(id: tabId, viewMode: .compare)
+
+        vm.restoreTabState()
+
+        #expect(vm.viewMode == .tree)
+    }
+
+    @Test("showCompareLargeJSONAlert triggers observation")
+    func showCompareLargeJSONAlertTriggersObservation() {
+        let (vm, _, _, _, _, _) = makeSUT()
+        var observed = false
+
+        withObservationTracking {
+            _ = vm.showCompareLargeJSONAlert
+        } onChange: {
+            observed = true
+        }
+
+        vm.showCompareLargeJSONAlert = true
+        #expect(observed)
+    }
+
+    // MARK: - suppressNodeCacheRebuild
+
+    @MainActor @Test("restoreTabState skips rebuildNodeCache for hydrated tabs")
+    func restoreTabStateSkipsRebuildNodeCache() async throws {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        // Set up a parsed tab with a known root node
+        let root = JSONNode(value: .object([
+            "a": .string("1"),
+            "b": .string("2")
+        ]), defaultFoldDepth: 10)
+        vm.parseResult = .success(root)
+        vm.inputText = #"{"a":"1","b":"2"}"#
+        // saveTabState doesn't save parseResult — must set it on tab directly
+        tabManager.updateTabParseResult(id: id, result: .success(root))
+        vm.saveTabState(for: id)
+
+        // Create and switch to a second tab
+        let _ = tabManager.createTab(with: nil)
+        vm.parseResult = nil
+
+        // Switch back to the first tab
+        tabManager.activeTabId = id
+        vm.restoreTabState()
+        // Allow DispatchQueue.main.async to complete
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        // parseResult should be restored from tab
+        #expect(vm.parseResult != nil, "parseResult should be restored after restoreTabState")
+
+        // Keyboard nav should NOT work because suppressNodeCacheRebuild skipped
+        // rebuildNodeCache — cachedVisibleNodes is empty until TreeView populates it.
+        vm.selectedNodeId = nil
+        vm.moveSelectionDown()
+        #expect(vm.selectedNodeId == nil)
+
+        // After TreeView provides visible nodes via updateNodeCache, nav should work
+        if case .success(let restoredRoot) = vm.parseResult {
+            vm.updateNodeCache(restoredRoot.allNodes())
+            vm.moveSelectionDown()
+            #expect(vm.selectedNodeId == restoredRoot.id)
+        }
+    }
+
+    @MainActor @Test("parseInBackground pre-computes visible nodes on background thread")
+    func parseInBackgroundPreComputesVisibleNodes() async throws {
+        let (vm, tabManager, _, parser, _, _) = makeSUT()
+        let id = tabManager.createTab(with: nil)
+        tabManager.activeTabId = id
+
+        let root = JSONNode(value: .object([
+            "a": .object(["nested": .string("val")]),
+            "b": .array([.number(1), .number(2)])
+        ]))
+        parser.parseResult = .success(root)
+        parser.formatResult = "{}"
+        vm.onNeedShowWindow = {}
+
+        vm.handleTextChange(#"{"a":{},"b":[]}"#)
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        // After background parse, keyboard nav should work immediately because
+        // parseInBackground pre-computed visible nodes and set cachedVisibleNodes directly.
+        if case .success(let parsedRoot) = vm.parseResult {
+            vm.selectedNodeId = parsedRoot.id
+            vm.moveSelectionDown()
+            #expect(vm.selectedNodeId != parsedRoot.id)
+        }
     }
 }
 #endif

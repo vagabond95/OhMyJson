@@ -102,6 +102,7 @@ class ViewerViewModel {
     }
     var parseResult: JSONParseResult? {
         didSet {
+            guard !suppressNodeCacheRebuild else { return }
             rebuildNodeCache()
         }
     }
@@ -131,6 +132,11 @@ class ViewerViewModel {
 
     var compareLeftText: String = ""
     var compareRightText: String = ""
+
+    /// Alert state: large JSON was pasted in Compare mode
+    var showCompareLargeJSONAlert: Bool = false
+    @ObservationIgnored private var _compareLargeJSONPendingText: String?
+
     var compareLeftParseResult: JSONParseResult?
     var compareRightParseResult: JSONParseResult?
     var compareDiffResult: CompareDiffResult?
@@ -164,6 +170,7 @@ class ViewerViewModel {
     @ObservationIgnored private let debounceInterval: TimeInterval = Timing.parseDebounce
     @ObservationIgnored private var parseTask: Task<Void, Never>?
     @ObservationIgnored private var suppressFormatOnSet: Bool = false
+    @ObservationIgnored private var suppressNodeCacheRebuild: Bool = false
 
     /// Full original text when inputText displays a truncated preview (large input > 512KB).
     /// nil means inputText is the complete content.
@@ -227,6 +234,7 @@ class ViewerViewModel {
         indentCancellable = nil
         onNeedShowWindow = nil
         quitConfirmationHandler = nil
+        _compareLargeJSONPendingText = nil
     }
 
     // MARK: - Computed
@@ -278,7 +286,7 @@ class ViewerViewModel {
         indentCancellable = AppSettings.shared.jsonIndentChanged
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newIndent in
-                guard let self, let json = self.currentJSON else { return }
+                guard let self, let json = self.currentJSON, !self.isLargeJSON else { return }
                 let parser = self.jsonParser
                 self.indentFormatTask?.cancel()
                 self.indentFormatTask = Task.detached {
@@ -645,6 +653,9 @@ class ViewerViewModel {
             var indexMap: [UUID: Int] = [:]
             var maxWidth: CGFloat = 0
             var rootNodeId: UUID?
+            // Pre-compute visible nodes on background thread to skip rebuildNodeCache() on main
+            var visibleNodesList: [JSONNode] = []
+            var visibleIndexMap: [UUID: Int] = [:]
 
             if case .success(let rootNode) = result {
                 rootNode.materializeAllChildren()
@@ -656,11 +667,17 @@ class ViewerViewModel {
                 indexMap = Dictionary(uniqueKeysWithValues: allNodesList.enumerated().map { ($1.id, $0) })
                 maxWidth = ViewerViewModel.computeMaxContentWidth(allNodesList)
                 rootNodeId = rootNode.id
+
+                // Pre-compute visible (expanded) nodes — eliminates O(V) allNodes() in rebuildNodeCache()
+                visibleNodesList = rootNode.allNodes()
+                visibleIndexMap = Dictionary(uniqueKeysWithValues:
+                    visibleNodesList.enumerated().map { ($1.id, $0) })
             }
             guard !Task.isCancelled else { return }
 
             let formatted: String?
-            if case .success = result {
+            let isLarge = json.utf8.count > InputSize.displayThreshold
+            if case .success = result, !isLarge {
                 formatted = parser.formatJSON(json, indentSize: indentSize)
             } else {
                 formatted = nil
@@ -683,7 +700,6 @@ class ViewerViewModel {
                 switch result {
                 case .success(let node):
                     // Apply pre-computed all-nodes caches BEFORE setting parseResult
-                    // (rebuildNodeCache fires in parseResult.didSet — caches must be fresh by then)
                     self.cachedAllNodes = allNodesList
                     self.cachedAllAncestorMap = ancestorMap
                     self.cachedAllNodeIndexMap = indexMap
@@ -691,8 +707,14 @@ class ViewerViewModel {
                     self.cachedAllNodesRootId = rootNodeId
                     self.lastTreeOperation = .normal
 
+                    // Apply pre-computed visible nodes — eliminates O(V) rebuildNodeCache() on main thread
+                    self.cachedVisibleNodes = visibleNodesList
+                    self.nodeIndexMap = visibleIndexMap
+
                     let wasEmpty = self.parseResult == nil
+                    self.suppressNodeCacheRebuild = true
                     self.parseResult = .success(node)
+                    self.suppressNodeCacheRebuild = false
                     self.suppressFormatOnSet = true
                     self.currentJSON = json
                     self._formattedJSONCache = formatted
@@ -827,23 +849,47 @@ class ViewerViewModel {
         // Hydrate if the tab was offloaded from memory — load fullInputText from DB.
         var activeTab = initialActiveTab
         if !activeTab.isHydrated {
-            tabManager.hydrateTabContent(id: activeTab.id)
-            guard let hydratedTab = tabManager.activeTab else {
-                isParsing = false
-                isRestoringTabState = false
-                return
+            // Offload SQLite I/O to background thread — isParsing spinner already visible
+            let tabId = activeTab.id
+            Task { [weak self] in
+                guard let self else { return }
+                await self.tabManager.hydrateTabContentAsync(id: tabId)
+                guard let hydratedTab = self.tabManager.activeTab,
+                      self.tabManager.activeTabId == tabId else {
+                    self.isParsing = false
+                    self.isRestoringTabState = false
+                    return
+                }
+                self.tabGeneration += 1  // Trigger NSTextView update after async hydration
+                self.applyRestoredTabState(hydratedTab)
             }
-            activeTab = hydratedTab
+            return
         }
 
+        applyRestoredTabState(activeTab)
+    }
+
+    /// Apply restored tab state from a hydrated tab. Extracted to support both sync and async hydration paths.
+    private func applyRestoredTabState(_ activeTab: JSONTab) {
         isInitialLoading = false
         inputText = activeTab.inputText
         setFullInputText(activeTab.fullInputText)
         isLargeJSONContentLost = activeTab.isLargeJSONContentLost
+        // Suppress rebuildNodeCache() — TreeView's performFullInit → onVisibleNodesChanged
+        // will populate the cache. This eliminates an O(V) rootNode.allNodes() on main thread.
+        suppressNodeCacheRebuild = true
         parseResult = activeTab.parseResult
+        suppressNodeCacheRebuild = false
         // Use full text for currentJSON (parsing / copy-all), display text for inputText
         let jsonForParse = activeTab.fullInputText ?? activeTab.inputText
-        currentJSON = jsonForParse.isEmpty ? nil : jsonForParse
+        if isLargeJSON {
+            suppressFormatOnSet = true
+            currentJSON = jsonForParse.isEmpty ? nil : jsonForParse
+            _formattedJSONCache = nil
+            suppressFormatOnSet = false
+        } else {
+            currentJSON = jsonForParse.isEmpty ? nil : jsonForParse
+        }
 
         searchText = activeTab.searchText
         beautifySearchIndex = activeTab.beautifySearchIndex
@@ -852,9 +898,9 @@ class ViewerViewModel {
         isSearchVisible = activeTab.isSearchVisible
         viewMode = activeTab.viewMode
 
-        // Safety net: if this is a large-JSON tab that was saved in Beautify mode,
-        // force it back to Tree (Beautify is disabled for large JSON).
-        if isLargeJSON && viewMode == .beautify {
+        // Safety net: if this is a large-JSON tab that was saved in Beautify or Compare mode,
+        // force it back to Tree (both are disabled for large JSON).
+        if isLargeJSON && (viewMode == .beautify || viewMode == .compare) {
             viewMode = .tree
             if let id = tabManager.activeTabId {
                 tabManager.updateTabViewMode(id: id, viewMode: .tree)
@@ -876,15 +922,17 @@ class ViewerViewModel {
         treeSearchDismissed = activeTab.treeSearchDismissed
 
         // Restore compare state
-        compareLeftText = activeTab.compareLeftText ?? ""
-        compareRightText = activeTab.compareRightText ?? ""
+        let storedLeft = activeTab.compareLeftText ?? ""
+        let storedRight = activeTab.compareRightText ?? ""
+        compareLeftText = storedLeft
+        compareRightText = storedRight
         compareDiffResult = nil
         compareRenderResult = nil
         compareCollapsedSections = []
         if viewMode == .compare {
-            parseCompareLeft(compareLeftText)
-            parseCompareRight(compareRightText)
-            if !compareLeftText.isEmpty && !compareRightText.isEmpty {
+            parseCompareLeft(storedLeft)
+            parseCompareRight(storedRight)
+            if !storedLeft.isEmpty && !storedRight.isEmpty {
                 runCompareDiff()
             }
         }
@@ -1022,6 +1070,7 @@ class ViewerViewModel {
 
     func switchViewMode(to mode: ViewMode) {
         guard mode != viewMode else { return }
+        if mode == .compare && isLargeJSON { return }
 
         // Save scroll position of previous mode
         if let activeTabId = tabManager.activeTabId {
@@ -1116,6 +1165,25 @@ class ViewerViewModel {
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabCompareState(id: activeTabId, leftText: compareLeftText, rightText: nil)
         }
+    }
+
+    // MARK: - Compare Large Text Paste Handling
+
+    func handleCompareLargeTextPaste(_ text: String) {
+        _compareLargeJSONPendingText = text
+        showCompareLargeJSONAlert = true
+    }
+
+    func confirmCompareLargeJSONNewTab() {
+        guard let text = _compareLargeJSONPendingText else { return }
+        _compareLargeJSONPendingText = nil
+        showCompareLargeJSONAlert = false
+        createNewTab(with: text)
+    }
+
+    func cancelCompareLargeJSONAlert() {
+        _compareLargeJSONPendingText = nil
+        showCompareLargeJSONAlert = false
     }
 
     func updateCompareOption(ignoreKeyOrder: Bool? = nil, ignoreArrayOrder: Bool? = nil, strictType: Bool? = nil) {
@@ -1225,6 +1293,11 @@ class ViewerViewModel {
     }
 
     func handleHotKeyInCompareMode(_ clipboardText: String) {
+        let isLarge = clipboardText.utf8.count > InputSize.displayThreshold
+        if isLarge {
+            createNewTab(with: clipboardText)
+            return
+        }
         if compareLeftText.isEmpty {
             compareLeftGeneration += 1
             compareLeftText = clipboardText
@@ -1274,6 +1347,9 @@ class ViewerViewModel {
         treeSearchIndex = 0
         beautifySearchDismissed = false
         treeSearchDismissed = false
+
+        // Clear compare pending state
+        _compareLargeJSONPendingText = nil
     }
 
     func setUpdateAvailable(version: String) {
