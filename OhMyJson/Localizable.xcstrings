@@ -35,6 +35,9 @@
         }
       }
     },
+    "+" : {
+
+    },
     "▶" : {
 
     },
@@ -221,6 +224,9 @@
           }
         }
       }
+    },
+    "Both JSON structures are identical" : {
+
     },
     "Cache Usage" : {
 
@@ -540,7 +546,7 @@
         }
       }
     },
-    "No differences" : {
+    "No Differences" : {
 
     },
     "null" : {

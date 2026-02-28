@@ -454,7 +454,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     private func completeOnboarding() {
         AppSettings.shared.hasSeenOnboarding = true
         onboardingController = nil
-        openWindowWithNewTab(json: SampleData.json)
+        openWindowWithNewTab(json: SampleData.onboardingJson)
 
         // Trigger confetti in ViewerWindow after a short delay for window to appear
         DispatchQueue.main.asyncAfter(deadline: .now() + Timing.confettiDelay) { [weak self] in
