@@ -52,4 +52,7 @@ protocol TabManagerProtocol: AnyObject {
 
     /// Load `fullInputText` from DB for a dehydrated tab and mark it hydrated.
     func hydrateTabContent(id: UUID)
+
+    /// Async version: offloads SQLite I/O to a background thread, applies mutation on caller.
+    func hydrateTabContentAsync(id: UUID) async
 }

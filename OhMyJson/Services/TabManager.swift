@@ -302,6 +302,31 @@ class TabManager: TabManagerProtocol {
         tabs[index].isHydrated = true
     }
 
+    /// Async version: offloads SQLite I/O to a background thread, applies mutation on caller.
+    func hydrateTabContentAsync(id: UUID) async {
+        guard let index = tabs.firstIndex(where: { $0.id == id }),
+              !tabs[index].isHydrated else { return }
+
+        // Offload SQLite read to background thread
+        let content = await Task.detached { [weak self] () -> (inputText: String, fullInputText: String?)? in
+            return self?.persistence?.loadTabContent(id: id)
+        }.value
+
+        guard let content,
+              let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[idx].fullInputText = content.fullInputText
+
+        if content.fullInputText == nil
+            && tabs[idx].isParseSuccess
+            && tabs[idx].inputText.hasPrefix(InputSize.largeInputNoticePrefix) {
+            tabs[idx].inputText = ""
+            tabs[idx].isParseSuccess = false
+            tabs[idx].isLargeJSONContentLost = true
+        }
+
+        tabs[idx].isHydrated = true
+    }
+
     // MARK: - Bulk Operations
 
     /// Close all tabs and clear persistent storage.

@@ -205,4 +205,8 @@ final class MockTabManager: TabManagerProtocol {
         }
         tabs[index].isHydrated = true
     }
+
+    func hydrateTabContentAsync(id: UUID) async {
+        hydrateTabContent(id: id)
+    }
 }
