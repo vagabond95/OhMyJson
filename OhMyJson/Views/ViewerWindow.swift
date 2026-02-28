@@ -508,18 +508,6 @@ struct ViewerWindow: View {
                 }
             }
 
-            // Cmd+↑/↓ for diff navigation in compare mode
-            if vm.viewMode == .compare && event.modifierFlags.contains(.command) {
-                if event.keyCode == KeyCode.upArrow {
-                    vm.navigateToPreviousDiff()
-                    return nil
-                }
-                if event.keyCode == KeyCode.downArrow {
-                    vm.navigateToNextDiff()
-                    return nil
-                }
-            }
-
             // ↑/↓: tree mode + selection exists → always handle (even when search bar focused)
             if vm.viewMode == .tree, vm.selectedNodeId != nil {
                 if event.keyCode == KeyCode.downArrow {

@@ -2705,61 +2705,6 @@ struct ViewerViewModelCompareTests {
         #expect(observed == true)
     }
 
-    @Test("navigateToNextDiff increments currentDiffIndex")
-    func navigateToNextDiff() {
-        let (vm, _, _, _, _, _) = makeSUT()
-        vm.totalDiffCount = 5
-        vm.currentDiffIndex = 0
-
-        vm.navigateToNextDiff()
-
-        #expect(vm.currentDiffIndex == 1)
-    }
-
-    @Test("navigateToNextDiff wraps around")
-    func navigateToNextDiffWraps() {
-        let (vm, _, _, _, _, _) = makeSUT()
-        vm.totalDiffCount = 3
-        vm.currentDiffIndex = 2
-
-        vm.navigateToNextDiff()
-
-        #expect(vm.currentDiffIndex == 0)
-    }
-
-    @Test("navigateToPreviousDiff decrements currentDiffIndex")
-    func navigateToPreviousDiff() {
-        let (vm, _, _, _, _, _) = makeSUT()
-        vm.totalDiffCount = 5
-        vm.currentDiffIndex = 3
-
-        vm.navigateToPreviousDiff()
-
-        #expect(vm.currentDiffIndex == 2)
-    }
-
-    @Test("navigateToPreviousDiff wraps around")
-    func navigateToPreviousDiffWraps() {
-        let (vm, _, _, _, _, _) = makeSUT()
-        vm.totalDiffCount = 3
-        vm.currentDiffIndex = 0
-
-        vm.navigateToPreviousDiff()
-
-        #expect(vm.currentDiffIndex == 2)
-    }
-
-    @Test("navigateToNextDiff is no-op when totalDiffCount is 0")
-    func navigateToNextDiffNoOp() {
-        let (vm, _, _, _, _, _) = makeSUT()
-        vm.totalDiffCount = 0
-        vm.currentDiffIndex = 0
-
-        vm.navigateToNextDiff()
-
-        #expect(vm.currentDiffIndex == 0)
-    }
-
     @Test("restoreTabState increments both compare generations")
     func restoreTabStateIncrementsCompareGenerations() {
         let (vm, tabManager, _, _, _, _) = makeSUT()

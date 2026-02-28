@@ -50,10 +50,7 @@ enum CompareDiffRenderer {
         let finalLeft = Array(collapsedLeft.prefix(maxLines))
         let finalRight = Array(collapsedRight.prefix(maxLines))
 
-        // 6. Build diff locations for navigation
-        let diffLocations = buildDiffLocations(lines: finalLeft)
-
-        // 7. Build NSAttributedStrings
+        // 6. Build NSAttributedStrings
         let theme = AppSettings.shared.currentTheme
         let leftAttrStr = buildAttributedString(lines: finalLeft, theme: theme)
         let rightAttrStr = buildAttributedString(lines: finalRight, theme: theme)
@@ -63,7 +60,6 @@ enum CompareDiffRenderer {
             rightContent: rightAttrStr,
             leftLines: finalLeft,
             rightLines: finalRight,
-            diffLocations: diffLocations,
             totalLines: finalLeft.count
         )
     }
@@ -372,18 +368,6 @@ enum CompareDiffRenderer {
         }
 
         return (resultLeft, resultRight)
-    }
-
-    // MARK: - Diff Locations
-
-    private static func buildDiffLocations(lines: [RenderLine]) -> [DiffLocation] {
-        var locations: [DiffLocation] = []
-        for (i, line) in lines.enumerated() {
-            if case .content(let dt) = line.type, dt != .unchanged {
-                locations.append(DiffLocation(renderLineIndex: i, diffType: dt))
-            }
-        }
-        return locations
     }
 
     // MARK: - NSAttributedString Building

@@ -150,13 +150,6 @@ struct RenderLine: Equatable {
     }
 }
 
-// MARK: - Diff Location (for navigation)
-
-struct DiffLocation: Equatable {
-    let renderLineIndex: Int    // index in the render lines array
-    let diffType: DiffType
-}
-
 // MARK: - Compare Render Result
 
 struct CompareRenderResult: Equatable {
@@ -164,7 +157,6 @@ struct CompareRenderResult: Equatable {
     let rightContent: NSAttributedString
     let leftLines: [RenderLine]
     let rightLines: [RenderLine]
-    let diffLocations: [DiffLocation]
     let totalLines: Int
 
     static func == (lhs: CompareRenderResult, rhs: CompareRenderResult) -> Bool {

@@ -135,8 +135,6 @@ class ViewerViewModel {
     var compareRightParseResult: JSONParseResult?
     var compareDiffResult: CompareDiffResult?
     var isCompareDiffing: Bool = false
-    var currentDiffIndex: Int = 0
-    var totalDiffCount: Int = 0
 
     // Diff options
     var compareIgnoreKeyOrder: Bool = true
@@ -883,8 +881,6 @@ class ViewerViewModel {
         compareDiffResult = nil
         compareRenderResult = nil
         compareCollapsedSections = []
-        currentDiffIndex = 0
-        totalDiffCount = 0
         if viewMode == .compare {
             parseCompareLeft(compareLeftText)
             parseCompareRight(compareRightText)
@@ -1106,8 +1102,6 @@ class ViewerViewModel {
         compareLeftParseResult = nil
         compareDiffResult = nil
         compareRenderResult = nil
-        totalDiffCount = 0
-        currentDiffIndex = 0
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabCompareState(id: activeTabId, leftText: nil, rightText: compareRightText)
         }
@@ -1119,8 +1113,6 @@ class ViewerViewModel {
         compareRightParseResult = nil
         compareDiffResult = nil
         compareRenderResult = nil
-        totalDiffCount = 0
-        currentDiffIndex = 0
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabCompareState(id: activeTabId, leftText: compareLeftText, rightText: nil)
         }
@@ -1132,18 +1124,6 @@ class ViewerViewModel {
         if let v = strictType { compareStrictType = v }
         // Immediate re-diff (no debounce)
         runCompareDiff()
-    }
-
-    func navigateToNextDiff() {
-        guard totalDiffCount > 0 else { return }
-        currentDiffIndex = (currentDiffIndex + 1) % totalDiffCount
-        compareRenderVersion += 1
-    }
-
-    func navigateToPreviousDiff() {
-        guard totalDiffCount > 0 else { return }
-        currentDiffIndex = (currentDiffIndex - 1 + totalDiffCount) % totalDiffCount
-        compareRenderVersion += 1
     }
 
     func copyDiff() {
@@ -1197,8 +1177,6 @@ class ViewerViewModel {
               case .success(let rightRoot) = compareRightParseResult else {
             compareDiffResult = nil
             compareRenderResult = nil
-            totalDiffCount = 0
-            currentDiffIndex = 0
             isCompareDiffing = false
             return
         }
@@ -1240,10 +1218,6 @@ class ViewerViewModel {
                 guard let self else { return }
                 self.compareDiffResult = result
                 self.compareRenderResult = renderResult
-                self.totalDiffCount = result.totalDiffCount
-                if self.currentDiffIndex >= self.totalDiffCount {
-                    self.currentDiffIndex = 0
-                }
                 self.isCompareDiffing = false
                 self.compareRenderVersion += 1
             }

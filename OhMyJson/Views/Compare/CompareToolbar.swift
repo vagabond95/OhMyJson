@@ -3,7 +3,7 @@
 //  OhMyJson
 //
 //  Toolbar for Compare mode: view mode segmented control (top bar)
-//  and result header with diff badges, navigation, options, copy.
+//  and result header with diff badges, options, copy.
 //
 
 import SwiftUI
@@ -75,7 +75,7 @@ struct CompareResultHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // Left: diff badges + navigation
+            // Left: diff badges
             if viewModel.isCompareDiffing {
                 ProgressView()
                     .controlSize(.small)
@@ -84,29 +84,6 @@ struct CompareResultHeader: View {
                 diffBadge(count: result.addedCount, label: "added", color: theme.diffAddedGutter)
                 diffBadge(count: result.removedCount, label: "removed", color: theme.diffRemovedGutter)
                 diffBadge(count: result.modifiedCount, label: "modified", color: theme.diffModifiedGutter)
-
-                // Navigation buttons
-                HStack(spacing: 2) {
-                    Button(action: viewModel.navigateToPreviousDiff) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 10, weight: .medium))
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
-                            .toolbarIconHover()
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.totalDiffCount == 0)
-
-                    Button(action: viewModel.navigateToNextDiff) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .medium))
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
-                            .toolbarIconHover()
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.totalDiffCount == 0)
-                }
             }
 
             Spacer()
