@@ -325,8 +325,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
             return
         }
 
+        let hostingController = NSHostingController(
+            rootView: SettingsWindowView()
+                .environment(AppSettings.shared)
+        )
+
+        // Force layout calculation before creating the window so the content
+        // size is known upfront — avoids intermittent blank window when the
+        // NSHostingController hasn't finished sizing with contentRect: .zero.
+        let fittingSize = hostingController.sizeThatFits(in: NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
+
         let window = NSWindow(
-            contentRect: .zero,
+            contentRect: NSRect(origin: .zero, size: fittingSize),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -335,10 +345,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
         window.appearance = AppSettings.shared.currentAppearance
-        window.contentViewController = NSHostingController(
-            rootView: SettingsWindowView()
-                .environment(AppSettings.shared)
-        )
+        window.contentViewController = hostingController
         window.delegate = self
         settingsWindow = window
 
@@ -347,6 +354,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
             .sink { [weak self] _ in
                 self?.settingsWindow?.appearance = AppSettings.shared.currentAppearance
             }
+
+        // Ensure the app is in regular activation policy so the window renders
+        // properly — when the viewer window is closed, the app switches to
+        // .accessory mode which can cause rendering issues for new windows.
+        if NSApp.activationPolicy() != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
 
         window.center()
         window.makeKeyAndOrderFront(nil)
