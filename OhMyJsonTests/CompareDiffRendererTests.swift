@@ -656,7 +656,11 @@ struct CompareDiffRendererTests {
         case let arr as [Any]:
             return .array(arr.map { jsonValueFromAny($0) })
         case let dict as [String: Any]:
-            return .object(dict.mapValues { jsonValueFromAny($0) })
+            var obj = OrderedJSONObject()
+            for (key, val) in dict {
+                obj[key] = jsonValueFromAny(val)
+            }
+            return .object(obj)
         case is NSNull:
             return .null
         default:

@@ -15,17 +15,17 @@ enum ViewMode: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .beautify: return String(localized: "viewer.mode.beautify")
-        case .tree: return String(localized: "viewer.mode.tree")
-        case .compare: return String(localized: "viewer.mode.compare")
+        case .beautify: return "Beautify"
+        case .tree: return "Tree"
+        case .compare: return "Compare"
         }
     }
 
     var tooltipText: String {
         switch self {
-        case .beautify: return String(localized: "tooltip.beautify_mode")
-        case .tree: return String(localized: "tooltip.tree_mode")
-        case .compare: return String(localized: "tooltip.compare_mode")
+        case .beautify: return "Beautify (⌘1)"
+        case .tree: return "Tree (⌘2)"
+        case .compare: return "Compare (⌘3)"
         }
     }
 }

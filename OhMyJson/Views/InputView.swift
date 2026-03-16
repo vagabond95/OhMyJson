@@ -261,9 +261,9 @@ struct UndoableTextView: NSViewRepresentable {
                     }
 
                     if oldText.isEmpty && !newText.isEmpty {
-                        undoManager.setActionName(String(localized: "undo.set_text"))
+                        undoManager.setActionName("Set Text")
                     } else {
-                        undoManager.setActionName(String(localized: "undo.change_text"))
+                        undoManager.setActionName("Change Text")
                     }
                 }
 
@@ -387,7 +387,7 @@ struct InputView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 16))
                             .foregroundColor(theme.secondaryText)
-                        Text("input.largeJSON.contentLost")
+                        Text("Large JSON was not saved.\nPlease paste your JSON again.")
                             .foregroundColor(theme.secondaryText)
                             .font(.system(.body, design: .monospaced))
                             .multilineTextAlignment(.center)
@@ -395,7 +395,7 @@ struct InputView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .allowsHitTesting(false)
                 } else if text.isEmpty && !isRestoringTabState {
-                    Text("input.placeholder")
+                    Text("Paste or type JSON here...")
                         .foregroundColor(theme.secondaryText)
                         .font(.system(.body, design: .monospaced))
                         .padding(.leading, 15)
@@ -428,7 +428,7 @@ struct InputPanel: View {
         VStack(spacing: 0) {
             // Toolbar
             HStack {
-                Text("input.title")
+                Text("Source")
                     .font(.headline)
                     .foregroundColor(theme.secondaryText)
 
@@ -442,7 +442,7 @@ struct InputPanel: View {
                         .toolbarIconHover()
                 }
                 .buttonStyle(.plain)
-                .instantTooltip(String(localized: "tooltip.clear"), position: .bottom)
+                .instantTooltip("Clear", position: .bottom)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 4)

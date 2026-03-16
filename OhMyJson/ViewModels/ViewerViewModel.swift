@@ -378,7 +378,7 @@ class ViewerViewModel {
         // Validate JSON before creating a tab — ignore non-JSON clipboard content
         guard jsonParser.validateJSON(trimmed) else {
             showExistingTabs()
-            ToastManager.shared.show(String(localized: "toast.invalid_json"))
+            ToastManager.shared.show("Invalid JSON in clipboard")
             return
         }
 
@@ -405,11 +405,11 @@ class ViewerViewModel {
 
     private func showSizeConfirmationDialog(size: Double, text: String) {
         let alert = NSAlert()
-        alert.messageText = String(localized: "alert.large_json.title")
-        alert.informativeText = String(format: String(localized: "alert.large_json.message"), size)
+        alert.messageText = "Large JSON"
+        alert.informativeText = String(format: "Exceed JSON size over 5MB (%.1f MB)\nLoading..", size)
         alert.alertStyle = .warning
-        alert.addButton(withTitle: String(localized: "alert.large_json.continue"))
-        alert.addButton(withTitle: String(localized: "alert.large_json.cancel"))
+        alert.addButton(withTitle: "Continue")
+        alert.addButton(withTitle: "Cancel")
 
         let response = alert.runModal()
 
@@ -561,10 +561,10 @@ class ViewerViewModel {
 
     private func showQuitConfirmation() {
         let alert = NSAlert()
-        alert.messageText = String(localized: "alert.quit_app.title")
-        alert.informativeText = String(localized: "alert.quit_app.message")
-        alert.addButton(withTitle: String(localized: "alert.quit_app.quit"))
-        alert.addButton(withTitle: String(localized: "alert.quit_app.cancel"))
+        alert.messageText = "Quit OhMyJson?"
+        alert.informativeText = "The app will quit. Your tabs will be restored next time."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Cancel")
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
@@ -1200,7 +1200,7 @@ class ViewerViewModel {
         if let data = try? JSONSerialization.data(withJSONObject: serialized, options: [.prettyPrinted, .sortedKeys]),
            let jsonString = String(data: data, encoding: .utf8) {
             clipboardService.writeText(jsonString)
-            ToastManager.shared.show(String(localized: "toast.diff_copied"))
+            ToastManager.shared.show("Diff copied to clipboard")
         }
     }
 
@@ -1374,10 +1374,10 @@ class ViewerViewModel {
 
         if let formatted = jsonParser.formatJSON(json, indentSize: AppSettings.shared.jsonIndent) {
             clipboardService.writeText(formatted)
-            ToastManager.shared.show(String(localized: "toast.copied"))
+            ToastManager.shared.show("Copied to clipboard")
         } else {
             clipboardService.writeText(json)
-            ToastManager.shared.show(String(localized: "toast.copied"))
+            ToastManager.shared.show("Copied to clipboard")
         }
     }
 

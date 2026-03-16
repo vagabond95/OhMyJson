@@ -86,7 +86,7 @@ struct ViewerViewModelTests {
 
         #expect(tabManager.createTabCallCount == 0)
         #expect(parser.validateCallCount == 1)
-        #expect(ToastManager.shared.message == String(localized: "toast.invalid_json"))
+        #expect(ToastManager.shared.message == "Invalid JSON in clipboard")
     }
 
     @Test("handleHotKey with invalid JSON shows existing tabs")
@@ -98,7 +98,7 @@ struct ViewerViewModelTests {
         vm.handleHotKey()
 
         #expect(windowManager.bringToFrontCallCount == 1)
-        #expect(ToastManager.shared.message == String(localized: "toast.invalid_json"))
+        #expect(ToastManager.shared.message == "Invalid JSON in clipboard")
     }
 
     @Test("handleHotKey with invalid JSON opens window when no viewer is open")
@@ -111,7 +111,7 @@ struct ViewerViewModelTests {
         vm.handleHotKey()
 
         #expect(windowShowCalled)
-        #expect(ToastManager.shared.message == String(localized: "toast.invalid_json"))
+        #expect(ToastManager.shared.message == "Invalid JSON in clipboard")
     }
 
     // MARK: - createNewTab

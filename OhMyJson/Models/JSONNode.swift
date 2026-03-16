@@ -11,7 +11,7 @@ enum JSONValue: Equatable {
     case number(Double)
     case bool(Bool)
     case null
-    case object([String: JSONValue])
+    case object(OrderedJSONObject)
     case array([JSONValue])
 
     var typeDescription: String {
@@ -41,49 +41,12 @@ enum JSONValue: Equatable {
     }
 
     func toJSONString(prettyPrinted: Bool = true) -> String? {
-        let any = toAny()
-        guard JSONSerialization.isValidJSONObject(wrapIfNeeded(any)) else {
-            if let str = any as? String { return "\"\(str)\"" }
-            if let num = any as? NSNumber { return "\(num)" }
-            if any is NSNull { return "null" }
-            return nil
+        let parser = JSONParser.shared
+        if prettyPrinted {
+            return parser.formatJSONValue(self, indent: 4, currentIndent: 0)
+        } else {
+            return parser.minifyJSONValue(self)
         }
-
-        do {
-            let options: JSONSerialization.WritingOptions = prettyPrinted ? [.prettyPrinted, .sortedKeys] : []
-            let data = try JSONSerialization.data(withJSONObject: wrapIfNeeded(any), options: options)
-            var result = String(data: data, encoding: .utf8)
-            if prettyPrinted, let str = result {
-                // Re-indent leading spaces only (preserve string values intact)
-                let lines = str.components(separatedBy: "\n")
-                var nativeIndent = 0
-                for line in lines {
-                    let stripped = line.drop(while: { $0 == " " })
-                    let leading = line.count - stripped.count
-                    if leading > 0 { nativeIndent = leading; break }
-                }
-                let target = 4
-                if nativeIndent > 0 && nativeIndent != target {
-                    result = lines.map { line -> String in
-                        let stripped = line.drop(while: { $0 == " " })
-                        let leading = line.count - stripped.count
-                        guard leading > 0 else { return line }
-                        let level = leading / nativeIndent
-                        return String(repeating: " ", count: level * target) + stripped
-                    }.joined(separator: "\n")
-                }
-            }
-            return result
-        } catch {
-            return nil
-        }
-    }
-
-    private func wrapIfNeeded(_ value: Any) -> Any {
-        if value is [Any] || value is [String: Any] {
-            return value
-        }
-        return [value]
     }
 
     func toAny() -> Any {
@@ -92,9 +55,9 @@ enum JSONValue: Equatable {
         case .number(let n): return n
         case .bool(let b): return b
         case .null: return NSNull()
-        case .object(let dict):
+        case .object(let obj):
             var result: [String: Any] = [:]
-            for (key, value) in dict {
+            for (key, value) in obj {
                 result[key] = value.toAny()
             }
             return result
@@ -130,7 +93,7 @@ enum JSONValue: Equatable {
     }
 
     /// Find paths (child indices at each depth) to all matching nodes.
-    /// Paths use sorted-key order for objects (matching JSONNode.buildChildren).
+    /// Paths use original key order for objects (matching JSONNode.buildChildren).
     func searchMatchPaths(key: String?, query: String, ignoreEscapeSequences: Bool = false) -> [[Int]] {
         var results: [[Int]] = []
         searchMatchPathsRecursive(key: key, query: query, ignoreEscapeSequences: ignoreEscapeSequences, currentPath: [], results: &results)
@@ -143,10 +106,9 @@ enum JSONValue: Equatable {
         }
 
         switch self {
-        case .object(let dict):
-            let sortedKeys = dict.keys.sorted()
-            for (index, childKey) in sortedKeys.enumerated() {
-                dict[childKey]!.searchMatchPathsRecursive(
+        case .object(let obj):
+            for (index, childKey) in obj.keys.enumerated() {
+                obj[childKey]!.searchMatchPathsRecursive(
                     key: childKey, query: query, ignoreEscapeSequences: ignoreEscapeSequences,
                     currentPath: currentPath + [index], results: &results
                 )
@@ -346,15 +308,15 @@ class JSONNode: Identifiable {
 
     private func buildChildren(defaultFoldDepth: Int = 2) -> [JSONNode] {
         switch value {
-        case .object(let dict):
-            let sortedKeys = dict.keys.sorted()
-            return sortedKeys.enumerated().map { index, key in
+        case .object(let obj):
+            let keys = obj.keys
+            return keys.enumerated().map { index, key in
                 JSONNode(
                     key: key,
-                    value: dict[key]!,
+                    value: obj[key]!,
                     depth: depth + 1,
                     indexInParent: index,
-                    isLastChild: index == sortedKeys.count - 1,
+                    isLastChild: index == keys.count - 1,
                     defaultFoldDepth: defaultFoldDepth
                 )
             }

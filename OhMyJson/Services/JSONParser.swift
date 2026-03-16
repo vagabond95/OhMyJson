@@ -16,11 +16,11 @@ struct JSONParseError: Error, LocalizedError {
 
         var localizedHeader: String {
             switch self {
-            case .emptyInput:    return String(localized: "error.header.empty_input")
-            case .encodingError: return String(localized: "error.header.encoding_error")
-            case .syntaxError:   return String(localized: "error.header.syntax_error")
-            case .parsingError:  return String(localized: "error.header.parsing_error")
-            case .unknownError:  return String(localized: "error.header.unknown_error")
+            case .emptyInput:    return "Empty Input"
+            case .encodingError: return "Encoding Error"
+            case .syntaxError:   return "JSON Syntax Error"
+            case .parsingError:  return "JSON Parsing Error"
+            case .unknownError:  return "Invalid JSON"
             }
         }
 
@@ -285,6 +285,23 @@ class JSONParser: JSONParserProtocol {
             ))
         }
 
+        guard trimmed.data(using: .utf8) != nil else {
+            return .failure(JSONParseError(
+                message: "Invalid UTF-8 encoding",
+                category: .encodingError
+            ))
+        }
+
+        // 1차: 커스텀 재귀 하강 파서 (키 순서 보존)
+        do {
+            let jsonValue = try parseOrderPreserving(trimmed)
+            let rootNode = JSONNode(value: jsonValue)
+            return .success(rootNode)
+        } catch {
+            // 커스텀 파서 실패 시 fallback이 아닌 에러 리포팅
+        }
+
+        // 2차: JSONSerialization fallback (키 순서 미보장이지만 더 관대한 파서)
         guard let data = trimmed.data(using: .utf8) else {
             return .failure(JSONParseError(
                 message: "Invalid UTF-8 encoding",
@@ -323,7 +340,7 @@ class JSONParser: JSONParserProtocol {
             return .array(array.map { convertToJSONValue($0) })
 
         case let dict as [String: Any]:
-            var result: [String: JSONValue] = [:]
+            var result = OrderedJSONObject()
             for (key, value) in dict {
                 result[key] = convertToJSONValue(value)
             }
@@ -453,64 +470,66 @@ class JSONParser: JSONParserProtocol {
 
     func formatJSON(_ jsonString: String, indentSize: Int = 4) -> String? {
         let numberMapping = extractNumberLiterals(jsonString)
+        let sanitized = sanitizeForJSON(jsonString)
+        let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard let data = jsonString.data(using: .utf8),
+        // 1차: 커스텀 파서+포맷터 (키 순서 보존)
+        if let value = try? parseOrderPreserving(trimmed) {
+            var result = formatJSONValue(value, indent: indentSize, currentIndent: 0)
+            result = patchNumbers(result, with: numberMapping)
+            return result
+        }
+
+        // 2차: JSONSerialization fallback (키 순서 미보장)
+        guard let data = trimmed.data(using: .utf8),
               let jsonObject = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
-              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted, .sortedKeys]),
+              let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
               var prettyString = String(data: prettyData, encoding: .utf8) else {
             return nil
         }
 
         prettyString = patchNumbers(prettyString, with: numberMapping)
 
-        // Collapse empty arrays to single line: [\n  ...  ] → []
-        prettyString = prettyString.replacingOccurrences(
-            of: "\\[\\s*\\]",
-            with: "[]",
-            options: .regularExpression
-        )
+        // Collapse empty arrays/objects
+        prettyString = prettyString.replacingOccurrences(of: "\\[\\s*\\]", with: "[]", options: .regularExpression)
+        prettyString = prettyString.replacingOccurrences(of: "\\{\\s*\\}", with: "{}", options: .regularExpression)
 
-        // Collapse empty objects to single line: {\n  ...  } → {}
-        prettyString = prettyString.replacingOccurrences(
-            of: "\\{\\s*\\}",
-            with: "{}",
-            options: .regularExpression
-        )
-
-        // Re-indent if needed (Apple's prettyPrinted uses 2-space indent on macOS 15+, 4-space on older)
-        // Detect the native indent unit by finding the first indented line
+        // Re-indent if needed
         let lines = prettyString.components(separatedBy: "\n")
         var nativeIndent = 0
         for line in lines {
             let stripped = line.drop(while: { $0 == " " })
             let leadingSpaces = line.count - stripped.count
-            if leadingSpaces > 0 {
-                nativeIndent = leadingSpaces
-                break
-            }
+            if leadingSpaces > 0 { nativeIndent = leadingSpaces; break }
         }
-
         if nativeIndent > 0 && nativeIndent != indentSize {
-            let reindented = lines.map { line -> String in
+            prettyString = lines.map { line -> String in
                 let stripped = line.drop(while: { $0 == " " })
                 let leadingSpaces = line.count - stripped.count
                 if leadingSpaces == 0 { return line }
                 let level = leadingSpaces / nativeIndent
                 return String(repeating: " ", count: level * indentSize) + stripped
-            }
-            prettyString = reindented.joined(separator: "\n")
+            }.joined(separator: "\n")
         }
 
-        // Unescape forward slashes: \/ → / (JSONSerialization escapes them unnecessarily)
         prettyString = prettyString.replacingOccurrences(of: "\\/", with: "/")
-
         return prettyString
     }
 
     func minifyJSON(_ jsonString: String) -> String? {
         let numberMapping = extractNumberLiterals(jsonString)
+        let sanitized = sanitizeForJSON(jsonString)
+        let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard let data = jsonString.data(using: .utf8),
+        // 1차: 커스텀 파서+포맷터 (키 순서 보존)
+        if let value = try? parseOrderPreserving(trimmed) {
+            var result = minifyJSONValue(value)
+            result = patchNumbers(result, with: numberMapping)
+            return result
+        }
+
+        // 2차: JSONSerialization fallback
+        guard let data = trimmed.data(using: .utf8),
               let jsonObject = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
               let minifiedData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
               var minifiedString = String(data: minifiedData, encoding: .utf8) else {
@@ -518,10 +537,7 @@ class JSONParser: JSONParserProtocol {
         }
 
         minifiedString = patchNumbers(minifiedString, with: numberMapping)
-
-        // Unescape forward slashes: \/ → / (JSONSerialization escapes them unnecessarily)
         minifiedString = minifiedString.replacingOccurrences(of: "\\/", with: "/")
-
         return minifiedString
     }
 
@@ -684,5 +700,354 @@ class JSONParser: JSONParserProtocol {
         var output = ""
         output.unicodeScalars.append(contentsOf: result)
         return output
+    }
+
+    // MARK: - Order-Preserving Recursive Descent Parser
+
+    /// Parse JSON text with key-order preservation using a recursive descent parser.
+    func parseOrderPreserving(_ text: String) throws -> JSONValue {
+        var parser = OrderPreservingJSONParser(text)
+        let value = try parser.parseValue()
+        parser.skipWhitespace()
+        guard parser.isAtEnd else {
+            throw JSONParseError(message: "Unexpected trailing content", category: .syntaxError)
+        }
+        return value
+    }
+
+    // MARK: - Custom JSON Formatter
+
+    /// Pretty-print a JSONValue with key-order preservation.
+    func formatJSONValue(_ value: JSONValue, indent: Int, currentIndent: Int) -> String {
+        switch value {
+        case .string(let s):
+            return "\"\(escapeJSONString(s))\""
+        case .number(let n):
+            if n.truncatingRemainder(dividingBy: 1) == 0 && !n.isInfinite && !n.isNaN {
+                let i = Int64(n)
+                return String(i)
+            }
+            return String(n)
+        case .bool(let b):
+            return b ? "true" : "false"
+        case .null:
+            return "null"
+        case .object(let obj):
+            if obj.isEmpty { return "{}" }
+            let nextIndent = currentIndent + indent
+            let indentStr = String(repeating: " ", count: nextIndent)
+            let closingIndent = String(repeating: " ", count: currentIndent)
+            var parts: [String] = []
+            for (key, val) in obj {
+                let formattedVal = formatJSONValue(val, indent: indent, currentIndent: nextIndent)
+                parts.append("\(indentStr)\"\(escapeJSONString(key))\": \(formattedVal)")
+            }
+            return "{\n\(parts.joined(separator: ",\n"))\n\(closingIndent)}"
+        case .array(let arr):
+            if arr.isEmpty { return "[]" }
+            let nextIndent = currentIndent + indent
+            let indentStr = String(repeating: " ", count: nextIndent)
+            let closingIndent = String(repeating: " ", count: currentIndent)
+            var parts: [String] = []
+            for val in arr {
+                let formattedVal = formatJSONValue(val, indent: indent, currentIndent: nextIndent)
+                parts.append("\(indentStr)\(formattedVal)")
+            }
+            return "[\n\(parts.joined(separator: ",\n"))\n\(closingIndent)]"
+        }
+    }
+
+    /// Minify a JSONValue to compact form with key-order preservation.
+    func minifyJSONValue(_ value: JSONValue) -> String {
+        switch value {
+        case .string(let s):
+            return "\"\(escapeJSONString(s))\""
+        case .number(let n):
+            if n.truncatingRemainder(dividingBy: 1) == 0 && !n.isInfinite && !n.isNaN {
+                let i = Int64(n)
+                return String(i)
+            }
+            return String(n)
+        case .bool(let b):
+            return b ? "true" : "false"
+        case .null:
+            return "null"
+        case .object(let obj):
+            let parts = obj.map { (key, val) in
+                "\"\(escapeJSONString(key))\":\(minifyJSONValue(val))"
+            }
+            return "{\(parts.joined(separator: ","))}"
+        case .array(let arr):
+            let parts = arr.map { minifyJSONValue($0) }
+            return "[\(parts.joined(separator: ","))]"
+        }
+    }
+
+    /// Escape a string for JSON output.
+    func escapeJSONString(_ s: String) -> String {
+        var result = ""
+        result.reserveCapacity(s.count)
+        for char in s.unicodeScalars {
+            switch char {
+            case "\"": result += "\\\""
+            case "\\": result += "\\\\"
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            case "\u{08}": result += "\\b"
+            case "\u{0C}": result += "\\f"
+            default:
+                if char.value < 0x20 {
+                    result += String(format: "\\u%04x", char.value)
+                } else {
+                    result.unicodeScalars.append(char)
+                }
+            }
+        }
+        return result
+    }
+}
+
+// MARK: - Recursive Descent JSON Parser
+
+/// A simple recursive descent JSON parser that preserves object key order.
+private struct OrderPreservingJSONParser {
+    private let scalars: [UnicodeScalar]
+    private var index: Int
+
+    init(_ text: String) {
+        self.scalars = Array(text.unicodeScalars)
+        self.index = 0
+    }
+
+    var isAtEnd: Bool { index >= scalars.count }
+
+    private var current: UnicodeScalar? {
+        index < scalars.count ? scalars[index] : nil
+    }
+
+    mutating func skipWhitespace() {
+        while index < scalars.count {
+            switch scalars[index] {
+            case " ", "\t", "\n", "\r": index += 1
+            default: return
+            }
+        }
+    }
+
+    mutating func parseValue() throws -> JSONValue {
+        skipWhitespace()
+        guard let ch = current else {
+            throw JSONParseError(message: "Unexpected end of input", category: .syntaxError)
+        }
+        switch ch {
+        case "{": return try parseObject()
+        case "[": return try parseArray()
+        case "\"": return try .string(parseString())
+        case "t", "f": return try parseBool()
+        case "n": return try parseNull()
+        case "-", "0"..."9": return try parseNumber()
+        default:
+            throw JSONParseError(message: "Unexpected character '\(ch)'", category: .syntaxError)
+        }
+    }
+
+    mutating func parseObject() throws -> JSONValue {
+        index += 1 // skip '{'
+        skipWhitespace()
+        var obj = OrderedJSONObject()
+        if current == "}" {
+            index += 1
+            return .object(obj)
+        }
+        while true {
+            skipWhitespace()
+            guard current == "\"" else {
+                throw JSONParseError(message: "Expected string key in object", category: .syntaxError)
+            }
+            let key = try parseString()
+            skipWhitespace()
+            guard current == ":" else {
+                throw JSONParseError(message: "Expected ':' after key", category: .syntaxError)
+            }
+            index += 1 // skip ':'
+            let value = try parseValue()
+            obj[key] = value
+            skipWhitespace()
+            guard let sep = current else {
+                throw JSONParseError(message: "Unexpected end of object", category: .syntaxError)
+            }
+            if sep == "}" { index += 1; return .object(obj) }
+            if sep == "," { index += 1; continue }
+            throw JSONParseError(message: "Expected ',' or '}' in object", category: .syntaxError)
+        }
+    }
+
+    mutating func parseArray() throws -> JSONValue {
+        index += 1 // skip '['
+        skipWhitespace()
+        var arr: [JSONValue] = []
+        if current == "]" {
+            index += 1
+            return .array(arr)
+        }
+        while true {
+            let value = try parseValue()
+            arr.append(value)
+            skipWhitespace()
+            guard let sep = current else {
+                throw JSONParseError(message: "Unexpected end of array", category: .syntaxError)
+            }
+            if sep == "]" { index += 1; return .array(arr) }
+            if sep == "," { index += 1; continue }
+            throw JSONParseError(message: "Expected ',' or ']' in array", category: .syntaxError)
+        }
+    }
+
+    mutating func parseString() throws -> String {
+        index += 1 // skip opening '"'
+        var result: [UnicodeScalar] = []
+        while index < scalars.count {
+            let ch = scalars[index]
+            if ch == "\"" {
+                index += 1
+                var s = ""
+                s.unicodeScalars.append(contentsOf: result)
+                return s
+            }
+            if ch == "\\" {
+                index += 1
+                guard index < scalars.count else {
+                    throw JSONParseError(message: "Unexpected end of string escape", category: .syntaxError)
+                }
+                let esc = scalars[index]
+                switch esc {
+                case "\"": result.append("\"")
+                case "\\": result.append("\\")
+                case "/": result.append("/")
+                case "b": result.append("\u{08}")
+                case "f": result.append("\u{0C}")
+                case "n": result.append("\n")
+                case "r": result.append("\r")
+                case "t": result.append("\t")
+                case "u":
+                    index += 1
+                    let codepoint = try parseUnicodeEscape()
+                    // Handle surrogate pairs
+                    if codepoint >= 0xD800 && codepoint <= 0xDBFF {
+                        // High surrogate — expect \uXXXX low surrogate
+                        guard index + 1 < scalars.count,
+                              scalars[index] == "\\", scalars[index + 1] == "u" else {
+                            result.append(UnicodeScalar(0xFFFD)!)
+                            continue
+                        }
+                        index += 2 // skip \u
+                        let low = try parseUnicodeEscape()
+                        if low >= 0xDC00 && low <= 0xDFFF {
+                            let combined = 0x10000 + (codepoint - 0xD800) * 0x400 + (low - 0xDC00)
+                            if let scalar = UnicodeScalar(combined) {
+                                result.append(scalar)
+                            } else {
+                                result.append(UnicodeScalar(0xFFFD)!)
+                            }
+                        } else {
+                            result.append(UnicodeScalar(0xFFFD)!)
+                        }
+                    } else if let scalar = UnicodeScalar(codepoint) {
+                        result.append(scalar)
+                    } else {
+                        result.append(UnicodeScalar(0xFFFD)!)
+                    }
+                    continue
+                default:
+                    throw JSONParseError(message: "Invalid escape sequence '\\(esc)'", category: .syntaxError)
+                }
+                index += 1
+            } else {
+                result.append(ch)
+                index += 1
+            }
+        }
+        throw JSONParseError(message: "Unterminated string", category: .syntaxError)
+    }
+
+    private mutating func parseUnicodeEscape() throws -> UInt32 {
+        guard index + 3 < scalars.count else {
+            throw JSONParseError(message: "Invalid unicode escape", category: .syntaxError)
+        }
+        var hex: UInt32 = 0
+        for _ in 0..<4 {
+            let ch = scalars[index]
+            hex <<= 4
+            switch ch {
+            case "0"..."9": hex |= ch.value - 0x30
+            case "a"..."f": hex |= ch.value - 0x61 + 10
+            case "A"..."F": hex |= ch.value - 0x41 + 10
+            default:
+                throw JSONParseError(message: "Invalid hex digit in unicode escape", category: .syntaxError)
+            }
+            index += 1
+        }
+        return hex
+    }
+
+    mutating func parseNumber() throws -> JSONValue {
+        let start = index
+        if current == "-" { index += 1 }
+        guard index < scalars.count, scalars[index] >= "0" && scalars[index] <= "9" else {
+            throw JSONParseError(message: "Invalid number", category: .syntaxError)
+        }
+        // Integer part
+        if scalars[index] == "0" {
+            index += 1
+        } else {
+            while index < scalars.count && scalars[index] >= "0" && scalars[index] <= "9" { index += 1 }
+        }
+        // Fraction
+        if index < scalars.count && scalars[index] == "." {
+            index += 1
+            guard index < scalars.count && scalars[index] >= "0" && scalars[index] <= "9" else {
+                throw JSONParseError(message: "Invalid number: expected digit after decimal point", category: .syntaxError)
+            }
+            while index < scalars.count && scalars[index] >= "0" && scalars[index] <= "9" { index += 1 }
+        }
+        // Exponent
+        if index < scalars.count && (scalars[index] == "e" || scalars[index] == "E") {
+            index += 1
+            if index < scalars.count && (scalars[index] == "+" || scalars[index] == "-") { index += 1 }
+            guard index < scalars.count && scalars[index] >= "0" && scalars[index] <= "9" else {
+                throw JSONParseError(message: "Invalid number: expected digit in exponent", category: .syntaxError)
+            }
+            while index < scalars.count && scalars[index] >= "0" && scalars[index] <= "9" { index += 1 }
+        }
+        var numStr = ""
+        numStr.unicodeScalars.append(contentsOf: scalars[start..<index])
+        guard let d = Double(numStr) else {
+            throw JSONParseError(message: "Invalid number literal '\(numStr)'", category: .syntaxError)
+        }
+        return .number(d)
+    }
+
+    mutating func parseBool() throws -> JSONValue {
+        if matchLiteral("true") { return .bool(true) }
+        if matchLiteral("false") { return .bool(false) }
+        throw JSONParseError(message: "Invalid boolean value", category: .syntaxError)
+    }
+
+    mutating func parseNull() throws -> JSONValue {
+        guard matchLiteral("null") else {
+            throw JSONParseError(message: "Invalid null value", category: .syntaxError)
+        }
+        return .null
+    }
+
+    private mutating func matchLiteral(_ literal: String) -> Bool {
+        let literalScalars = Array(literal.unicodeScalars)
+        guard index + literalScalars.count <= scalars.count else { return false }
+        for (i, s) in literalScalars.enumerated() {
+            guard scalars[index + i] == s else { return false }
+        }
+        index += literalScalars.count
+        return true
     }
 }

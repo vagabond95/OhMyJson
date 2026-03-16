@@ -39,18 +39,18 @@ struct JSONNodeTests {
 
     // MARK: - Children Building
 
-    @Test("Object node builds sorted children")
+    @Test("Object node builds children preserving insertion order")
     func objectChildrenSorted() {
-        let value = JSONValue.object([
-            "charlie": .number(3),
-            "alpha": .number(1),
-            "bravo": .number(2)
-        ])
+        let value = JSONValue.object(OrderedJSONObject([
+            ("charlie", .number(3)),
+            ("alpha", .number(1)),
+            ("bravo", .number(2))
+        ]))
         let node = JSONNode(value: value)
         #expect(node.children.count == 3)
-        #expect(node.children[0].key == "alpha")
-        #expect(node.children[1].key == "bravo")
-        #expect(node.children[2].key == "charlie")
+        #expect(node.children[0].key == "charlie")
+        #expect(node.children[1].key == "alpha")
+        #expect(node.children[2].key == "bravo")
     }
 
     @Test("Array node builds indexed children")
@@ -454,9 +454,9 @@ struct JSONNodeTests {
         ])
         let node = JSONNode(value: value, defaultFoldDepth: 10) // all expanded
         // Collapse one child
-        node.children[0].isExpanded = false // "collapsed" (sorted: "collapsed" < "expanded")
+        node.children[0].isExpanded = false // collapse first child
 
-        // "collapsed" (1, no visible descendants) + "expanded" (1) + "child1" (1) + "child2" (1) = 4
+        // first child (1, collapsed, no descendants) + second child (1) + its 2 children (2) = 4
         #expect(node.visibleDescendantCount() == 4)
     }
 
@@ -772,7 +772,7 @@ struct JSONValueTests {
             "a": .string("hello"),
             "b": .object(["c": .string("hello")])
         ])
-        // Sorted keys: "a"=0, "b"=1. Under "b": "c"=0
+        // Keys in insertion order: "a"=0, "b"=1. Under "b": "c"=0
         let paths = value.searchMatchPaths(key: nil, query: "hello")
         #expect(paths.count == 2)
         #expect(paths.contains([0]))      // "a" → "hello"
@@ -1080,5 +1080,116 @@ struct JSONValueTests {
         let arrResult = JSONValue.searchDisplayTexts(value: .array([.null]), key: "[0]")
         #expect(arrResult.keyText == "[0]")
         #expect(arrResult.valueText == nil)
+    }
+
+    // MARK: - Key Order Preservation
+
+    @Test("OrderedJSONObject preserves insertion order")
+    func orderedJSONObjectPreservesOrder() {
+        let obj = OrderedJSONObject([
+            ("z", .number(1)),
+            ("a", .number(2)),
+            ("m", .number(3))
+        ])
+        #expect(obj.keys == ["z", "a", "m"])
+        #expect(obj.count == 3)
+        #expect(obj["z"] == .number(1))
+        #expect(obj["a"] == .number(2))
+        #expect(obj["m"] == .number(3))
+    }
+
+    @Test("OrderedJSONObject equality is order-independent")
+    func orderedJSONObjectEquality() {
+        let obj1 = OrderedJSONObject([("a", .number(1)), ("b", .number(2))])
+        let obj2 = OrderedJSONObject([("b", .number(2)), ("a", .number(1))])
+        #expect(obj1 == obj2)
+    }
+
+    @Test("OrderedJSONObject iteration follows insertion order")
+    func orderedJSONObjectIteration() {
+        let obj = OrderedJSONObject([
+            ("z", .number(1)),
+            ("a", .number(2)),
+            ("m", .number(3))
+        ])
+        let keys = obj.map { $0.0 }
+        #expect(keys == ["z", "a", "m"])
+    }
+
+    @Test("OrderedJSONObject subscript set/remove")
+    func orderedJSONObjectSubscript() {
+        var obj = OrderedJSONObject()
+        obj["b"] = .number(1)
+        obj["a"] = .number(2)
+        #expect(obj.keys == ["b", "a"])
+
+        obj["b"] = nil
+        #expect(obj.keys == ["a"])
+        #expect(obj["b"] == nil)
+    }
+
+    @Test("OrderedJSONObject from dictionary literal")
+    func orderedJSONObjectDictionaryLiteral() {
+        let obj: OrderedJSONObject = ["x": .number(1), "y": .number(2)]
+        #expect(obj.count == 2)
+        #expect(obj["x"] == .number(1))
+        #expect(obj["y"] == .number(2))
+    }
+
+    @Test("JSONNode buildChildren preserves key order from OrderedJSONObject")
+    func buildChildrenPreservesOrder() {
+        let value = JSONValue.object(OrderedJSONObject([
+            ("z", .string("last")),
+            ("a", .string("first")),
+            ("m", .string("middle"))
+        ]))
+        let node = JSONNode(value: value)
+        #expect(node.children.count == 3)
+        #expect(node.children[0].key == "z")
+        #expect(node.children[1].key == "a")
+        #expect(node.children[2].key == "m")
+    }
+
+    @Test("toJSONString preserves key order")
+    func toJSONStringPreservesOrder() {
+        let value = JSONValue.object(OrderedJSONObject([
+            ("z", .number(1)),
+            ("a", .number(2)),
+            ("m", .number(3))
+        ]))
+        let json = value.toJSONString(prettyPrinted: false)!
+        #expect(json == "{\"z\":1,\"a\":2,\"m\":3}")
+    }
+
+    @Test("Parser preserves key order from JSON text")
+    func parserPreservesKeyOrder() {
+        let input = "{\"z\":1,\"a\":2,\"m\":3}"
+        let result = JSONParser.shared.parse(input)
+        guard case .success(let node) = result else {
+            Issue.record("Parse failed")
+            return
+        }
+        #expect(node.children.count == 3)
+        #expect(node.children[0].key == "z")
+        #expect(node.children[1].key == "a")
+        #expect(node.children[2].key == "m")
+    }
+
+    @Test("formatJSON preserves key order")
+    func formatJSONPreservesOrder() {
+        let input = "{\"z\":1,\"a\":2,\"m\":3}"
+        let formatted = JSONParser.shared.formatJSON(input)!
+        let lines = formatted.components(separatedBy: "\n")
+        // Should be: {\n    "z": 1,\n    "a": 2,\n    "m": 3\n}
+        #expect(lines[1].contains("\"z\""))
+        #expect(lines[2].contains("\"a\""))
+        #expect(lines[3].contains("\"m\""))
+    }
+
+    @Test("minifyJSON preserves key order")
+    func minifyJSONPreservesOrder() {
+        let input = "{ \"z\": 1, \"a\": 2, \"m\": 3 }"
+        let minified = JSONParser.shared.minifyJSON(input)!
+        #expect(minified == "{\"z\":1,\"a\":2,\"m\":3}")
     }
 }

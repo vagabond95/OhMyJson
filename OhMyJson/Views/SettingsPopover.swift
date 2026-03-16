@@ -110,7 +110,7 @@ struct SettingsWindowView: View {
                 // Launch at Login
                 settingsCard {
                     HStack {
-                        Text(String(localized: "settings.general.launch_at_login"))
+                        Text("Launch at login")
                             .font(.system(size: 13))
                             .foregroundColor(theme.primaryText)
                         Spacer()
@@ -123,7 +123,7 @@ struct SettingsWindowView: View {
                 // Theme
                 settingsCard {
                     HStack {
-                        Text(String(localized: "settings.general.appearance"))
+                        Text("Theme")
                             .font(.system(size: 13))
                             .foregroundColor(theme.primaryText)
                         Spacer()
@@ -132,8 +132,8 @@ struct SettingsWindowView: View {
                             selection: $settings.themeMode,
                             label: { mode in
                                 switch mode {
-                                case .light: return String(localized: "settings.general.appearance.light")
-                                case .dark: return String(localized: "settings.general.appearance.dark")
+                                case .light: return "Light"
+                                case .dark: return "Dark"
                                 }
                             }
                         )
@@ -143,7 +143,7 @@ struct SettingsWindowView: View {
                 // Default View
                 settingsCard {
                     HStack {
-                        Text(String(localized: "settings.general.default_view"))
+                        Text("Default view mode for a new tab")
                             .font(.system(size: 13))
                             .foregroundColor(theme.primaryText)
                         Spacer()
@@ -158,7 +158,7 @@ struct SettingsWindowView: View {
                 // JSON Indent
                 settingsCard {
                     HStack {
-                        Text(String(localized: "settings.general.json_indent"))
+                        Text("JSON indent")
                             .font(.system(size: 13))
                             .foregroundColor(theme.primaryText)
                         Spacer()
@@ -188,7 +188,7 @@ struct SettingsWindowView: View {
             VStack(alignment: .leading, spacing: 10) {
                 settingsCard {
                     HStack {
-                        Text(String(localized: "settings.updates.auto_check"))
+                        Text("Automatically check for updates")
                             .font(.system(size: 13))
                             .foregroundColor(theme.primaryText)
                         Spacer()
@@ -271,9 +271,9 @@ struct SettingsWindowView: View {
 
     private var hotKeyTooltipContent: some View {
         (
-            Text(String(localized: "settings.hotkeys.help.prefix"))
-            + Text(String(localized: "settings.hotkeys.help.bold")).bold()
-            + Text(String(localized: "settings.hotkeys.help.suffix"))
+            Text("When pressed, this shortcut ")
+            + Text("reads your clipboard").bold()
+            + Text(", then parses and formats it as JSON.")
         )
         .lineSpacing(2)
     }
@@ -281,7 +281,7 @@ struct SettingsWindowView: View {
     private func hotKeySection(combo: Binding<HotKeyCombo>) -> some View {
         settingsCard {
             HStack(spacing: 8) {
-                Text(String(localized: "settings.hotkeys.open"))
+                Text("Grab JSON from Clipboard")
                     .font(.system(size: 13))
                     .foregroundColor(theme.primaryText)
 
@@ -299,7 +299,7 @@ struct SettingsWindowView: View {
                         // Left: content
                         Group {
                             if isRecordingHotKey {
-                                shimmerText(String(localized: "settings.hotkeys.type_hotkey"))
+                                shimmerText("Type Hotkey")
                             } else {
                                 Text(combo.wrappedValue.displayString)
                                     .font(.system(size: 12, design: .monospaced))
@@ -484,19 +484,19 @@ struct SettingsWindowView: View {
 
     private var footerSection: some View {
         HStack(spacing: 10) {
-            AboutButton(title: String(localized: "settings.about.github"), customIcon: "github_mark") {
+            AboutButton(title: "GitHub", customIcon: "github_mark") {
                 if let url = URL(string: "https://github.com/vagabond95/OhMyJson") {
                     NSWorkspace.shared.open(url)
                 }
             }
 
-            AboutButton(title: String(localized: "settings.about.chrome_plugin"), customIcon: "chrome_logo") {
+            AboutButton(title: "Chrome Plugin", customIcon: "chrome_logo") {
                 if let url = URL(string: "https://chromewebstore.google.com/detail/ohmyjson-open-in-json-vie/bmfbdagmfcaibmpngdkpdendfonpepde") {
                     NSWorkspace.shared.open(url)
                 }
             }
 
-            AboutButton(title: String(localized: "settings.about.report_bug"), icon: "ladybug") {
+            AboutButton(title: "Report a bug", icon: "ladybug") {
                 if let url = URL(string: "https://github.com/vagabond95/OhMyJson/issues") {
                     NSWorkspace.shared.open(url)
                 }
@@ -504,7 +504,7 @@ struct SettingsWindowView: View {
 
             Spacer()
 
-            AboutButton(title: String(localized: "settings.about.quit"), icon: "power", isDestructive: true) {
+            AboutButton(title: "Quit", icon: "power", isDestructive: true) {
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -522,7 +522,7 @@ struct SettingsWindowView: View {
             HStack(spacing: 5) {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: 11))
-                Text(String(localized: "settings.updates.check_now"))
+                Text("Check for Updates...")
                     .font(.system(size: 13))
             }
             .foregroundColor(theme.primaryText)

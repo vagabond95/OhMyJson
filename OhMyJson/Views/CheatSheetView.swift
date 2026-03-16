@@ -22,36 +22,36 @@ private struct ShortcutGroup {
 
 private func makeShortcutGroups(openHotKey: String) -> [ShortcutGroup] {
     [
-        ShortcutGroup(title: String(localized: "shortcuts.group.general"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.import_json"), keys: openHotKey),
-            ShortcutItem(action: String(localized: "shortcuts.settings"), keys: AppShortcut.settings.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.quit"), keys: AppShortcut.quit.displayString),
+        ShortcutGroup(title: "General", items: [
+            ShortcutItem(action: "Import JSON from clipboard", keys: openHotKey),
+            ShortcutItem(action: "Settings", keys: AppShortcut.settings.displayString),
+            ShortcutItem(action: "Quit", keys: AppShortcut.quit.displayString),
         ]),
-        ShortcutGroup(title: String(localized: "shortcuts.group.tabs"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.new_tab"), keys: AppShortcut.newTab.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.close_tab"), keys: AppShortcut.closeTab.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.rename_tab"), keys: String(localized: "shortcuts.double_click")),
-            ShortcutItem(action: String(localized: "shortcuts.previous_tab"), keys: AppShortcut.previousTab.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.next_tab"), keys: AppShortcut.nextTab.displayString),
+        ShortcutGroup(title: "Tab", items: [
+            ShortcutItem(action: "New Tab", keys: AppShortcut.newTab.displayString),
+            ShortcutItem(action: "Close Tab", keys: AppShortcut.closeTab.displayString),
+            ShortcutItem(action: "Rename Tab", keys: "Double-click"),
+            ShortcutItem(action: "Previous Tab", keys: AppShortcut.previousTab.displayString),
+            ShortcutItem(action: "Next Tab", keys: AppShortcut.nextTab.displayString),
         ]),
-        ShortcutGroup(title: String(localized: "shortcuts.group.view"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.beautify_mode"), keys: AppShortcut.beautifyMode.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.tree_mode"), keys: AppShortcut.treeMode.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.compare_mode"), keys: AppShortcut.compareMode.displayString),
+        ShortcutGroup(title: "View", items: [
+            ShortcutItem(action: "Beautify Mode", keys: AppShortcut.beautifyMode.displayString),
+            ShortcutItem(action: "Tree Mode", keys: AppShortcut.treeMode.displayString),
+            ShortcutItem(action: "Compare Mode", keys: AppShortcut.compareMode.displayString),
         ]),
-        ShortcutGroup(title: String(localized: "shortcuts.group.search"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.find"), keys: AppShortcut.find.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.find_next"), keys: AppShortcut.findNext.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.find_previous"), keys: AppShortcut.findPrevious.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.close_search"), keys: "ESC"),
+        ShortcutGroup(title: "Search", items: [
+            ShortcutItem(action: "Find", keys: AppShortcut.find.displayString),
+            ShortcutItem(action: "Find Next", keys: AppShortcut.findNext.displayString),
+            ShortcutItem(action: "Find Previous", keys: AppShortcut.findPrevious.displayString),
+            ShortcutItem(action: "Close Search", keys: "ESC"),
         ]),
-        ShortcutGroup(title: String(localized: "shortcuts.group.tree"), items: [
-            ShortcutItem(action: String(localized: "shortcuts.move_up"), keys: "↑"),
-            ShortcutItem(action: String(localized: "shortcuts.move_down"), keys: "↓"),
-            ShortcutItem(action: String(localized: "shortcuts.expand_node"), keys: "→"),
-            ShortcutItem(action: String(localized: "shortcuts.collapse_node"), keys: "←"),
-            ShortcutItem(action: String(localized: "shortcuts.expand_all"), keys: AppShortcut.expandAll.displayString),
-            ShortcutItem(action: String(localized: "shortcuts.collapse_all"), keys: AppShortcut.collapseAll.displayString),
+        ShortcutGroup(title: "Tree", items: [
+            ShortcutItem(action: "Move Up", keys: "↑"),
+            ShortcutItem(action: "Move Down", keys: "↓"),
+            ShortcutItem(action: "Expand / Move Right", keys: "→"),
+            ShortcutItem(action: "Collapse / Move Left", keys: "←"),
+            ShortcutItem(action: "Expand All", keys: AppShortcut.expandAll.displayString),
+            ShortcutItem(action: "Collapse All", keys: AppShortcut.collapseAll.displayString),
         ]),
     ]
 }
@@ -120,7 +120,7 @@ private struct CheatSheetPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             // Header
             HStack {
-                Text("shortcuts.title")
+                Text("Keyboard Shortcuts")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(theme.primaryText)
                 Spacer()

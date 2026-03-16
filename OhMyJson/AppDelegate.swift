@@ -13,6 +13,7 @@ import Sentry
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
+    private var customMainMenu: NSMenu?
     private var onboardingController: OnboardingWindowController?
     private var hotKeyCancellable: AnyCancellable?
     private var updateCheckCancellable: AnyCancellable?
@@ -69,6 +70,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         setupMenuBar()
         setupMainMenu()
 
+        // Re-apply custom menu after SwiftUI initialization (Tahoe may override mainMenu)
+        DispatchQueue.main.async { [weak self] in
+            self?.reapplyCustomMenuIfNeeded()
+        }
+
         setupHotKey()
         registerURLSchemeHandler()
 
@@ -106,19 +112,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         let appMenu = NSMenu()
         let appMenuItem = NSMenuItem()
         appMenuItem.submenu = appMenu
-        let aboutItem = NSMenuItem(title: String(localized: "menu.about"), action: #selector(showSettings), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About OhMyJson", action: #selector(showSettings), keyEquivalent: "")
         aboutItem.target = self
         appMenu.addItem(aboutItem)
         appMenu.addItem(NSMenuItem.separator())
-        let checkForUpdatesItem = NSMenuItem(title: String(localized: "menu.check_for_updates"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        let checkForUpdatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
         checkForUpdatesItem.target = updaterController
         appMenu.addItem(checkForUpdatesItem)
         appMenu.addItem(NSMenuItem.separator())
-        let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: AppShortcut.settings.keyEquivalent)
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: AppShortcut.settings.keyEquivalent)
         settingsItem.target = self
         appMenu.addItem(settingsItem)
         appMenu.addItem(NSMenuItem.separator())
-        let quitMenuItem = NSMenuItem(title: String(localized: "menu.quit"), action: #selector(quitAppWithConfirmation), keyEquivalent: AppShortcut.quit.keyEquivalent)
+        let quitMenuItem = NSMenuItem(title: "Quit OhMyJson", action: #selector(quitAppWithConfirmation), keyEquivalent: AppShortcut.quit.keyEquivalent)
         quitMenuItem.target = self
         appMenu.addItem(quitMenuItem)
         mainMenu.addItem(appMenuItem)
@@ -128,24 +134,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         let fileMenuItem = NSMenuItem()
         fileMenuItem.submenu = fileMenu
 
-        let newTabItem = NSMenuItem(title: String(localized: "menu.new_tab"), action: #selector(newTab), keyEquivalent: AppShortcut.newTab.keyEquivalent)
+        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(newTab), keyEquivalent: AppShortcut.newTab.keyEquivalent)
         newTabItem.keyEquivalentModifierMask = AppShortcut.newTab.modifiers
         newTabItem.target = self
         fileMenu.addItem(newTabItem)
 
-        let closeTabItem = NSMenuItem(title: String(localized: "menu.close_tab"), action: #selector(closeTab), keyEquivalent: AppShortcut.closeTab.keyEquivalent)
+        let closeTabItem = NSMenuItem(title: "Close Tab", action: #selector(closeTab), keyEquivalent: AppShortcut.closeTab.keyEquivalent)
         closeTabItem.keyEquivalentModifierMask = AppShortcut.closeTab.modifiers
         closeTabItem.target = self
         fileMenu.addItem(closeTabItem)
 
         fileMenu.addItem(NSMenuItem.separator())
 
-        let prevTabItem = NSMenuItem(title: String(localized: "menu.previous_tab"), action: #selector(showPreviousTab), keyEquivalent: AppShortcut.previousTab.keyEquivalent)
+        let prevTabItem = NSMenuItem(title: "Show Previous Tab", action: #selector(showPreviousTab), keyEquivalent: AppShortcut.previousTab.keyEquivalent)
         prevTabItem.keyEquivalentModifierMask = AppShortcut.previousTab.modifiers
         prevTabItem.target = self
         fileMenu.addItem(prevTabItem)
 
-        let nextTabItem = NSMenuItem(title: String(localized: "menu.next_tab"), action: #selector(showNextTab), keyEquivalent: AppShortcut.nextTab.keyEquivalent)
+        let nextTabItem = NSMenuItem(title: "Show Next Tab", action: #selector(showNextTab), keyEquivalent: AppShortcut.nextTab.keyEquivalent)
         nextTabItem.keyEquivalentModifierMask = AppShortcut.nextTab.modifiers
         nextTabItem.target = self
         fileMenu.addItem(nextTabItem)
@@ -157,35 +163,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         let viewMenuItem = NSMenuItem()
         viewMenuItem.submenu = viewMenu
 
-        let findItem = NSMenuItem(title: String(localized: "menu.find"), action: #selector(toggleSearch), keyEquivalent: AppShortcut.find.keyEquivalent)
+        let findItem = NSMenuItem(title: "Find", action: #selector(toggleSearch), keyEquivalent: AppShortcut.find.keyEquivalent)
         findItem.target = self
         viewMenu.addItem(findItem)
 
         viewMenu.addItem(NSMenuItem.separator())
 
-        let beautifyItem = NSMenuItem(title: String(localized: "menu.beautify_mode"), action: #selector(switchToBeautify), keyEquivalent: AppShortcut.beautifyMode.keyEquivalent)
+        let beautifyItem = NSMenuItem(title: "Beautify View", action: #selector(switchToBeautify), keyEquivalent: AppShortcut.beautifyMode.keyEquivalent)
         beautifyItem.keyEquivalentModifierMask = AppShortcut.beautifyMode.modifiers
         beautifyItem.target = self
         viewMenu.addItem(beautifyItem)
 
-        let treeItem = NSMenuItem(title: String(localized: "menu.tree_mode"), action: #selector(switchToTree), keyEquivalent: AppShortcut.treeMode.keyEquivalent)
+        let treeItem = NSMenuItem(title: "Tree View", action: #selector(switchToTree), keyEquivalent: AppShortcut.treeMode.keyEquivalent)
         treeItem.keyEquivalentModifierMask = AppShortcut.treeMode.modifiers
         treeItem.target = self
         viewMenu.addItem(treeItem)
 
-        let compareItem = NSMenuItem(title: String(localized: "menu.compare_mode"), action: #selector(switchToCompare), keyEquivalent: AppShortcut.compareMode.keyEquivalent)
+        let compareItem = NSMenuItem(title: "Compare View", action: #selector(switchToCompare), keyEquivalent: AppShortcut.compareMode.keyEquivalent)
         compareItem.keyEquivalentModifierMask = AppShortcut.compareMode.modifiers
         compareItem.target = self
         viewMenu.addItem(compareItem)
 
         viewMenu.addItem(NSMenuItem.separator())
 
-        let expandAllItem = NSMenuItem(title: String(localized: "menu.expand_all"), action: #selector(expandAll), keyEquivalent: AppShortcut.expandAll.keyEquivalent)
+        let expandAllItem = NSMenuItem(title: "Expand All", action: #selector(expandAll), keyEquivalent: AppShortcut.expandAll.keyEquivalent)
         expandAllItem.keyEquivalentModifierMask = AppShortcut.expandAll.modifiers
         expandAllItem.target = self
         viewMenu.addItem(expandAllItem)
 
-        let collapseAllItem = NSMenuItem(title: String(localized: "menu.collapse_all"), action: #selector(collapseAll), keyEquivalent: AppShortcut.collapseAll.keyEquivalent)
+        let collapseAllItem = NSMenuItem(title: "Collapse All", action: #selector(collapseAll), keyEquivalent: AppShortcut.collapseAll.keyEquivalent)
         collapseAllItem.keyEquivalentModifierMask = AppShortcut.collapseAll.modifiers
         collapseAllItem.target = self
         viewMenu.addItem(collapseAllItem)
@@ -196,16 +202,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         let editMenu = NSMenu(title: "Edit")
         let editMenuItem = NSMenuItem()
         editMenuItem.submenu = editMenu
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.undo"), action: Selector(("undo:")), keyEquivalent: AppShortcut.undo.keyEquivalent))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.redo"), action: Selector(("redo:")), keyEquivalent: AppShortcut.redo.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: AppShortcut.undo.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: AppShortcut.redo.keyEquivalent))
         editMenu.addItem(NSMenuItem.separator())
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.cut"), action: #selector(NSText.cut(_:)), keyEquivalent: AppShortcut.cut.keyEquivalent))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.copy"), action: #selector(NSText.copy(_:)), keyEquivalent: AppShortcut.copy.keyEquivalent))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.paste"), action: #selector(NSText.paste(_:)), keyEquivalent: AppShortcut.paste.keyEquivalent))
-        editMenu.addItem(NSMenuItem(title: String(localized: "menu.select_all"), action: #selector(NSText.selectAll(_:)), keyEquivalent: AppShortcut.selectAll.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: AppShortcut.cut.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: AppShortcut.copy.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: AppShortcut.paste.keyEquivalent))
+        editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: AppShortcut.selectAll.keyEquivalent))
         mainMenu.addItem(editMenuItem)
 
         NSApplication.shared.mainMenu = mainMenu
+        customMainMenu = mainMenu
     }
 
     @objc private func newTab(_ sender: Any?) {
@@ -220,6 +227,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         if let window = settingsWindow, window.isKeyWindow {
             window.close()
             settingsWindow = nil
+            return
+        }
+
+        // If a non-viewer window is key (e.g. SwiftUI Settings), close it
+        if let keyWindow = NSApp.keyWindow,
+           !WindowManager.shared.isViewerWindow(keyWindow) {
+            keyWindow.close()
             return
         }
 
@@ -284,25 +298,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
         let menu = NSMenu()
 
         // Open
-        let openItem = NSMenuItem(title: String(localized: "menu.open"), action: #selector(openViewer), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Open", action: #selector(openViewer), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
 
         menu.addItem(NSMenuItem.separator())
 
         // Check for Updates
-        let checkForUpdatesItem = NSMenuItem(title: String(localized: "menu.check_for_updates"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        let checkForUpdatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
         checkForUpdatesItem.target = updaterController
         menu.addItem(checkForUpdatesItem)
 
         // Settings
-        let settingsItem = NSMenuItem(title: String(localized: "menu.settings"), action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
         menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
         // Quit
-        let quitItem = NSMenuItem(title: String(localized: "menu.quit"), action: #selector(quitApp), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit OhMyJson", action: #selector(quitApp), keyEquivalent: "q")
         menu.addItem(quitItem)
 
         statusItem?.menu = menu
@@ -318,6 +332,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     }
 
     @objc private func showSettings(_ sender: Any?) {
+        // Try SwiftUI Settings scene first (works on macOS 14+ Tahoe)
+        if NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
+            NSApp.activate()
+            return
+        }
+        // Fallback: manual NSWindow (pre-Tahoe compatibility)
+        openManualSettingsWindow()
+    }
+
+    private func openManualSettingsWindow() {
         if let existing = settingsWindow, existing.isVisible {
             existing.appearance = AppSettings.shared.currentAppearance
             existing.makeKeyAndOrderFront(nil)
@@ -341,7 +365,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
             backing: .buffered,
             defer: false
         )
-        window.title = String(localized: "settings.title")
+        window.title = "OhMyJson Settings"
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
         window.appearance = AppSettings.shared.currentAppearance
@@ -383,10 +407,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
 
     @objc private func quitAppWithConfirmation(_ sender: Any?) {
         let alert = NSAlert()
-        alert.messageText = String(localized: "alert.quit_app.title")
-        alert.informativeText = String(localized: "alert.quit_app.message")
-        alert.addButton(withTitle: String(localized: "alert.quit_app.quit"))
-        alert.addButton(withTitle: String(localized: "alert.quit_app.cancel"))
+        alert.messageText = "Quit OhMyJson?"
+        alert.informativeText = "The app will quit. Your tabs will be restored next time."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Cancel")
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
@@ -521,6 +545,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     }
 
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: any Error) {}
+
+    // MARK: - Menu Restoration (macOS Tahoe compatibility)
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        reapplyCustomMenuIfNeeded()
+    }
+
+    private func reapplyCustomMenuIfNeeded() {
+        guard let menu = customMainMenu,
+              NSApplication.shared.mainMenu !== menu else { return }
+        NSApplication.shared.mainMenu = menu
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         // Flush tabs to DB before terminating (⌘Q = session restore on next launch)

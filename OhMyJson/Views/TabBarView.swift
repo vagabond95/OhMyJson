@@ -105,7 +105,7 @@ struct TabBarView: View {
                             .hoverHighlight(color: theme.toggleHoverBg)
                     }
                     .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "tooltip.toggle_theme"), position: .bottom)
+                    .instantTooltip("Toggle Theme", position: .bottom)
 
                     // Draggable gap between theme button and tabs
                     WindowDraggableArea()
@@ -196,7 +196,7 @@ struct TabBarView: View {
                             .hoverHighlight(color: theme.toggleHoverBg)
                     }
                     .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "tooltip.new_tab"), position: .bottom)
+                    .instantTooltip("New Tab", position: .bottom)
 
                     // Draggable gap between add button and remaining space
                     WindowDraggableArea()
@@ -428,11 +428,11 @@ struct TabItemView: View {
         )
         .contextMenu {
             if !isDragging {
-                Button(String(localized: "tab.context.rename")) {
+                Button("Rename") {
                     startEditing()
                 }
                 Divider()
-                Button(String(localized: "tab.context.close")) {
+                Button("Close Tab") {
                     onClose()
                 }
             }

@@ -44,7 +44,7 @@ final class JSONDiffEngine: JSONDiffEngineProtocol {
 
     // MARK: - Object Comparison
 
-    private func compareObjects(left: [String: JSONValue], right: [String: JSONValue], path: [String], depth: Int, options: CompareOptions) -> DiffItem {
+    private func compareObjects(left: OrderedJSONObject, right: OrderedJSONObject, path: [String], depth: Int, options: CompareOptions) -> DiffItem {
         let leftKeys = Set(left.keys)
         let rightKeys = Set(right.keys)
 

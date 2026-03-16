@@ -25,18 +25,18 @@ struct CopyButtonsOverlay: View {
 
             if isLeaf {
                 if node.key != nil {
-                    copyButton(label: "K", tooltip: String(localized: "tooltip.copy_key")) {
+                    copyButton(label: "K", tooltip: "Copy Key") {
                         copyKey()
                     }
                 }
-                copyButton(label: "V", tooltip: String(localized: "tooltip.copy_value")) {
+                copyButton(label: "V", tooltip: "Copy Value") {
                     copyValueOnly()
                 }
-                copyButton(label: "K&V", tooltip: String(localized: "tooltip.copy_key_value")) {
+                copyButton(label: "K&V", tooltip: "Copy Key  & Value") {
                     copyKeyValue()
                 }
             } else {
-                copyButton(label: "{}", tooltip: String(localized: "tooltip.copy_json")) {
+                copyButton(label: "{}", tooltip: "Copy JSON") {
                     copyJSON()
                 }
             }
@@ -97,34 +97,34 @@ struct CopyButtonsOverlay: View {
     private func copyKey() {
         guard let key = node.key else { return }
         ClipboardService.shared.writeText(key)
-        ToastManager.shared.show(String(localized: "toast.key_copied"))
+        ToastManager.shared.show("Key copied to clipboard")
     }
 
     private func copyValueOnly() {
         switch node.value {
         case .string(let s):
             ClipboardService.shared.writeText(s)
-            ToastManager.shared.show(String(localized: "toast.value_copied"))
+            ToastManager.shared.show("Value copied to clipboard")
         case .number(let n):
             ClipboardService.shared.writeText(
                 n.truncatingRemainder(dividingBy: 1) == 0
                     ? String(format: "%.0f", n) : String(n)
             )
-            ToastManager.shared.show(String(localized: "toast.value_copied"))
+            ToastManager.shared.show("Value copied to clipboard")
         case .bool(let b):
             ClipboardService.shared.writeText(b ? "true" : "false")
-            ToastManager.shared.show(String(localized: "toast.value_copied"))
+            ToastManager.shared.show("Value copied to clipboard")
         case .null:
             ClipboardService.shared.writeText("null")
-            ToastManager.shared.show(String(localized: "toast.value_copied"))
+            ToastManager.shared.show("Value copied to clipboard")
         case .object, .array:
             let value = node.value
-            ToastManager.shared.show(String(localized: "toast.copying"))
+            ToastManager.shared.show("Copying...")
             Task.detached {
                 let text = value.toJSONString(prettyPrinted: true) ?? ""
                 await MainActor.run {
                     ClipboardService.shared.writeText(text)
-                    ToastManager.shared.show(String(localized: "toast.value_copied"))
+                    ToastManager.shared.show("Value copied to clipboard")
                 }
             }
         }
@@ -138,17 +138,17 @@ struct CopyButtonsOverlay: View {
             text = node.plainValue
         }
         ClipboardService.shared.writeText(text)
-        ToastManager.shared.show(String(localized: "toast.key_value_copied"))
+        ToastManager.shared.show("Key & Value copied to clipboard")
     }
 
     private func copyJSON() {
         let value = node.value
-        ToastManager.shared.show(String(localized: "toast.copying"))
+        ToastManager.shared.show("Copying...")
         Task.detached {
             let text = value.toJSONString(prettyPrinted: true) ?? ""
             await MainActor.run {
                 ClipboardService.shared.writeText(text)
-                ToastManager.shared.show(String(localized: "toast.json_copied"))
+                ToastManager.shared.show("JSON copied!")
             }
         }
     }

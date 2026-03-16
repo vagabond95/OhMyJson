@@ -164,10 +164,10 @@ class WindowManager: NSObject, NSWindowDelegate, WindowManagerProtocol {
 
     private func showQuitConfirmation() {
         let alert = NSAlert()
-        alert.messageText = String(localized: "alert.quit_app.title")
-        alert.informativeText = String(localized: "alert.quit_app.message")
-        alert.addButton(withTitle: String(localized: "alert.quit_app.quit"))
-        alert.addButton(withTitle: String(localized: "alert.quit_app.cancel"))
+        alert.messageText = "Quit OhMyJson?"
+        alert.informativeText = "The app will quit. Your tabs will be restored next time."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Cancel")
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {

@@ -218,17 +218,17 @@ struct ViewerWindow: View {
             viewModel.loadInitialContent()
         }
         .alert(
-            String(localized: "alert.compare_large_json.title"),
+            "JSON Too Large",
             isPresented: $viewModel.showCompareLargeJSONAlert
         ) {
-            Button(String(localized: "alert.compare_large_json.open_new_tab")) {
+            Button("Open in New Tab") {
                 viewModel.confirmCompareLargeJSONNewTab()
             }
-            Button(String(localized: "alert.compare_large_json.cancel"), role: .cancel) {
+            Button("Cancel", role: .cancel) {
                 viewModel.cancelCompareLargeJSONAlert()
             }
         } message: {
-            Text(String(localized: "alert.compare_large_json.message"))
+            Text("This JSON is too large for Compare mode. Would you like to open it in a new tab?")
         }
         .onDisappear {
             if let monitor = keyMonitor {
@@ -296,8 +296,8 @@ struct ViewerWindow: View {
                     .disabled(viewModel.viewMode != .tree || viewModel.isLargeJSON)
                     .instantTooltip(
                         viewModel.isLargeJSON && viewModel.viewMode == .tree
-                            ? String(localized: "tooltip.expand_all_unavailable_large")
-                            : String(localized: "tooltip.expand_all"),
+                            ? "Expand All is unavailable for large JSON"
+                            : "Expand All (⌘⇧+)",
                         position: .bottom
                     )
 
@@ -309,7 +309,7 @@ struct ViewerWindow: View {
                             .toolbarIconHover()
                     }
                     .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "tooltip.collapse_all"), position: .bottom)
+                    .instantTooltip("Collapse All (⌘⇧-)", position: .bottom)
                     .opacity(viewModel.viewMode == .tree ? 1 : 0)
                     .disabled(viewModel.viewMode != .tree)
 
@@ -325,7 +325,7 @@ struct ViewerWindow: View {
                             .toolbarIconHover(isActive: viewModel.isSearchVisible)
                     }
                     .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "tooltip.search"), position: .bottom)
+                    .instantTooltip("Search (⌘F)", position: .bottom)
 
                     Button(action: viewModel.copyAllJSON) {
                         Image(systemName: "doc.on.doc")
@@ -335,7 +335,7 @@ struct ViewerWindow: View {
                             .toolbarIconHover()
                     }
                     .buttonStyle(.plain)
-                    .instantTooltip(String(localized: "tooltip.copy_all"), position: .bottom)
+                    .instantTooltip("Copy All", position: .bottom)
                 }
             }
             .padding(.horizontal, 12)
@@ -382,9 +382,9 @@ struct ViewerWindow: View {
                 .disabled(isDisabled)
                 .instantTooltip(
                     isDisabled
-                        ? String(localized: mode == .beautify
-                            ? "tooltip.beautify_unavailable_large"
-                            : "tooltip.compare_unavailable_large")
+                        ? (mode == .beautify
+                            ? "Beautify is unavailable for large JSON"
+                            : "Compare is unavailable for large JSON")
                         : mode.tooltipText,
                     position: .bottom
                 )
