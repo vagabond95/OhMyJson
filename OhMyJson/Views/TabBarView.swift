@@ -123,6 +123,7 @@ struct TabBarView: View {
                                     isActive: isActive,
                                     isHovered: isHovered,
                                     isDragging: isDragging,
+                                    isNewlyCreated: tab.id == viewModel.newlyCreatedTabId,
                                     tabWidth: tabWidth,
                                     showGradient: isCompressed,
                                     backgroundColor: tabBackgroundColor(
@@ -152,6 +153,10 @@ struct TabBarView: View {
                                 WindowDraggableArea()
                                     .frame(width: Layout.tabSpacing, height: Layout.buttonHeight)
                             }
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .opacity
+                            ))
                             .offset(x: visualOffsetForTab(tab.id, slotWidth: slotWidth))
                             .zIndex(isDragging ? 1 : 0)
                             .opacity(isDragging ? 0.8 : 1.0)
@@ -290,6 +295,7 @@ struct TabItemView: View {
     let isActive: Bool
     let isHovered: Bool
     let isDragging: Bool
+    let isNewlyCreated: Bool
     let tabWidth: CGFloat
     let showGradient: Bool
     let backgroundColor: Color
@@ -415,6 +421,12 @@ struct TabItemView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 4)
                 .stroke(strokeColor, lineWidth: 0.5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(theme.newTabHighlight.opacity(isNewlyCreated ? 1 : 0))
+                .animation(.easeOut(duration: Animation.highlightPulse), value: isNewlyCreated)
+                .allowsHitTesting(false)
         )
         .contentShape(Rectangle())
         .onTapGesture {

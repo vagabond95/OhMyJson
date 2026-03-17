@@ -2452,6 +2452,66 @@ struct ViewerViewModelTests {
 
         #expect(vm.formattedJSON == "formatted output")
     }
+
+    // MARK: - newlyCreatedTabId (Highlight Pulse)
+
+    @Test("createNewTab sets newlyCreatedTabId to the new tab's ID")
+    func createNewTabSetsNewlyCreatedTabId() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        vm.createNewTab(with: #"{"a":1}"#)
+
+        #expect(vm.newlyCreatedTabId != nil)
+        #expect(vm.newlyCreatedTabId == tabManager.activeTabId)
+    }
+
+    @Test("reuseEmptyTab does not set newlyCreatedTabId")
+    func reuseEmptyTabDoesNotSetNewlyCreatedTabId() {
+        let (vm, _, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        // Create an empty tab
+        vm.createNewTab(with: nil)
+        // Reset highlight from first creation
+        vm.newlyCreatedTabId = nil
+
+        // Reuse the empty tab — should not set newlyCreatedTabId
+        vm.createNewTab(with: #"{"b":2}"#)
+
+        #expect(vm.newlyCreatedTabId == nil)
+    }
+
+    @Test("newlyCreatedTabId is not set during tab state restoration")
+    func newlyCreatedTabIdNotSetDuringRestoration() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        vm.isRestoringTabState = true
+        vm.createNewTab(with: #"{"a":1}"#)
+
+        #expect(vm.newlyCreatedTabId == nil)
+        vm.isRestoringTabState = false
+    }
+
+    @Test("consecutive createNewTab updates newlyCreatedTabId to latest tab")
+    func consecutiveCreateNewTabUpdatesHighlight() {
+        let (vm, tabManager, _, parser, _) = makeSUT()
+        parser.parseResult = .success(JSONNode(value: .null))
+        vm.onNeedShowWindow = {}
+
+        vm.createNewTab(with: #"{"a":1}"#)
+        let firstTabId = vm.newlyCreatedTabId
+
+        vm.createNewTab(with: #"{"b":2}"#)
+        let secondTabId = vm.newlyCreatedTabId
+
+        #expect(firstTabId != secondTabId)
+        #expect(secondTabId == tabManager.activeTabId)
+    }
 }
 
 // Serialized suite to avoid UserDefaults race conditions in parallel test execution

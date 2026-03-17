@@ -48,6 +48,10 @@ class ViewerViewModel {
     /// Whether a tab is currently being renamed (for key monitor protection)
     var isRenamingTab: Bool = false
 
+    /// ID of a newly created tab for highlight pulse animation
+    var newlyCreatedTabId: UUID?
+    @ObservationIgnored private var highlightDismissTask: DispatchWorkItem?
+
     /// Incremented each time an external tap requests commit of the active tab rename.
     var tabRenameCommitSignal: Int = 0
 
@@ -231,6 +235,7 @@ class ViewerViewModel {
         searchCountTask?.cancel()
         compareDiffTask?.cancel()
         compareDebounceTask?.cancel()
+        highlightDismissTask?.cancel()
         indentCancellable = nil
         onNeedShowWindow = nil
         quitConfirmationHandler = nil
@@ -444,8 +449,24 @@ class ViewerViewModel {
         let isLarge = (jsonString?.utf8.count ?? 0) > InputSize.displayThreshold
         let displayText = isLarge ? ViewerViewModel.buildLargeInputNotice(jsonString!) : jsonString
 
-        // Create tab with display text (truncated or full)
-        let tabId = tabManager.createTab(with: displayText)
+        // Create tab with display text (truncated or full) — animate slide-in
+        var tabId: UUID!
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            tabId = tabManager.createTab(with: displayText)
+        }
+
+        // Highlight pulse for newly created tab
+        if !isRestoringTabState {
+            highlightDismissTask?.cancel()
+            newlyCreatedTabId = tabId
+            let task = DispatchWorkItem { [weak self] in
+                withAnimation(.easeOut(duration: Animation.highlightPulse)) {
+                    self?.newlyCreatedTabId = nil
+                }
+            }
+            highlightDismissTask = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + Animation.highlightDelay, execute: task)
+        }
 
         // Store full text reference if large
         if isLarge, let full = jsonString {

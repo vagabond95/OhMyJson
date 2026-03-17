@@ -29,6 +29,8 @@ enum Animation {
     static let quick: TimeInterval    = 0.15
     static let standard: TimeInterval = 0.2
     static let slow: TimeInterval     = 0.3
+    static let highlightPulse: TimeInterval = 0.5
+    static let highlightDelay: TimeInterval = 0.6
 }
 
 // MARK: - Display Durations

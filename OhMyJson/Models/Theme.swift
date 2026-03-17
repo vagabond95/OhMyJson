@@ -119,6 +119,9 @@ protocol AppTheme {
     // Color scheme
     var colorScheme: ColorScheme { get }
 
+    // New tab highlight
+    var newTabHighlight: Color { get }
+
     // Diff colors (Compare mode)
     var diffAddedBg: Color { get }
     var diffRemovedBg: Color { get }
@@ -184,6 +187,12 @@ struct DarkTheme: AppTheme {
     let shadowOpacity: Double = 0.3
 
     let colorScheme: ColorScheme = .dark
+
+    // New tab highlight
+    let newTabHighlight: Color = {
+        var c: [CGFloat] = [1.0, 1.0, 1.0, 0.08]
+        return Color(nsColor: NSColor(colorSpace: .sRGB, components: &c, count: 4))
+    }()
 
     // Diff colors
     let diffAddedBg = Color(.sRGB, red: 34/255, green: 197/255, blue: 94/255, opacity: 0.15)
@@ -262,6 +271,12 @@ struct LightTheme: AppTheme {
     let shadowOpacity: Double = 0.1
 
     let colorScheme: ColorScheme = .light
+
+    // New tab highlight
+    let newTabHighlight: Color = {
+        var c: [CGFloat] = [0.85, 0.89, 0.94, 0.6]
+        return Color(nsColor: NSColor(colorSpace: .sRGB, components: &c, count: 4))
+    }()
 
     // Diff colors
     let diffAddedBg = Color(.sRGB, red: 34/255, green: 197/255, blue: 94/255, opacity: 0.12)
