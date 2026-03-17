@@ -296,9 +296,11 @@ class AppSettings {
         let storedVersion = UserDefaults.standard.string(forKey: lastInstalledVersionKey)
 
         if let storedVersion = storedVersion, storedVersion != currentVersion {
+            let hadSeenOnboarding = UserDefaults.standard.bool(forKey: hasSeenOnboardingKey)
             if let bundleId = Bundle.main.bundleIdentifier {
                 UserDefaults.standard.removePersistentDomain(forName: bundleId)
             }
+            UserDefaults.standard.set(hadSeenOnboarding, forKey: hasSeenOnboardingKey)
         }
 
         UserDefaults.standard.set(currentVersion, forKey: lastInstalledVersionKey)

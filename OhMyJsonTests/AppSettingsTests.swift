@@ -504,10 +504,10 @@ struct AppSettingsDefaultsTests {
 
     // MARK: - Version Reset / Onboarding Re-show Tests
 
-    /// 버전 변경 시 removePersistentDomain으로 hasSeenOnboarding도 함께 리셋되어
-    /// 업데이트 후 온보딩이 다시 표시되는지 검증한다.
-    @Test("hasSeenOnboarding is reset to false on version change")
-    func onboardingResetOnVersionChange() {
+    /// 버전 변경 시 removePersistentDomain으로 설정이 초기화되지만
+    /// hasSeenOnboarding은 보존되어 업데이트 후 온보딩이 다시 표시되지 않는지 검증한다.
+    @Test("hasSeenOnboarding is preserved on version change")
+    func onboardingPreservedOnVersionChange() {
         let suiteName = "com.test.AppSettings.versionReset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -523,15 +523,17 @@ struct AppSettingsDefaultsTests {
         let currentVersion = "0.4.0"
         let storedVersion = defaults.string(forKey: lastInstalledVersionKey)
         if let storedVersion = storedVersion, storedVersion != currentVersion {
+            let hadSeenOnboarding = defaults.bool(forKey: hasSeenOnboardingKey)
             defaults.removePersistentDomain(forName: suiteName)
+            defaults.set(hadSeenOnboarding, forKey: hasSeenOnboardingKey)
         }
         defaults.set(currentVersion, forKey: lastInstalledVersionKey)
 
-        #expect(defaults.bool(forKey: hasSeenOnboardingKey) == false,
-                "hasSeenOnboarding must be reset to false after version change")
+        #expect(defaults.bool(forKey: hasSeenOnboardingKey) == true,
+                "hasSeenOnboarding must be preserved after version change")
     }
 
-    @Test("All settings including hasSeenOnboarding are cleared on version change")
+    @Test("hasSeenOnboarding is preserved but other settings are cleared on version change")
     func allSettingsClearedOnVersionReset() {
         let suiteName = "com.test.AppSettings.versionReset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -548,12 +550,14 @@ struct AppSettingsDefaultsTests {
         let currentVersion = "0.4.0"
         let storedVersion = defaults.string(forKey: lastInstalledVersionKey)
         if let storedVersion = storedVersion, storedVersion != currentVersion {
+            let hadSeenOnboarding = defaults.bool(forKey: hasSeenOnboardingKey)
             defaults.removePersistentDomain(forName: suiteName)
+            defaults.set(hadSeenOnboarding, forKey: hasSeenOnboardingKey)
         }
         defaults.set(currentVersion, forKey: lastInstalledVersionKey)
 
-        #expect(defaults.bool(forKey: hasSeenOnboardingKey) == false,
-                "hasSeenOnboarding must be cleared by the version reset")
+        #expect(defaults.bool(forKey: hasSeenOnboardingKey) == true,
+                "hasSeenOnboarding must be preserved by the version reset")
         #expect(defaults.string(forKey: someOtherKey) == nil,
                 "Other settings must be cleared by the version reset")
     }
