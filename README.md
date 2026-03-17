@@ -18,6 +18,7 @@
 
 - **Beautify** — One-click pretty-print with syntax highlighting
 - **Tree View** — Collapsible tree to explore deeply nested JSON at a glance
+- **Compare** — Side-by-side structural diff of two JSONs with added/removed/modified highlighting
 - **Global Hotkey** — Press `Ctrl+Option+J` anywhere to instantly format clipboard JSON
 - **Tab Persistence** — Your tabs and contents are saved across app restarts
 
