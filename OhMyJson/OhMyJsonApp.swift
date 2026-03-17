@@ -19,7 +19,7 @@ struct OhMyJsonApp: App {
         }
         #else
         WindowGroup {
-            Text("app.macos_only")
+            Text("OhMyJson is available on macOS only.")
         }
         #endif
     }

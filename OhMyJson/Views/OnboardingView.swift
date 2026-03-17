@@ -226,7 +226,7 @@ struct OnboardingView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12, weight: .medium))
-                        Text("onboarding.copy_json")
+                        Text("Copy JSON")
                             .font(.system(size: 13, weight: .medium))
                     }
                     .foregroundColor(textPrimary)
@@ -261,7 +261,7 @@ struct OnboardingView: View {
 
         return PhaseAnimator([false, true]) { phase in
             VStack(spacing: 14) {
-                Text("onboarding.now_press")
+                Text("Now press")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(textSecondary)
 
@@ -284,7 +284,7 @@ struct OnboardingView: View {
                     }
                 }
 
-                Text("onboarding.to_view")
+                Text("to view formatted JSON")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(textSecondary)
             }
