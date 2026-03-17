@@ -334,12 +334,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, SPUUpdater
     }
 
     @objc private func showSettings(_ sender: Any?) {
-        // Try SwiftUI Settings scene first (works on macOS 14+ Tahoe)
-        if NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
-            NSApp.activate()
-            return
-        }
-        // Fallback: manual NSWindow (pre-Tahoe compatibility)
+        // Always use manual NSWindow — SwiftUI's showSettingsWindow: selector is
+        // unreliable for LSUIElement apps in macOS Tahoe (returns true without
+        // actually showing the window).
         openManualSettingsWindow()
     }
 

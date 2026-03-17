@@ -13,6 +13,29 @@ import Combine
 // Custom NSHostingView that prevents window dragging from titlebar area
 class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
     override var mouseDownCanMoveWindow: Bool { false }
+
+    /// macOS Tahoe 26.x: NSHostingView's performKeyEquivalent may consume ⌘-key
+    /// events (Cmd+N, Cmd+F, Cmd+1/2/3, etc.) even when no SwiftUI view handles them,
+    /// preventing the menu system from receiving the events.
+    ///
+    /// Fix: only let the view hierarchy handle editing shortcuts (Cmd+C/V/X/A/Z)
+    /// which NSTextView subclasses need. All other ⌘ shortcuts return false so the
+    /// menu bar handles them.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard event.modifierFlags.contains(.command) else {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
+        // Editing shortcuts → let NSTextView subclasses handle via view hierarchy
+        if ["c", "v", "x", "a", "z"].contains(chars) {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        // All other ⌘ shortcuts → return false so the menu system handles them
+        return false
+    }
 }
 
 /// NSView placed in the empty tab bar space to enable window dragging from there.
