@@ -1,7 +1,7 @@
 <p align="center">
   <img src="Resources/icon.png" width="128" height="128" alt="OhMyJson icon" />
   <h1 align="center">OhMyJson</h1>
-  <p align="center">A lightning-fast JSON viewer that lives in your menu bar.<br>Press a hotkey, and your clipboard JSON is instantly formatted.</p>
+  <p align="center">Copy JSON, Press hot key. Done.</p>
 </p>
 
 <p align="center">
