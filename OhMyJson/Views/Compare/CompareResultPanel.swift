@@ -16,6 +16,7 @@ struct CompareResultPanels: View {
     @State private var leftScrollPosition: CGFloat = 0
     @State private var rightScrollPosition: CGFloat = 0
     @State private var isSyncingScroll = false
+    @State private var activeSide: CompareSide? = nil
 
     private var theme: AppTheme { settings.currentTheme }
 
@@ -79,8 +80,12 @@ struct CompareResultPanels: View {
                     attributedString: content,
                     scrollPosition: side == .left ? $leftScrollPosition : $rightScrollPosition,
                     contentId: viewModel.compareRenderVersion,
+                    isActive: activeSide == side,
                     onScroll: { offset in
                         handleScroll(offset: offset, from: side)
+                    },
+                    onBecomeActive: {
+                        activeSide = side
                     }
                 )
             } else if bothPanelsEmpty {
@@ -146,16 +151,32 @@ struct CompareResultPanels: View {
     }
 }
 
+// MARK: - CompareNSTextView (Private subclass)
+
+private class CompareNSTextView: NSTextView {
+    var onBecomeActive: (() -> Void)?
+
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        if result {
+            onBecomeActive?()
+        }
+        return result
+    }
+}
+
 // MARK: - CompareResultTextView (NSViewRepresentable)
 
 struct CompareResultTextView: NSViewRepresentable {
     let attributedString: NSAttributedString
     @Binding var scrollPosition: CGFloat
     var contentId: Int
+    var isActive: Bool
     var onScroll: ((CGFloat) -> Void)?
+    var onBecomeActive: (() -> Void)?
 
     func makeNSView(context: Context) -> NSScrollView {
-        let textView = NSTextView(usingTextLayoutManager: true)
+        let textView = CompareNSTextView(usingTextLayoutManager: true)
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
@@ -164,6 +185,9 @@ struct CompareResultTextView: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true
         textView.autoresizingMask = [.width]
+        textView.onBecomeActive = { [weak coordinator = context.coordinator] in
+            coordinator?.handleBecomeActive()
+        }
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -189,25 +213,35 @@ struct CompareResultTextView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
-        guard let textView = context.coordinator.textView else { return }
+        let coordinator = context.coordinator
+        guard let textView = coordinator.textView else { return }
+
+        // Update callbacks
+        coordinator.onBecomeActive = onBecomeActive
 
         // Update content only when contentId changes
-        if context.coordinator.lastContentId != contentId {
-            context.coordinator.lastContentId = contentId
+        if coordinator.lastContentId != contentId {
+            coordinator.lastContentId = contentId
             textView.textStorage?.setAttributedString(attributedString)
         }
 
+        // Clear selection when deactivated
+        if !isActive && coordinator.lastActiveState {
+            textView.setSelectedRange(NSRange(location: 0, length: 0))
+        }
+        coordinator.lastActiveState = isActive
+
         // Restore scroll position
-        if context.coordinator.lastSetScrollPosition != scrollPosition {
-            context.coordinator.lastSetScrollPosition = scrollPosition
-            context.coordinator.isProgrammaticScroll = true
+        if coordinator.lastSetScrollPosition != scrollPosition {
+            coordinator.lastSetScrollPosition = scrollPosition
+            coordinator.isProgrammaticScroll = true
             let contentView = nsView.contentView
             let maxY = max(0, (nsView.documentView?.frame.height ?? 0) - contentView.bounds.height)
             let y = min(scrollPosition, maxY)
             contentView.scroll(to: NSPoint(x: 0, y: y))
             nsView.reflectScrolledClipView(contentView)
             DispatchQueue.main.async {
-                context.coordinator.isProgrammaticScroll = false
+                coordinator.isProgrammaticScroll = false
             }
         }
     }
@@ -223,9 +257,15 @@ struct CompareResultTextView: NSViewRepresentable {
         var lastContentId: Int = -1
         var lastSetScrollPosition: CGFloat = -1
         var isProgrammaticScroll = false
+        var lastActiveState: Bool = false
+        var onBecomeActive: (() -> Void)?
 
         init(parent: CompareResultTextView) {
             self.parent = parent
+        }
+
+        func handleBecomeActive() {
+            onBecomeActive?()
         }
 
         @objc func scrollViewDidScroll(_ notification: Notification) {

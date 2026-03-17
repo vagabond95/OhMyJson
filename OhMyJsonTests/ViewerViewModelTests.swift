@@ -2807,47 +2807,6 @@ struct ViewerViewModelCompareTests {
         #expect(vm.compareStrictType == !initial)
     }
 
-    @Test("handleHotKey in compare mode routes text to left panel when empty")
-    func handleHotKeyCompareLeftEmpty() {
-        let (vm, tabManager, clipboard, _, windowManager, _) = makeSUT(clipboardText: "{\"hot\": \"key\"}")
-        tabManager.activeTabId = UUID()
-        windowManager.isViewerOpen = true
-        vm.switchViewMode(to: .compare)
-
-        vm.handleHotKey()
-
-        #expect(vm.compareLeftText == "{\"hot\": \"key\"}")
-    }
-
-    @Test("handleHotKey in compare mode routes text to right panel when left is filled")
-    func handleHotKeyCompareRightEmpty() {
-        let (vm, tabManager, clipboard, _, windowManager, _) = makeSUT(clipboardText: "{\"right\": true}")
-        tabManager.activeTabId = UUID()
-        windowManager.isViewerOpen = true
-        vm.switchViewMode(to: .compare)
-        vm.compareLeftText = "{\"left\": true}"
-
-        vm.handleHotKey()
-
-        #expect(vm.compareRightText == "{\"right\": true}")
-    }
-
-    @Test("handleHotKey in compare mode stores pending text when both panels filled")
-    func handleHotKeyCompareBothFilled() {
-        let (vm, tabManager, _, _, windowManager, _) = makeSUT(clipboardText: "{\"pending\": true}")
-        tabManager.activeTabId = UUID()
-        windowManager.isViewerOpen = true
-        vm.switchViewMode(to: .compare)
-        vm.compareLeftText = "{\"left\": true}"
-        vm.compareRightText = "{\"right\": true}"
-
-        vm.handleHotKey()
-
-        // Both panels still have original text
-        #expect(vm.compareLeftText == "{\"left\": true}")
-        #expect(vm.compareRightText == "{\"right\": true}")
-    }
-
     @Test("compareLeftText observation triggers view update")
     func compareLeftTextObservation() {
         let (vm, _, _, _, _, _) = makeSUT()
@@ -2906,32 +2865,21 @@ struct ViewerViewModelCompareTests {
         #expect(vm.compareRightGeneration == rightBefore + 1)
     }
 
-    @Test("handleHotKeyInCompareMode increments left generation when left is empty")
-    func handleHotKeyInCompareModeLeftGeneration() {
-        let (vm, _, _, _, _, _) = makeSUT()
+    @Test("handleHotKey in compare mode creates new tab instead of filling compare panels")
+    func handleHotKeyInCompareModeCreatesNewTab() {
+        let (vm, tabManager, clipboard, _, _, _) = makeSUT()
+        vm.viewMode = .compare
         vm.compareLeftText = ""
         vm.compareRightText = ""
-        let leftBefore = vm.compareLeftGeneration
-        let rightBefore = vm.compareRightGeneration
+        let initialCount = tabManager.tabs.count
+        clipboard.storedText = "{\"a\": 1}"
 
-        vm.handleHotKeyInCompareMode("{\"a\": 1}")
+        vm.handleHotKey()
 
-        #expect(vm.compareLeftGeneration == leftBefore + 1)
-        #expect(vm.compareRightGeneration == rightBefore)
-    }
-
-    @Test("handleHotKeyInCompareMode increments right generation when left is filled")
-    func handleHotKeyInCompareModeRightGeneration() {
-        let (vm, _, _, _, _, _) = makeSUT()
-        vm.compareLeftText = "{\"a\": 1}"
-        vm.compareRightText = ""
-        let leftBefore = vm.compareLeftGeneration
-        let rightBefore = vm.compareRightGeneration
-
-        vm.handleHotKeyInCompareMode("{\"b\": 2}")
-
-        #expect(vm.compareLeftGeneration == leftBefore)
-        #expect(vm.compareRightGeneration == rightBefore + 1)
+        // Should create a new tab, not fill compare panels
+        #expect(tabManager.tabs.count == initialCount + 1)
+        #expect(vm.compareLeftText == "")
+        #expect(vm.compareRightText == "")
     }
 
     // MARK: - Compare Large JSON Blocking
@@ -2985,22 +2933,6 @@ struct ViewerViewModelCompareTests {
         vm.cancelCompareLargeJSONAlert()
 
         #expect(tabManager.tabs.count == initialCount)
-    }
-
-    @Test("handleHotKeyInCompareMode with large JSON opens new tab")
-    func handleHotKeyInCompareModeLargeOpensNewTab() {
-        let (vm, tabManager, _, _, _, _) = makeSUT()
-        vm.compareLeftText = ""
-        vm.compareRightText = ""
-        let initialCount = tabManager.tabs.count
-        let largeJSON = makeLargeJSON()
-
-        vm.handleHotKeyInCompareMode(largeJSON)
-
-        // Large JSON should create a new tab, not fill compare panels
-        #expect(tabManager.tabs.count == initialCount + 1)
-        #expect(vm.compareLeftText == "")
-        #expect(vm.compareRightText == "")
     }
 
     @Test("restoreTabState forces tree mode for large JSON in compare")

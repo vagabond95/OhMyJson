@@ -368,13 +368,6 @@ class ViewerViewModel {
             return
         }
 
-        // In compare mode, route clipboard text to compare panels
-        if viewMode == .compare {
-            showExistingTabs()
-            handleHotKeyInCompareMode(trimmed)
-            return
-        }
-
         // Validate JSON before creating a tab — ignore non-JSON clipboard content
         guard jsonParser.validateJSON(trimmed) else {
             showExistingTabs()
@@ -926,6 +919,8 @@ class ViewerViewModel {
         let storedRight = activeTab.compareRightText ?? ""
         compareLeftText = storedLeft
         compareRightText = storedRight
+        compareLeftParseResult = nil
+        compareRightParseResult = nil
         compareDiffResult = nil
         compareRenderResult = nil
         _inputTextAtLastCompareEntry = nil
@@ -1107,6 +1102,8 @@ class ViewerViewModel {
 
             // Re-trigger diff if left didn't change but both sides have valid parse results
             if !triggeredLeftChange,
+               !compareLeftText.isEmpty,
+               !compareRightText.isEmpty,
                case .success = compareLeftParseResult,
                case .success = compareRightParseResult {
                 runCompareDiff()
@@ -1321,23 +1318,6 @@ class ViewerViewModel {
                 self.isCompareDiffing = false
                 self.compareRenderVersion += 1
             }
-        }
-    }
-
-    func handleHotKeyInCompareMode(_ clipboardText: String) {
-        let isLarge = clipboardText.utf8.count > InputSize.displayThreshold
-        if isLarge {
-            createNewTab(with: clipboardText)
-            return
-        }
-        if compareLeftText.isEmpty {
-            compareLeftGeneration += 1
-            compareLeftText = clipboardText
-            handleCompareLeftTextChange(clipboardText)
-        } else if compareRightText.isEmpty {
-            compareRightGeneration += 1
-            compareRightText = clipboardText
-            handleCompareRightTextChange(clipboardText)
         }
     }
 
