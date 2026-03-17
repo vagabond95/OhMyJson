@@ -20,7 +20,10 @@ struct CompareResultPanels: View {
     private var theme: AppTheme { settings.currentTheme }
 
     var body: some View {
-        if let diffResult = viewModel.compareDiffResult, diffResult.isIdentical {
+        if let diffResult = viewModel.compareDiffResult,
+           diffResult.isIdentical,
+           !viewModel.compareLeftText.isEmpty,
+           !viewModel.compareRightText.isEmpty {
             noDiffView()
         } else {
             HStack(spacing: 0) {

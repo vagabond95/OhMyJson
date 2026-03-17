@@ -136,6 +136,7 @@ class ViewerViewModel {
     /// Alert state: large JSON was pasted in Compare mode
     var showCompareLargeJSONAlert: Bool = false
     @ObservationIgnored private var _compareLargeJSONPendingText: String?
+    @ObservationIgnored private var _inputTextAtLastCompareEntry: String?
 
     var compareLeftParseResult: JSONParseResult?
     var compareRightParseResult: JSONParseResult?
@@ -160,8 +161,7 @@ class ViewerViewModel {
 
     @ObservationIgnored private var compareDiffTask: Task<Void, Never>?
     @ObservationIgnored private var compareDebounceTask: DispatchWorkItem?
-    @ObservationIgnored private var _pendingHotKeyText: String?
-
+    @ObservationIgnored private var compareDiffGeneration: Int = 0
     private let diffEngine: JSONDiffEngineProtocol
 
     // MARK: - Internal State
@@ -928,6 +928,7 @@ class ViewerViewModel {
         compareRightText = storedRight
         compareDiffResult = nil
         compareRenderResult = nil
+        _inputTextAtLastCompareEntry = nil
         compareCollapsedSections = []
         if viewMode == .compare {
             parseCompareLeft(storedLeft)
@@ -1086,14 +1087,29 @@ class ViewerViewModel {
 
         let previousMode = viewMode
 
-        // Entering compare mode: copy inputText to left panel if empty
+        // Entering compare mode: clear stale results and copy inputText to left panel if changed
         if mode == .compare && previousMode != .compare {
-            if compareLeftText.isEmpty {
-                let textToCopy = fullInputText ?? inputText
-                if !textToCopy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // Always clear previous diff/render results to prevent stale display
+            compareDiffResult = nil
+            compareRenderResult = nil
+            isCompareDiffing = false
+
+            let textToCopy = fullInputText ?? inputText
+            var triggeredLeftChange = false
+            if !textToCopy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if _inputTextAtLastCompareEntry != textToCopy || compareLeftText.isEmpty {
                     compareLeftText = textToCopy
                     handleCompareLeftTextChange(compareLeftText)
+                    triggeredLeftChange = true
                 }
+            }
+            _inputTextAtLastCompareEntry = textToCopy
+
+            // Re-trigger diff if left didn't change but both sides have valid parse results
+            if !triggeredLeftChange,
+               case .success = compareLeftParseResult,
+               case .success = compareRightParseResult {
+                runCompareDiff()
             }
         }
 
@@ -1149,8 +1165,11 @@ class ViewerViewModel {
         compareLeftGeneration += 1
         compareLeftText = ""
         compareLeftParseResult = nil
+        compareDiffTask?.cancel()
+        compareDebounceTask?.cancel()
         compareDiffResult = nil
         compareRenderResult = nil
+        isCompareDiffing = false
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabCompareState(id: activeTabId, leftText: nil, rightText: compareRightText)
         }
@@ -1160,8 +1179,11 @@ class ViewerViewModel {
         compareRightGeneration += 1
         compareRightText = ""
         compareRightParseResult = nil
+        compareDiffTask?.cancel()
+        compareDebounceTask?.cancel()
         compareDiffResult = nil
         compareRenderResult = nil
+        isCompareDiffing = false
         if let activeTabId = tabManager.activeTabId {
             tabManager.updateTabCompareState(id: activeTabId, leftText: compareLeftText, rightText: nil)
         }
@@ -1231,6 +1253,14 @@ class ViewerViewModel {
 
     private func scheduleCompareDiff() {
         compareDebounceTask?.cancel()
+        compareDiffTask?.cancel()
+
+        // Clear stale results immediately so the UI never shows outdated diff badges
+        // while waiting for the debounced re-computation.
+        compareDiffResult = nil
+        compareRenderResult = nil
+        isCompareDiffing = false
+
         let task = DispatchWorkItem { [weak self] in
             self?.runCompareDiff()
         }
@@ -1249,6 +1279,8 @@ class ViewerViewModel {
             return
         }
 
+        compareDiffGeneration += 1
+        let currentGeneration = compareDiffGeneration
         isCompareDiffing = true
         let leftValue = leftRoot.value
         let rightValue = rightRoot.value
@@ -1258,7 +1290,6 @@ class ViewerViewModel {
             strictType: compareStrictType
         )
         let engine = self.diffEngine
-        let parser = self.jsonParser
         let leftText = self.compareLeftText
         let rightText = self.compareRightText
 
@@ -1283,7 +1314,8 @@ class ViewerViewModel {
             guard !Task.isCancelled else { return }
 
             await MainActor.run { [weak self] in
-                guard let self else { return }
+                guard let self,
+                      self.compareDiffGeneration == currentGeneration else { return }
                 self.compareDiffResult = result
                 self.compareRenderResult = renderResult
                 self.isCompareDiffing = false
@@ -1306,9 +1338,6 @@ class ViewerViewModel {
             compareRightGeneration += 1
             compareRightText = clipboardText
             handleCompareRightTextChange(clipboardText)
-        } else {
-            // Both panels have content — store for later prompt
-            _pendingHotKeyText = clipboardText
         }
     }
 
@@ -1336,6 +1365,7 @@ class ViewerViewModel {
         tabManager.updateTabInput(id: activeTabId, text: "")
         tabManager.updateTabParseResult(id: activeTabId, result: .success(JSONNode(key: nil, value: .null)))
         tabManager.updateTabSearchState(id: activeTabId, searchText: "", beautifySearchIndex: 0, treeSearchIndex: 0)
+        tabManager.updateTabCompareState(id: activeTabId, leftText: nil, rightText: nil)
 
         tabGeneration += 1
         inputText = ""
@@ -1348,8 +1378,22 @@ class ViewerViewModel {
         beautifySearchDismissed = false
         treeSearchDismissed = false
 
-        // Clear compare pending state
+        // Clear compare state
+        compareDiffTask?.cancel()
+        compareDebounceTask?.cancel()
+        isCompareDiffing = false
+        showCompareLargeJSONAlert = false
+        compareLeftText = ""
+        compareRightText = ""
+        compareLeftParseResult = nil
+        compareRightParseResult = nil
+        compareDiffResult = nil
+        compareRenderResult = nil
+        compareCollapsedSections = []
+        compareSyncScrollOffset = 0
+        compareSyncScrollSide = .left
         _compareLargeJSONPendingText = nil
+        _inputTextAtLastCompareEntry = nil
     }
 
     func setUpdateAvailable(version: String) {

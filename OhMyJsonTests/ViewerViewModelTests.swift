@@ -2620,14 +2620,14 @@ struct ViewerViewModelCompareTests {
         #expect(vm.compareLeftText == "{\"key\": \"value\"}")
     }
 
-    @Test("switchViewMode to compare does not overwrite existing left text")
-    func switchToComparePreservesExistingLeft() {
+    @Test("switchViewMode to compare overwrites stale left text when inputText changed")
+    func switchToCompareOverwritesStaleLeft() {
         let (vm, tabManager, _, _, _, _) = makeSUT()
         tabManager.activeTabId = UUID()
         vm.compareLeftText = "{\"existing\": true}"
         vm.inputText = "{\"new\": false}"
         vm.switchViewMode(to: .compare)
-        #expect(vm.compareLeftText == "{\"existing\": true}")
+        #expect(vm.compareLeftText == "{\"new\": false}")
     }
 
     @Test("switchViewMode from compare to beautify preserves compare state")
@@ -2642,6 +2642,109 @@ struct ViewerViewModelCompareTests {
         // Compare text should still be retained for when user switches back
         #expect(vm.compareLeftText == "{\"left\": 1}")
         #expect(vm.compareRightText == "{\"right\": 2}")
+    }
+
+    @Test("re-entering compare after inputText changed should reflect new input")
+    func reEnterCompareAfterInputChange() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.inputText = "{\"v\": 1}"
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"v\": 1}")
+
+        vm.switchViewMode(to: .tree)
+        vm.inputText = "{\"v\": 2}"
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"v\": 2}")
+    }
+
+    @Test("clearAll resets compare state")
+    func clearAllResetsCompareState() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.inputText = "{\"a\": 1}"
+        vm.switchViewMode(to: .compare)
+        vm.compareRightText = "{\"b\": 2}"
+        vm.switchViewMode(to: .tree)
+        vm.clearAll()
+        #expect(vm.compareLeftText == "")
+        #expect(vm.compareRightText == "")
+    }
+
+    @Test("clearAll resets isCompareDiffing")
+    func clearAllResetsIsCompareDiffing() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.isCompareDiffing = true
+        vm.clearAll()
+        #expect(vm.isCompareDiffing == false)
+    }
+
+    @Test("clearAll resets showCompareLargeJSONAlert")
+    func clearAllResetsCompareLargeJSONAlert() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.showCompareLargeJSONAlert = true
+        vm.clearAll()
+        #expect(vm.showCompareLargeJSONAlert == false)
+    }
+
+    @Test("clearAll resets compareCollapsedSections")
+    func clearAllResetsCompareCollapsedSections() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.compareCollapsedSections = [0, 1, 2]
+        vm.clearAll()
+        #expect(vm.compareCollapsedSections.isEmpty)
+    }
+
+    @Test("after clearAll, entering compare with new input uses new input")
+    func compareAfterClearAllReflectsNewInput() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.inputText = "{\"old\": 1}"
+        vm.switchViewMode(to: .compare)
+        vm.switchViewMode(to: .tree)
+        vm.clearAll()
+        vm.inputText = "{\"new\": 2}"
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"new\": 2}")
+    }
+
+    @Test("entering compare after tab restore with stale compareLeftText uses current inputText")
+    func compareAfterTabRestoreReflectsCurrentInput() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.compareLeftText = "{\"old\": true}"
+        vm.inputText = "{\"new\": true}"
+        vm.viewMode = .tree
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"new\": true}")
+    }
+
+    @Test("re-entering compare without inputText change preserves compare state")
+    func reEnterCompareWithoutInputChangePreserves() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.inputText = "{\"v\": 1}"
+        vm.switchViewMode(to: .compare)
+        vm.compareLeftText = "{\"edited in compare\"}"
+        vm.switchViewMode(to: .tree)
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"edited in compare\"}")
+    }
+
+    @Test("re-entering compare with fullInputText uses full text")
+    func reEnterCompareUsesFullInputText() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.inputText = "{\"small\": 1}"
+        vm.switchViewMode(to: .compare)
+        vm.switchViewMode(to: .tree)
+        vm.fullInputText = "{\"large\": \"full\"}"
+        vm.inputText = "truncated..."
+        vm.switchViewMode(to: .compare)
+        #expect(vm.compareLeftText == "{\"large\": \"full\"}")
     }
 
     @Test("clearCompareLeft clears left text and parse result")
@@ -2926,6 +3029,99 @@ struct ViewerViewModelCompareTests {
 
         vm.showCompareLargeJSONAlert = true
         #expect(observed)
+    }
+
+    // MARK: - Compare State Cleanup on Mode Entry
+
+    @Test("switchViewMode to compare clears stale compareDiffResult")
+    func switchToCompareClearsStaleCompareDiffResult() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.viewMode = .tree
+        vm.compareDiffResult = CompareDiffResult(items: [])
+
+        vm.switchViewMode(to: .compare)
+
+        #expect(vm.compareDiffResult == nil)
+    }
+
+    @Test("switchViewMode to compare clears stale compareRenderResult")
+    func switchToCompareClearsStaleCompareRenderResult() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.viewMode = .tree
+        vm.compareRenderResult = CompareRenderResult(
+            leftContent: NSAttributedString(string: "old"),
+            rightContent: NSAttributedString(string: "old"),
+            leftLines: [],
+            rightLines: [],
+            totalLines: 0
+        )
+
+        vm.switchViewMode(to: .compare)
+
+        #expect(vm.compareRenderResult == nil)
+    }
+
+    @Test("switchViewMode to compare resets isCompareDiffing")
+    func switchToCompareResetsIsCompareDiffing() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.viewMode = .tree
+        vm.isCompareDiffing = true
+
+        vm.switchViewMode(to: .compare)
+
+        #expect(vm.isCompareDiffing == false)
+    }
+
+    @Test("clearCompareLeft resets isCompareDiffing")
+    func clearCompareLeftResetsIsCompareDiffing() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.isCompareDiffing = true
+        vm.compareLeftText = "{\"a\":1}"
+
+        vm.clearCompareLeft()
+
+        #expect(vm.isCompareDiffing == false)
+    }
+
+    @Test("clearCompareRight resets isCompareDiffing")
+    func clearCompareRightResetsIsCompareDiffing() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.isCompareDiffing = true
+        vm.compareRightText = "{\"b\":2}"
+
+        vm.clearCompareRight()
+
+        #expect(vm.isCompareDiffing == false)
+    }
+
+    @Test("switchViewMode to compare re-triggers diff when both sides have valid parse results")
+    func switchToCompareRetriggersDiffWhenBothSidesValid() {
+        let (vm, tabManager, _, _, _, _) = makeSUT()
+        tabManager.activeTabId = UUID()
+        vm.viewMode = .compare
+
+        // Set up valid parse results on both sides
+        let leftRoot = JSONNode(value: .object(["a": .number(1)]))
+        let rightRoot = JSONNode(value: .object(["a": .number(2)]))
+        vm.compareLeftText = "{\"a\":1}"
+        vm.compareRightText = "{\"a\":2}"
+        vm.compareLeftParseResult = .success(leftRoot)
+        vm.compareRightParseResult = .success(rightRoot)
+        // Simulate having used compare before with same inputText
+        vm.inputText = ""
+
+        // Switch away and back
+        vm.switchViewMode(to: .tree)
+        vm.isCompareDiffing = false
+        vm.switchViewMode(to: .compare)
+
+        // runCompareDiff() sets isCompareDiffing = true synchronously before starting async Task
+        #expect(vm.isCompareDiffing == true)
     }
 
     // MARK: - suppressNodeCacheRebuild

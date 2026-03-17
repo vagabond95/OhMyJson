@@ -13,7 +13,7 @@ struct PlaceholderView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Paste JSON on the left to view")
+            Text("I'm waiting...")
                 .font(.system(.body, design: .monospaced))
                 .foregroundColor(theme.secondaryText)
                 .padding(.top, 6)
